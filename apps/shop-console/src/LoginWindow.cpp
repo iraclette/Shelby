@@ -13,7 +13,7 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     resize(360, 260);
 
     m_email = new QLineEdit(this);
-    m_email->setPlaceholderText("Email");
+    m_email->setPlaceholderText("Username");
 
     m_password = new QLineEdit(this);
     m_password->setPlaceholderText("Password");
@@ -58,5 +58,16 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
 void LoginWindow::handleSignIn() {
     m_errorLabel->clear();
     m_signInButton->setEnabled(false);
-    m_client->signIn(m_email->text(), m_password->text());
+
+    // Staff log in with a short username (e.g. "shelby") rather than a real
+    // email address — Supabase Auth still needs an email-shaped identity
+    // under the hood, so anything without an "@" gets a fixed fake domain
+    // appended. Accounts must be created in the dashboard using that same
+    // form, e.g. "shelby@shop.local".
+    QString identifier = m_email->text().trimmed();
+    if (!identifier.contains('@')) {
+        identifier += "@shop.local";
+    }
+
+    m_client->signIn(identifier, m_password->text());
 }

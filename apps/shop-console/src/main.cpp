@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     QMainWindow *activeWindow = nullptr;
 
     QObject::connect(login, &LoginWindow::authenticated, &app,
-                      [&](const QString &role, const QString & /*shopId*/) {
+                      [&](const QString &role, const QString &shopId) {
         login->hide();
 
         const bool isAdmin = role == "owner" || role == "admin";
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
                 login->show();
             });
         } else {
-            activeWindow = new PosWindow();
+            activeWindow = new PosWindow(client, shopId);
             QObject::connect(static_cast<PosWindow *>(activeWindow), &PosWindow::signedOut,
                               &app, [&]() {
                 activeWindow->close();

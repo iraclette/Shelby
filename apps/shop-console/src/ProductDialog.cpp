@@ -1,0 +1,219 @@
+#include "ProductDialog.h"
+
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QInputDialog>
+#include <QLabel>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QMessageBox>
+#include <QPlainTextEdit>
+#include <QPushButton>
+#include <QRandomGenerator>
+#include <QSpinBox>
+#include <QVBoxLayout>
+
+namespace {
+QString generateInternalSku() {
+    const QString alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1 to avoid label confusion
+    QString code;
+    for (int i = 0; i < 6; ++i) {
+        code += alphabet.at(QRandomGenerator::global()->bounded(alphabet.length()));
+    }
+    return "INT-" + code;
+}
+} // namespace
+
+ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
+    : QDialog(parent), m_client(client) {
+    setWindowTitle("New Product");
+    resize(480, 640);
+
+    m_name = new QLineEdit(this);
+    m_description = new QPlainTextEdit(this);
+    m_description->setFixedHeight(70);
+    m_category = new QComboBox(this);
+    m_costPrice = new QDoubleSpinBox(this);
+    m_costPrice->setRange(0, 999999);
+    m_costPrice->setDecimals(2);
+    m_costPrice->setPrefix("GEL ");
+    m_sellPrice = new QDoubleSpinBox(this);
+    m_sellPrice->setRange(0, 999999);
+    m_sellPrice->setDecimals(2);
+    m_sellPrice->setPrefix("GEL ");
+
+    m_sku = new QLineEdit(this);
+    m_sku->setPlaceholderText("Scan or type the barcode");
+    m_noBarcode = new QCheckBox("No barcode — generate an internal code", this);
+
+    auto *addCategoryButton = new QPushButton("+ New", this);
+    auto *categoryRow = new QHBoxLayout;
+    categoryRow->addWidget(m_category, 1);
+    categoryRow->addWidget(addCategoryButton);
+
+    auto *form = new QFormLayout;
+    form->addRow("Name", m_name);
+    form->addRow("Description", m_description);
+    form->addRow("Category", categoryRow);
+    form->addRow("Cost price", m_costPrice);
+    form->addRow("Sell price", m_sellPrice);
+    form->addRow("Barcode / SKU", m_sku);
+    form->addRow("", m_noBarcode);
+
+    auto *photosGroup = new QGroupBox("Photos", this);
+    m_imageList = new QListWidget(this);
+    m_imageList->setIconSize(QSize(64, 64));
+    m_imageList->setFixedHeight(120);
+    auto *addPhotoButton = new QPushButton("Add photos…", this);
+    auto *photosLayout = new QVBoxLayout(photosGroup);
+    photosLayout->addWidget(m_imageList);
+    photosLayout->addWidget(addPhotoButton);
+
+    auto *stockGroup = new QGroupBox("Stock per shop", this);
+    m_shopStockLayout = new QFormLayout(stockGroup);
+
+    m_statusLabel = new QLabel(this);
+    m_statusLabel->setStyleSheet("color: #dc2626;");
+    m_statusLabel->setWordWrap(true);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
+    m_saveButton = buttons->addButton("Save", QDialogButtonBox::AcceptRole);
+
+    auto *layout = new QVBoxLayout(this);
+    layout->addLayout(form);
+    layout->addWidget(photosGroup);
+    layout->addWidget(stockGroup);
+    layout->addWidget(m_statusLabel);
+    layout->addStretch();
+    layout->addWidget(buttons);
+
+    connect(addPhotoButton, &QPushButton::clicked, this, &ProductDialog::addPhotos);
+    connect(m_saveButton, &QPushButton::clicked, this, &ProductDialog::save);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(addCategoryButton, &QPushButton::clicked, this, &ProductDialog::promptForNewCategory);
+
+    connect(m_noBarcode, &QCheckBox::toggled, this, [this](bool checked) {
+        m_sku->setReadOnly(checked);
+        if (checked) {
+            m_sku->setText(generateInternalSku());
+        } else {
+            m_sku->clear();
+        }
+    });
+
+    connect(m_client, &SupabaseClient::categoriesFetched, this, [this](const QVector<Category> &categories) {
+        m_categories = categories;
+        m_category->clear();
+        for (const Category &category : m_categories) {
+            m_category->addItem(category.name, category.id);
+        }
+    });
+    m_client->fetchCategories();
+
+    connect(m_client, &SupabaseClient::categoryCreated, this, [this](const Category &category) {
+        m_categories.append(category);
+        m_category->addItem(category.name, category.id);
+        m_category->setCurrentIndex(m_category->count() - 1);
+    });
+    connect(m_client, &SupabaseClient::categoryCreateFailed, this, [this](const QString &message) {
+        QMessageBox::warning(this, "Couldn't create category", message);
+    });
+
+    connect(m_client, &SupabaseClient::shopsFetched, this, [this](const QVector<Shop> &shops) {
+        m_shops = shops;
+        rebuildShopRows();
+    });
+    m_client->fetchShops();
+
+    connect(m_client, &SupabaseClient::productCreateFailed, this, [this](const QString &message) {
+        m_saveButton->setEnabled(true);
+        m_statusLabel->setText(message);
+    });
+
+    connect(m_client, &SupabaseClient::productCreated, this, [this](const QString &productId) {
+        QVector<InventoryLevelInput> levels;
+        for (auto it = m_shopSpinBoxes.constBegin(); it != m_shopSpinBoxes.constEnd(); ++it) {
+            levels.append({it.key(), it.value()->value()});
+        }
+        if (!levels.isEmpty()) {
+            m_client->upsertInventoryLevels(productId, levels);
+        }
+
+        for (int i = 0; i < m_pendingImagePaths.size(); ++i) {
+            m_client->uploadProductImage(productId, m_pendingImagePaths.at(i), /*isPrimary=*/i == 0);
+        }
+
+        // Photos and stock levels finish uploading in the background; the
+        // product record itself already exists, so the dialog can close now.
+        accept();
+    });
+}
+
+void ProductDialog::rebuildShopRows() {
+    while (m_shopStockLayout->rowCount() > 0) {
+        m_shopStockLayout->removeRow(0);
+    }
+    m_shopSpinBoxes.clear();
+
+    for (const Shop &shop : m_shops) {
+        auto *spin = new QSpinBox(this);
+        spin->setRange(0, 999999);
+        m_shopStockLayout->addRow(shop.name, spin);
+        m_shopSpinBoxes.insert(shop.id, spin);
+    }
+}
+
+void ProductDialog::promptForNewCategory() {
+    bool ok = false;
+    const QString name = QInputDialog::getText(this, "New category", "Category name:",
+                                                 QLineEdit::Normal, {}, &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+
+    m_client->createCategory(name.trimmed());
+}
+
+void ProductDialog::addPhotos() {
+    const QStringList files = QFileDialog::getOpenFileNames(
+        this, "Select photos", {}, "Images (*.png *.jpg *.jpeg *.webp)");
+    for (const QString &path : files) {
+        m_pendingImagePaths.append(path);
+        auto *item = new QListWidgetItem(QIcon(QPixmap(path).scaled(
+                                              64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation)),
+                                          QFileInfo(path).fileName());
+        m_imageList->addItem(item);
+    }
+}
+
+void ProductDialog::save() {
+    m_statusLabel->clear();
+
+    if (m_name->text().trimmed().isEmpty()) {
+        m_statusLabel->setText("Name is required.");
+        return;
+    }
+    if (m_sku->text().trimmed().isEmpty()) {
+        m_statusLabel->setText("A barcode/SKU is required — check \"No barcode\" to generate one.");
+        return;
+    }
+
+    ProductInput input;
+    input.name = m_name->text().trimmed();
+    input.description = m_description->toPlainText().trimmed();
+    input.categoryId = m_category->currentData().toString();
+    input.costPrice = m_costPrice->value();
+    input.sellPrice = m_sellPrice->value();
+    input.sku = m_sku->text().trimmed();
+    input.hasNativeBarcode = !m_noBarcode->isChecked();
+
+    m_saveButton->setEnabled(false);
+    m_statusLabel->setText("Saving…");
+    m_statusLabel->setStyleSheet("color: #737373;");
+    m_client->createProduct(input);
+}

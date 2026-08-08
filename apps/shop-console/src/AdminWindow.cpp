@@ -1,4 +1,5 @@
 #include "AdminWindow.h"
+#include "ProductDialog.h"
 #include "SupabaseClient.h"
 
 #include <QHeaderView>
@@ -25,13 +26,24 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
     auto *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     toolbar->addWidget(spacer);
+    auto *refreshButton = new QPushButton("Refresh", this);
+    toolbar->addWidget(refreshButton);
+    auto *newProductButton = new QPushButton("New product", this);
+    toolbar->addWidget(newProductButton);
     auto *signOutButton = new QPushButton("Sign out", this);
     toolbar->addWidget(signOutButton);
     connect(signOutButton, &QPushButton::clicked, this, &AdminWindow::signedOut);
+    connect(refreshButton, &QPushButton::clicked, this, [this]() { m_client->fetchProducts(); });
+    connect(newProductButton, &QPushButton::clicked, this, [this]() {
+        ProductDialog dialog(m_client, this);
+        if (dialog.exec() == QDialog::Accepted) {
+            m_client->fetchProducts();
+        }
+    });
 
     m_table = new QTableWidget(this);
-    m_table->setColumnCount(4);
-    m_table->setHorizontalHeaderLabels({"Name", "SKU", "Sell price", "Cost price"});
+    m_table->setColumnCount(6);
+    m_table->setHorizontalHeaderLabels({"Name", "SKU", "Sell price", "Cost price", "Stock total", "Mostly in"});
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     setCentralWidget(m_table);
@@ -44,6 +56,8 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
             m_table->setItem(row, 1, new QTableWidgetItem(product.sku));
             m_table->setItem(row, 2, new QTableWidgetItem(QString::number(product.sellPrice, 'f', 2)));
             m_table->setItem(row, 3, new QTableWidgetItem(QString::number(product.costPrice, 'f', 2)));
+            m_table->setItem(row, 4, new QTableWidgetItem(QString::number(product.stockTotal)));
+            m_table->setItem(row, 5, new QTableWidgetItem(product.mostlyInShop));
         }
         statusBar()->showMessage(QString("Connected to Supabase. %1 product(s) found.").arg(products.size()));
     });

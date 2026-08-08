@@ -19,6 +19,8 @@ qt_add_executable(ShopConsole WIN32
     src/AdminWindow.cpp
     src/PosWindow.h
     src/PosWindow.cpp
+    src/ProductDialog.h
+    src/ProductDialog.cpp
 )
 
 target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network)
