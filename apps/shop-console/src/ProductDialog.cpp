@@ -85,6 +85,7 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
     m_saveButton = buttons->addButton("Save", QDialogButtonBox::AcceptRole);
+    m_saveButton->setObjectName("primaryButton");
 
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(form);

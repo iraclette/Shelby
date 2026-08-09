@@ -20,6 +20,7 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     m_password->setEchoMode(QLineEdit::Password);
 
     m_signInButton = new QPushButton("Sign in", this);
+    m_signInButton->setObjectName("primaryButton");
     m_errorLabel = new QLabel(this);
     m_errorLabel->setStyleSheet("color: #dc2626;");
     m_errorLabel->setWordWrap(true);

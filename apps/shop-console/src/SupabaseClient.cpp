@@ -133,7 +133,7 @@ void SupabaseClient::fetchProducts() {
     // Embeds each product's per-shop stock rows (and each row's shop name)
     // via the inventory_levels/shops foreign keys, so the stock total and
     // "mostly in" shop can be computed client-side in one round trip.
-    query.addQueryItem("select", "id,name,sku,sell_price,cost_price,inventory_levels(quantity,shops(name))");
+    query.addQueryItem("select", "id,name,sku,category_id,sell_price,cost_price,inventory_levels(quantity,shops(name))");
     query.addQueryItem("order", "created_at.desc");
     query.addQueryItem("limit", "50");
 
@@ -151,6 +151,7 @@ void SupabaseClient::fetchProducts() {
             product.id = row.value("id").toString();
             product.name = row.value("name").toString();
             product.sku = row.value("sku").toString();
+            product.categoryId = row.value("category_id").toString();
             product.sellPrice = row.value("sell_price").toDouble();
             product.costPrice = row.value("cost_price").toDouble();
 

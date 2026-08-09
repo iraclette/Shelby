@@ -20,6 +20,7 @@ struct Product {
     QString id;
     QString name;
     QString sku;
+    QString categoryId;
     double sellPrice = 0;
     double costPrice = 0;
     int stockTotal = 0;

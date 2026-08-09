@@ -3,6 +3,7 @@
 #include "LoginWindow.h"
 #include "PosWindow.h"
 #include "SupabaseClient.h"
+#include "Theme.h"
 
 #include <QApplication>
 #include <QMainWindow>
@@ -10,6 +11,7 @@
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
+    app.setStyleSheet(kAppStyleSheet);
 
     const Config config = Config::load();
     if (!config.isValid()) {

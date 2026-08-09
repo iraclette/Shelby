@@ -6,6 +6,9 @@
 
 #include "SupabaseClient.h"
 
+class QButtonGroup;
+class QGridLayout;
+class QHBoxLayout;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -19,10 +22,12 @@ struct CartLine {
     double unitCost = 0;
 };
 
-// Checkout view: scan/type a barcode, it looks the product up and adds a
-// line to the cart; "Complete sale" records the sale + line items and
-// decrements stock for this shop. Online-only for now — see the Shop
-// Console plan for the offline-queue follow-up.
+// Checkout view: a product tile grid (grouped by category, like the
+// Aronium-style POS the shops already use) for click-to-add, plus a
+// barcode field for scanning — either adds a line to the cart. "Complete
+// sale" records the sale + line items and decrements stock for this shop.
+// Online-only for now — see the Shop Console plan for the offline-queue
+// follow-up.
 class PosWindow : public QMainWindow {
     Q_OBJECT
 
@@ -38,6 +43,8 @@ private:
     void removeSelectedLine();
     void completeSale();
     void refreshCartTable();
+    void rebuildCategoryChips();
+    void rebuildProductGrid();
 
     SupabaseClient *m_client;
     QString m_shopId;
@@ -48,5 +55,12 @@ private:
     QLabel *m_statusLabel;
     QPushButton *m_completeSaleButton;
 
+    QHBoxLayout *m_categoryChipsLayout;
+    QButtonGroup *m_categoryButtonGroup;
+    QGridLayout *m_productGridLayout;
+    QString m_selectedCategoryId; // empty = "All"
+
+    QVector<Category> m_categories;
+    QVector<Product> m_allProducts;
     QVector<CartLine> m_cart;
 };
