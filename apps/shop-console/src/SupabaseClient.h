@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QJsonValue>
 #include <QMap>
 #include <QObject>
 #include <QString>
@@ -23,8 +24,7 @@ struct Product {
     QString categoryId;
     double sellPrice = 0;
     double costPrice = 0;
-    int stockTotal = 0;
-    QString mostlyInShop;
+    QMap<QString, int> stockByShop; // shop id -> quantity
 };
 
 struct Category {
@@ -84,6 +84,10 @@ public:
 
     void fetchProducts();
     void createProduct(const ProductInput &input);
+    // field must be one of the products table's own column names
+    // (name/sku/sell_price/cost_price) — always a fixed string from our own
+    // code, never user-supplied, so there's no injection concern.
+    void updateProductField(const QString &productId, const QString &field, const QJsonValue &value);
 
     void fetchCategories();
     void createCategory(const QString &name);
@@ -120,6 +124,8 @@ signals:
     void productsFetchFailed(const QString &message);
     void productCreated(const QString &productId);
     void productCreateFailed(const QString &message);
+    void productUpdated();
+    void productUpdateFailed(const QString &message);
 
     void categoriesFetched(const QVector<Category> &categories);
     void categoriesFetchFailed(const QString &message);

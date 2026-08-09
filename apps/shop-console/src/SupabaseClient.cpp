@@ -141,10 +141,9 @@ void SupabaseClient::fetchProfile(const QString &userId) {
 
 void SupabaseClient::fetchProducts() {
     QUrlQuery query;
-    // Embeds each product's per-shop stock rows (and each row's shop name)
-    // via the inventory_levels/shops foreign keys, so the stock total and
-    // "mostly in" shop can be computed client-side in one round trip.
-    query.addQueryItem("select", "id,name,sku,category_id,sell_price,cost_price,inventory_levels(quantity,shops(name))");
+    // Embeds each product's per-shop stock rows via the inventory_levels
+    // foreign key, so per-shop quantities are available in one round trip.
+    query.addQueryItem("select", "id,name,sku,category_id,sell_price,cost_price,inventory_levels(shop_id,quantity)");
     query.addQueryItem("order", "created_at.desc");
     query.addQueryItem("limit", "50");
 
@@ -166,15 +165,9 @@ void SupabaseClient::fetchProducts() {
             product.sellPrice = row.value("sell_price").toDouble();
             product.costPrice = row.value("cost_price").toDouble();
 
-            int bestQuantity = -1;
             for (const QJsonValue &levelValue : row.value("inventory_levels").toArray()) {
                 const QJsonObject level = levelValue.toObject();
-                const int quantity = level.value("quantity").toInt();
-                product.stockTotal += quantity;
-                if (quantity > bestQuantity) {
-                    bestQuantity = quantity;
-                    product.mostlyInShop = level.value("shops").toObject().value("name").toString();
-                }
+                product.stockByShop.insert(level.value("shop_id").toString(), level.value("quantity").toInt());
             }
 
             products.append(product);
@@ -214,6 +207,24 @@ void SupabaseClient::createProduct(const ProductInput &input) {
         }
 
         emit productCreated(rows.first().toObject().value("id").toString());
+    });
+}
+
+void SupabaseClient::updateProductField(const QString &productId, const QString &field, const QJsonValue &value) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + productId);
+
+    const QJsonObject body{{field, value}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/products", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit productUpdateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit productUpdated();
     });
 }
 
