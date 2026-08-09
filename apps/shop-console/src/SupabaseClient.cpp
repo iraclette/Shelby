@@ -1,5 +1,6 @@
 #include "SupabaseClient.h"
 
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -9,6 +10,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QStandardPaths>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QUuid>
@@ -19,6 +21,15 @@ SupabaseClient::SupabaseClient(QString baseUrl, QString anonKey, QObject *parent
     , m_baseUrl(std::move(baseUrl))
     , m_anonKey(std::move(anonKey)) {
     if (m_baseUrl.endsWith('/')) m_baseUrl.chop(1);
+    loadPendingSales();
+}
+
+static bool isNetworkLayerError(QNetworkReply::NetworkError error) {
+    // Qt groups "can't reach the server at all" errors into 1-99
+    // (ConnectionRefusedError..UnknownNetworkError); everything above that
+    // is a real response from the server (auth, validation, RLS, etc.) and
+    // should surface as an error rather than be queued as "offline".
+    return error >= QNetworkReply::ConnectionRefusedError && error <= QNetworkReply::UnknownNetworkError;
 }
 
 static QString extractErrorMessage(const QByteArray &body, const QString &fallback) {
@@ -379,64 +390,129 @@ void SupabaseClient::lookupProductBySku(const QString &sku) {
 }
 
 void SupabaseClient::recordSale(const QString &shopId, const QVector<SaleItemInput> &items, double total) {
-    const QJsonObject saleBody{
-        {"shop_id", shopId},
-        {"staff_id", m_userId},
-        {"client_generated_id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
-        {"total", total},
-    };
+    const QString clientGeneratedId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    submitSale(shopId, clientGeneratedId, items, total, /*isRetryFromQueue=*/false);
+}
 
-    const QMap<QByteArray, QByteArray> headers{
-        {"Content-Type", "application/json"},
-        {"Prefer", "return=representation"},
-    };
+void SupabaseClient::submitSale(const QString &shopId, const QString &clientGeneratedId,
+                                  const QVector<SaleItemInput> &items, double total, bool isRetryFromQueue) {
+    QJsonArray itemsJson;
+    for (const SaleItemInput &item : items) {
+        itemsJson.append(QJsonObject{
+            {"product_id", item.productId},
+            {"quantity", item.quantity},
+            {"unit_price", item.unitPrice},
+            {"unit_cost", item.unitCost},
+        });
+    }
 
-    authorizedWrite("POST", "/rest/v1/sales", {}, QJsonDocument(saleBody).toJson(), headers,
-                    [this, shopId, items](QNetworkReply *reply) {
+    const QJsonObject body{
+        {"p_shop_id", shopId},
+        {"p_client_generated_id", clientGeneratedId},
+        {"p_items", itemsJson},
+        {"p_total", total},
+    };
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("POST", "/rest/v1/rpc/record_sale", {}, QJsonDocument(body).toJson(), headers,
+                    [this, shopId, clientGeneratedId, items, total, isRetryFromQueue](QNetworkReply *reply) {
         const QByteArray data = reply->readAll();
+
         if (reply->error() != QNetworkReply::NoError) {
-            emit saleRecordFailed(extractErrorMessage(data, reply->errorString()));
+            if (isRetryFromQueue) {
+                // Still offline (or the server is down) — leave it queued
+                // and stop; the next timer tick will try again.
+                m_flushingPendingSales = false;
+                return;
+            }
+            if (isNetworkLayerError(reply->error())) {
+                enqueueOffline({clientGeneratedId, shopId, items, total});
+                emit saleQueuedOffline(m_pendingSales.size());
+            } else {
+                emit saleRecordFailed(extractErrorMessage(data, reply->errorString()));
+            }
             return;
         }
 
-        const QJsonArray rows = QJsonDocument::fromJson(data).array();
-        if (rows.isEmpty()) {
-            emit saleRecordFailed("Sale was created but no id was returned.");
-            return;
+        if (isRetryFromQueue) {
+            m_pendingSales.removeIf([&](const QueuedSale &sale) {
+                return sale.clientGeneratedId == clientGeneratedId;
+            });
+            savePendingSales();
+            emit pendingSalesChanged(m_pendingSales.size());
+            m_flushingPendingSales = false;
+            flushPendingSales(); // keep draining the queue
+        } else {
+            emit saleRecorded();
+            flushPendingSales(); // this connection worked, so try any backlog too
         }
-        const QString saleId = rows.first().toObject().value("id").toString();
+    });
+}
 
-        QJsonArray saleItems;
-        for (const SaleItemInput &item : items) {
-            saleItems.append(QJsonObject{
-                {"sale_id", saleId},
+void SupabaseClient::enqueueOffline(const QueuedSale &sale) {
+    m_pendingSales.append(sale);
+    savePendingSales();
+}
+
+void SupabaseClient::flushPendingSales() {
+    if (m_flushingPendingSales || m_pendingSales.isEmpty()) return;
+    m_flushingPendingSales = true;
+
+    const QueuedSale &sale = m_pendingSales.first();
+    submitSale(sale.shopId, sale.clientGeneratedId, sale.items, sale.total, /*isRetryFromQueue=*/true);
+}
+
+QString SupabaseClient::pendingSalesFilePath() const {
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/pending_sales.json";
+}
+
+void SupabaseClient::loadPendingSales() {
+    QFile file(pendingSalesFilePath());
+    if (!file.open(QIODevice::ReadOnly)) return;
+
+    for (const QJsonValue &value : QJsonDocument::fromJson(file.readAll()).array()) {
+        const QJsonObject obj = value.toObject();
+        QueuedSale sale;
+        sale.clientGeneratedId = obj.value("client_generated_id").toString();
+        sale.shopId = obj.value("shop_id").toString();
+        sale.total = obj.value("total").toDouble();
+        for (const QJsonValue &itemValue : obj.value("items").toArray()) {
+            const QJsonObject itemObj = itemValue.toObject();
+            sale.items.append({
+                itemObj.value("product_id").toString(),
+                itemObj.value("quantity").toInt(),
+                itemObj.value("unit_price").toDouble(),
+                itemObj.value("unit_cost").toDouble(),
+            });
+        }
+        m_pendingSales.append(sale);
+    }
+}
+
+void SupabaseClient::savePendingSales() const {
+    QJsonArray arr;
+    for (const QueuedSale &sale : m_pendingSales) {
+        QJsonArray itemsArr;
+        for (const SaleItemInput &item : sale.items) {
+            itemsArr.append(QJsonObject{
                 {"product_id", item.productId},
                 {"quantity", item.quantity},
                 {"unit_price", item.unitPrice},
                 {"unit_cost", item.unitCost},
             });
         }
-
-        const QMap<QByteArray, QByteArray> itemHeaders{{"Content-Type", "application/json"}};
-        authorizedWrite("POST", "/rest/v1/sale_items", {}, QJsonDocument(saleItems).toJson(), itemHeaders,
-                        [this](QNetworkReply *itemsReply) {
-            const QByteArray itemsData = itemsReply->readAll();
-            if (itemsReply->error() != QNetworkReply::NoError) {
-                emit saleRecordFailed(extractErrorMessage(itemsData, itemsReply->errorString()));
-                return;
-            }
-            emit saleRecorded();
+        arr.append(QJsonObject{
+            {"client_generated_id", sale.clientGeneratedId},
+            {"shop_id", sale.shopId},
+            {"items", itemsArr},
+            {"total", sale.total},
         });
+    }
 
-        for (const SaleItemInput &item : items) {
-            const QJsonObject rpcBody{
-                {"p_product_id", item.productId},
-                {"p_shop_id", shopId},
-                {"p_quantity", item.quantity},
-            };
-            const QMap<QByteArray, QByteArray> rpcHeaders{{"Content-Type", "application/json"}};
-            authorizedWrite("POST", "/rest/v1/rpc/decrement_inventory", {}, QJsonDocument(rpcBody).toJson(),
-                            rpcHeaders, [](QNetworkReply *) { /* fire and forget */ });
-        }
-    });
+    const QString path = pendingSalesFilePath();
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QFile file(path);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        file.write(QJsonDocument(arr).toJson());
+    }
 }

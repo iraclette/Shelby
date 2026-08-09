@@ -59,6 +59,17 @@ struct SaleItemInput {
     double unitCost = 0;
 };
 
+// A sale that couldn't reach the server (offline) and is waiting to sync.
+// clientGeneratedId is assigned up front and reused on every retry, so a
+// retry that actually landed server-side but whose response got lost can't
+// create a duplicate sale (see the record_sale DB function).
+struct QueuedSale {
+    QString clientGeneratedId;
+    QString shopId;
+    QVector<SaleItemInput> items;
+    double total = 0;
+};
+
 // Talks to Supabase's Auth and PostgREST HTTP APIs directly (no official
 // C++ SDK exists for Supabase). Row Level Security on the database is what
 // keeps this safe despite the client holding only the public anon key.
@@ -85,9 +96,19 @@ public:
 
     void lookupProductBySku(const QString &sku);
 
-    // Records the sale + its line items, then decrements inventory_levels
-    // for each item in the background (see comments on the emitted signal).
+    // Records the sale via the atomic record_sale DB function. If the
+    // request can't reach the server at all, the sale is queued to local
+    // disk instead of failing outright, and synced automatically the next
+    // time flushPendingSales() succeeds (see saleQueuedOffline).
     void recordSale(const QString &shopId, const QVector<SaleItemInput> &items, double total);
+
+    // Attempts to resync queued offline sales, oldest first, stopping at
+    // the first one that still can't reach the server. Safe to call
+    // repeatedly (e.g. from a timer) — a no-op while empty or already
+    // in-flight.
+    void flushPendingSales();
+
+    int pendingSalesCount() const { return m_pendingSales.size(); }
 
 signals:
     void signInSucceeded(const QString &userId);
@@ -117,10 +138,12 @@ signals:
     void productLookedUp(const Product &product);
     void productLookupFailed(const QString &message);
 
-    // Emitted once the sale + sale_items rows are written; inventory
-    // decrements are fired at the same time but not waited on.
     void saleRecorded();
     void saleRecordFailed(const QString &message);
+    // The server couldn't be reached, so the sale was saved locally instead.
+    void saleQueuedOffline(int pendingCount);
+    // Fires whenever the pending queue shrinks or grows, for a UI badge.
+    void pendingSalesChanged(int pendingCount);
 
 private:
     QNetworkAccessManager *m_network;
@@ -129,9 +152,20 @@ private:
     QString m_accessToken;
     QString m_userId;
 
+    QVector<QueuedSale> m_pendingSales;
+    bool m_flushingPendingSales = false;
+
     void authorizedGet(const QString &path, const QUrlQuery &query,
                         const std::function<void(QNetworkReply *)> &onFinished);
     void authorizedWrite(const QByteArray &verb, const QString &path, const QUrlQuery &query,
                           const QByteArray &body, const QMap<QByteArray, QByteArray> &extraHeaders,
                           const std::function<void(QNetworkReply *)> &onFinished);
+
+    void submitSale(const QString &shopId, const QString &clientGeneratedId,
+                     const QVector<SaleItemInput> &items, double total, bool isRetryFromQueue);
+    void enqueueOffline(const QueuedSale &sale);
+
+    QString pendingSalesFilePath() const;
+    void loadPendingSales();
+    void savePendingSales() const;
 };

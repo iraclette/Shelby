@@ -11,6 +11,7 @@
 #include <QStatusBar>
 #include <QTableWidget>
 #include <QTableWidgetItem>
+#include <QTimer>
 #include <QToolBar>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -44,6 +45,10 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     auto *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     toolbar->addWidget(spacer);
+    m_pendingBadge = new QLabel(this);
+    m_pendingBadge->setStyleSheet("color: #f59e0b; font-weight: 600; padding: 0 8px;");
+    m_pendingBadge->hide();
+    toolbar->addWidget(m_pendingBadge);
     auto *signOutButton = new QPushButton("Sign out", this);
     toolbar->addWidget(signOutButton);
     connect(signOutButton, &QPushButton::clicked, this, &PosWindow::signedOut);
@@ -153,8 +158,38 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
         m_statusLabel->setStyleSheet("color: #ef4444;");
         m_statusLabel->setText(message);
     });
+    connect(m_client, &SupabaseClient::saleQueuedOffline, this, [this](int pendingCount) {
+        // Treated like a success from the cashier's point of view — the
+        // sale is safely saved, it just hasn't reached the server yet.
+        m_cart.clear();
+        refreshCartTable();
+        m_completeSaleButton->setEnabled(true);
+        m_statusLabel->setStyleSheet("color: #f59e0b;");
+        m_statusLabel->setText(
+            QString("No connection — sale saved offline, will sync automatically (%1 pending).")
+                .arg(pendingCount));
+        m_barcodeInput->setFocus();
+        updatePendingBadge(pendingCount);
+    });
+    connect(m_client, &SupabaseClient::pendingSalesChanged, this, &PosWindow::updatePendingBadge);
+
+    updatePendingBadge(m_client->pendingSalesCount());
+
+    auto *syncTimer = new QTimer(this);
+    connect(syncTimer, &QTimer::timeout, this, [this]() { m_client->flushPendingSales(); });
+    syncTimer->start(20000);
+    m_client->flushPendingSales();
 
     m_barcodeInput->setFocus();
+}
+
+void PosWindow::updatePendingBadge(int count) {
+    if (count <= 0) {
+        m_pendingBadge->hide();
+        return;
+    }
+    m_pendingBadge->setText(QString("⏳ %1 pending sync").arg(count));
+    m_pendingBadge->show();
 }
 
 void PosWindow::rebuildCategoryChips() {

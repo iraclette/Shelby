@@ -26,8 +26,8 @@ struct CartLine {
 // Aronium-style POS the shops already use) for click-to-add, plus a
 // barcode field for scanning — either adds a line to the cart. "Complete
 // sale" records the sale + line items and decrements stock for this shop.
-// Online-only for now — see the Shop Console plan for the offline-queue
-// follow-up.
+// If the server can't be reached, the sale is queued locally instead of
+// failing, and a timer periodically retries syncing the queue.
 class PosWindow : public QMainWindow {
     Q_OBJECT
 
@@ -45,6 +45,7 @@ private:
     void refreshCartTable();
     void rebuildCategoryChips();
     void rebuildProductGrid();
+    void updatePendingBadge(int count);
 
     SupabaseClient *m_client;
     QString m_shopId;
@@ -53,6 +54,7 @@ private:
     QTableWidget *m_cartTable;
     QLabel *m_totalLabel;
     QLabel *m_statusLabel;
+    QLabel *m_pendingBadge;
     QPushButton *m_completeSaleButton;
 
     QHBoxLayout *m_categoryChipsLayout;
