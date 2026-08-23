@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { verifyBogCallbackSignature, getBogOrderStatus } from "@/lib/bog";
 
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = getSupabaseAdmin();
   const rawBody = await request.text();
   const signature = request.headers.get("Callback-Signature");
 

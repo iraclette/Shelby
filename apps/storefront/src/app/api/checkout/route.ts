@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { createBogOrder } from "@/lib/bog";
 
 type CheckoutRequest = {
@@ -11,6 +11,7 @@ type CheckoutRequest = {
 };
 
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = getSupabaseAdmin();
   const body = (await request.json()) as CheckoutRequest;
 
   if (!body.customerName || !body.customerEmail || !body.pickupShopId || !body.items?.length) {
