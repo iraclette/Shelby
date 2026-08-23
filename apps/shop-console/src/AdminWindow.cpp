@@ -16,7 +16,7 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
     : QMainWindow(parent)
     , m_client(client) {
     setWindowTitle("Shop Console — Inventory Admin");
-    resize(900, 600);
+    this -> showMaximized();
 
     auto *toolbar = addToolBar("main");
     toolbar->setMovable(false);
@@ -42,7 +42,8 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
     });
 
     m_table = new QTableWidget(this);
-    m_table->horizontalHeader()->setStretchLastSection(true);
+    m_table->horizontalHeader()->setStretchLastSection(false);
+    m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     setCentralWidget(m_table);
 
