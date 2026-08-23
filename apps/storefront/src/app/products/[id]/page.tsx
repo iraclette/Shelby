@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { fetchProduct, primaryImage, productImageUrl } from "@/lib/supabase";
+import AddToCartButton from "@/components/AddToCartButton";
 
 export const revalidate = 60;
 
@@ -69,8 +70,16 @@ export default async function ProductPage({
             <p className="mt-6 leading-relaxed text-paper-dim">{product.description}</p>
           )}
 
-          <div className="mt-10 border border-line px-6 py-4 text-sm text-paper-dim">
-            Available in store — visit Black Eye Beauty, Shelby, or End to purchase.
+          <AddToCartButton
+            productId={product.id}
+            name={product.name}
+            unitPrice={product.sell_price}
+            imagePath={featured?.storage_path ?? null}
+          />
+
+          <div className="mt-4 border border-line px-6 py-4 text-sm text-paper-dim">
+            Buy online and pick up in store, or visit Black Eye Beauty, Shelby,
+            or End directly.
           </div>
         </div>
       </div>
