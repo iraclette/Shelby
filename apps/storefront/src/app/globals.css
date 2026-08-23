@@ -23,3 +23,41 @@ body {
   background-color: var(--color-brass);
   color: var(--color-ink);
 }
+
+/* A moody, photographic-feeling backdrop built from gradients + film grain —
+   stands in for real photography until product/lifestyle shots exist (see
+   apps/storefront/public/hero/README.md). Drop a photo behind an element
+   using this class and the gradient/grain becomes a legibility overlay on
+   top of it, same as it looks now on its own. */
+.atmosphere {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 55% 60% at 50% 35%, rgb(200 150 62 / 16%), transparent 65%),
+    linear-gradient(180deg, rgb(14 14 16 / 55%) 0%, rgb(14 14 16 / 35%) 40%, rgb(14 14 16 / 88%) 100%);
+}
+
+.atmosphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.25;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Same treatment, dialed down, for smaller surfaces like category tiles. */
+.atmosphere-subtle {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, var(--color-ink-soft) 0%, var(--color-ink-elevated) 100%);
+}
+
+.atmosphere-subtle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.15;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}

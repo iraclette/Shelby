@@ -1,8 +1,17 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import Image from "next/image";
 import Link from "next/link";
 import { fetchCategories, fetchProducts } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 
 export const revalidate = 60;
+
+// Real hero photography (see public/hero/README.md) is optional — when it
+// shows up, it renders behind the gradient/grain overlay instead of the
+// plain ink background, with zero other changes needed.
+const HERO_PHOTO = "/hero/hero.jpg";
+const hasHeroPhoto = existsSync(path.join(process.cwd(), "public", HERO_PHOTO));
 
 export default async function Home() {
   const [categories, products] = await Promise.all([
@@ -14,8 +23,12 @@ export default async function Home() {
 
   return (
     <div>
-      <section className="border-b border-line">
-        <div className="mx-auto max-w-6xl px-6 py-28 text-center">
+      <section className="relative overflow-hidden border-b border-line">
+        {hasHeroPhoto && (
+          <Image src={HERO_PHOTO} alt="" fill priority className="object-cover" />
+        )}
+        <div className="atmosphere" />
+        <div className="relative mx-auto max-w-6xl px-6 py-28 text-center">
           <p className="text-xs tracking-[0.3em] text-brass uppercase">
             Black Eye Beauty · Shelby · End
           </p>
@@ -45,9 +58,10 @@ export default async function Home() {
               <Link
                 key={category.id}
                 href={`/products?category=${category.id}`}
-                className="border border-line px-4 py-6 text-center transition-colors hover:border-brass"
+                className="group relative overflow-hidden border border-line px-4 py-6 text-center transition-colors hover:border-brass"
               >
-                <span className="text-sm tracking-[0.1em] text-paper uppercase">
+                <div className="atmosphere-subtle transition-opacity group-hover:opacity-80" />
+                <span className="relative text-sm tracking-[0.1em] text-paper uppercase">
                   {category.name}
                 </span>
               </Link>

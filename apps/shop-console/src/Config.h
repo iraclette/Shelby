@@ -9,6 +9,10 @@
 struct Config {
     QString supabaseUrl;
     QString supabaseAnonKey;
+    // Folder to default photo pickers to (e.g. wherever a phone's cloud
+    // photo sync downloads new photos). Optional — falls back to the OS's
+    // own remembered/default directory when empty or nonexistent.
+    QString photosSyncDir;
 
     bool isValid() const { return !supabaseUrl.isEmpty() && !supabaseAnonKey.isEmpty(); }
 

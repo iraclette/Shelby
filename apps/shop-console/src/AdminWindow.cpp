@@ -1,5 +1,6 @@
 #include "AdminWindow.h"
 #include "ProductDialog.h"
+#include "ProductPhotosDialog.h"
 #include "SupabaseClient.h"
 
 #include <QHeaderView>
@@ -30,6 +31,8 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
     toolbar->addWidget(refreshButton);
     auto *newProductButton = new QPushButton("New product", this);
     toolbar->addWidget(newProductButton);
+    auto *photosButton = new QPushButton("Photos…", this);
+    toolbar->addWidget(photosButton);
     auto *signOutButton = new QPushButton("Sign out", this);
     toolbar->addWidget(signOutButton);
     connect(signOutButton, &QPushButton::clicked, this, &AdminWindow::signedOut);
@@ -39,6 +42,16 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
         if (dialog.exec() == QDialog::Accepted) {
             m_client->fetchProducts();
         }
+    });
+    connect(photosButton, &QPushButton::clicked, this, [this]() {
+        const int row = m_table->currentRow();
+        if (row < 0 || row >= m_products.size()) {
+            statusBar()->showMessage("Select a product row first.");
+            return;
+        }
+        const Product &product = m_products[row];
+        ProductPhotosDialog dialog(m_client, product.id, product.name, this);
+        dialog.exec();
     });
 
     m_table = new QTableWidget(this);

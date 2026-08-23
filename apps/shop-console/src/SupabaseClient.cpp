@@ -370,6 +370,56 @@ void SupabaseClient::uploadProductImage(const QString &productId, const QString 
     });
 }
 
+void SupabaseClient::fetchProductImages(const QString &productId) {
+    QUrlQuery query;
+    query.addQueryItem("product_id", "eq." + productId);
+    query.addQueryItem("select", "id,storage_path,is_primary");
+    query.addQueryItem("order", "is_primary.desc,created_at.asc");
+
+    authorizedGet("/rest/v1/product_images", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit productImagesFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<ProductImage> images;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            images.append({row.value("id").toString(), row.value("storage_path").toString(),
+                            row.value("is_primary").toBool()});
+        }
+        emit productImagesFetched(images);
+    });
+}
+
+void SupabaseClient::deleteProductImage(const QString &imageId, const QString &storagePath) {
+    authorizedWrite("DELETE", "/storage/v1/object/product-images/" + storagePath, {}, {}, {},
+                    [this, imageId](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit imageDeleteFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QUrlQuery query;
+        query.addQueryItem("id", "eq." + imageId);
+        authorizedWrite("DELETE", "/rest/v1/product_images", query, {}, {},
+                        [this](QNetworkReply *deleteReply) {
+            const QByteArray deleteData = deleteReply->readAll();
+            if (deleteReply->error() != QNetworkReply::NoError) {
+                emit imageDeleteFailed(extractErrorMessage(deleteData, deleteReply->errorString()));
+                return;
+            }
+            emit imageDeleted();
+        });
+    });
+}
+
+QString SupabaseClient::publicImageUrl(const QString &storagePath) const {
+    return m_baseUrl + "/storage/v1/object/public/product-images/" + storagePath;
+}
+
 void SupabaseClient::lookupProductBySku(const QString &sku) {
     QUrlQuery query;
     query.addQueryItem("sku", "eq." + sku);

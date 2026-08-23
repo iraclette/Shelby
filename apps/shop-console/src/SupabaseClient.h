@@ -32,6 +32,12 @@ struct Category {
     QString name;
 };
 
+struct ProductImage {
+    QString id;
+    QString storagePath;
+    bool isPrimary = false;
+};
+
 struct Shop {
     QString id;
     QString name;
@@ -97,6 +103,11 @@ public:
 
     // Uploads the file to Storage, then records it in product_images.
     void uploadProductImage(const QString &productId, const QString &localFilePath, bool isPrimary);
+    void fetchProductImages(const QString &productId);
+    // Deletes both the Storage object and its product_images row.
+    void deleteProductImage(const QString &imageId, const QString &storagePath);
+    // The bucket is public, so this is just a URL — no auth needed to load it.
+    QString publicImageUrl(const QString &storagePath) const;
 
     void lookupProductBySku(const QString &sku);
 
@@ -140,6 +151,10 @@ signals:
 
     void imageUploaded();
     void imageUploadFailed(const QString &message);
+    void productImagesFetched(const QVector<ProductImage> &images);
+    void productImagesFetchFailed(const QString &message);
+    void imageDeleted();
+    void imageDeleteFailed(const QString &message);
 
     void productLookedUp(const Product &product);
     void productLookupFailed(const QString &message);
