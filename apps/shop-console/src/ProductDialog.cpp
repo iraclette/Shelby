@@ -1,5 +1,7 @@
 #include "ProductDialog.h"
 
+#include "Config.h"
+
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -182,7 +184,7 @@ void ProductDialog::promptForNewCategory() {
 
 void ProductDialog::addPhotos() {
     const QStringList files = QFileDialog::getOpenFileNames(
-        this, "Select photos", {}, "Images (*.png *.jpg *.jpeg *.webp)");
+        this, "Select photos", Config::load().photosSyncDir, "Images (*.png *.jpg *.jpeg *.webp)");
     for (const QString &path : files) {
         m_pendingImagePaths.append(path);
         auto *item = new QListWidgetItem(QIcon(QPixmap(path).scaled(

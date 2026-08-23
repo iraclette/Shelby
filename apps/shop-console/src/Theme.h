@@ -223,4 +223,10 @@ QCheckBox::indicator:checked {
 QMessageBox, QInputDialog {
     background-color: #1c1e26;
 }
+
+QWidget#loginBrandPanel {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #0e0e10, stop:0.5 #231c12, stop:1 #14151a);
+    border-right: 1px solid #2f323d;
+}
 )";
