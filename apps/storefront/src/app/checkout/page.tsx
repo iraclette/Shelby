@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useCart } from "@/lib/cart";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 
 type Shop = { id: string; name: string };
 
@@ -17,7 +17,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase
+    getSupabaseClient()
       .from("shops")
       .select("id, name")
       .order("name")
