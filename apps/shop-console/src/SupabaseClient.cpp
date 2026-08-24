@@ -598,6 +598,74 @@ void SupabaseClient::submitSale(const QString &shopId, const QString &clientGene
     });
 }
 
+void SupabaseClient::fetchRecentSales(const QString &shopId) {
+    QUrlQuery query;
+    query.addQueryItem("shop_id", "eq." + shopId);
+    query.addQueryItem("select", "id,sold_at,total,sale_items(id,product_id,quantity,unit_price,products(name))");
+    query.addQueryItem("order", "sold_at.desc");
+    query.addQueryItem("limit", "50");
+
+    authorizedGet("/rest/v1/sales", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit recentSalesFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<SaleSummary> sales;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            SaleSummary sale;
+            sale.id = row.value("id").toString();
+            sale.soldAt = row.value("sold_at").toString();
+            sale.total = row.value("total").toDouble();
+
+            for (const QJsonValue &itemValue : row.value("sale_items").toArray()) {
+                const QJsonObject itemRow = itemValue.toObject();
+                SaleItemSummary item;
+                item.saleItemId = itemRow.value("id").toString();
+                item.productId = itemRow.value("product_id").toString();
+                item.quantity = itemRow.value("quantity").toInt();
+                item.unitPrice = itemRow.value("unit_price").toDouble();
+                item.productName = itemRow.value("products").toObject().value("name").toString();
+                sale.items.append(item);
+            }
+            sales.append(sale);
+        }
+        emit recentSalesFetched(sales);
+    });
+}
+
+void SupabaseClient::submitReturn(const QString &shopId, const QString &saleId, const QString &reason,
+                                   const QVector<ReturnItemInput> &items) {
+    QJsonArray itemsJson;
+    for (const ReturnItemInput &item : items) {
+        itemsJson.append(QJsonObject{
+            {"sale_item_id", item.saleItemId},
+            {"quantity", item.quantity},
+        });
+    }
+
+    const QJsonObject body{
+        {"p_shop_id", shopId},
+        {"p_client_generated_id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
+        {"p_sale_id", saleId},
+        {"p_reason", reason},
+        {"p_items", itemsJson},
+    };
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("POST", "/rest/v1/rpc/record_return", {}, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit returnRecordFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit returnRecorded();
+    });
+}
+
 void SupabaseClient::enqueueOffline(const QueuedSale &sale) {
     m_pendingSales.append(sale);
     savePendingSales();

@@ -67,6 +67,26 @@ struct SaleItemInput {
     double unitCost = 0;
 };
 
+struct SaleItemSummary {
+    QString saleItemId;
+    QString productId;
+    QString productName;
+    int quantity = 0;
+    double unitPrice = 0;
+};
+
+struct SaleSummary {
+    QString id;
+    QString soldAt;
+    double total = 0;
+    QVector<SaleItemSummary> items;
+};
+
+struct ReturnItemInput {
+    QString saleItemId;
+    int quantity = 0;
+};
+
 // A sale that couldn't reach the server (offline) and is waiting to sync.
 // clientGeneratedId is assigned up front and reused on every retry, so a
 // retry that actually landed server-side but whose response got lost can't
@@ -132,6 +152,17 @@ public:
     // time flushPendingSales() succeeds (see saleQueuedOffline).
     void recordSale(const QString &shopId, const QVector<SaleItemInput> &items, double total);
 
+    // Recent sales for a shop, with nested line items — the picker list for
+    // ReturnDialog. Not queued/retried offline like recordSale() — a return
+    // is a deliberate, much less frequent action than a sale.
+    void fetchRecentSales(const QString &shopId);
+    // Records the return via the atomic record_return DB function (mirrors
+    // recordSale/record_sale). saleId must be one of the shop's own sales;
+    // unit prices come from the original sale_items server-side, never
+    // trusted from here.
+    void submitReturn(const QString &shopId, const QString &saleId, const QString &reason,
+                       const QVector<ReturnItemInput> &items);
+
     // Attempts to resync queued offline sales, oldest first, stopping at
     // the first one that still can't reach the server. Safe to call
     // repeatedly (e.g. from a timer) — a no-op while empty or already
@@ -190,6 +221,13 @@ signals:
     void saleQueuedOffline(int pendingCount);
     // Fires whenever the pending queue shrinks or grows, for a UI badge.
     void pendingSalesChanged(int pendingCount);
+
+    void recentSalesFetched(const QVector<SaleSummary> &sales);
+    void recentSalesFetchFailed(const QString &message);
+    void returnRecorded();
+    // Also fires for a rejected over-return (e.g. "only 1 left un-returned") —
+    // that's a normal validation failure from record_return, not a crash.
+    void returnRecordFailed(const QString &message);
 
 private:
     QNetworkAccessManager *m_network;
