@@ -1,6 +1,8 @@
-const SHOPS = ["Black Eye Beauty", "Shelby", "End"];
+import { fetchShops } from "@/lib/supabase";
 
-export default function Footer() {
+export default async function Footer() {
+  const shops = await fetchShops();
+
   return (
     <footer className="border-t border-line bg-ink-soft">
       <div className="mx-auto max-w-6xl px-6 py-12">
@@ -15,9 +17,22 @@ export default function Footer() {
           <div>
             <p className="text-xs tracking-[0.2em] text-brass uppercase">Visit us</p>
             <ul className="mt-3 space-y-1 text-sm text-paper-dim">
-              {SHOPS.map((shop) => (
-                <li key={shop}>{shop}</li>
-              ))}
+              {shops.map((shop) =>
+                shop.maps_url ? (
+                  <li key={shop.id}>
+                    <a
+                      href={shop.maps_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="transition-colors hover:text-brass"
+                    >
+                      {shop.name}
+                    </a>
+                  </li>
+                ) : (
+                  <li key={shop.id}>{shop.name}</li>
+                ),
+              )}
             </ul>
           </div>
         </div>

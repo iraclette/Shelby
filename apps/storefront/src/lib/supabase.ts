@@ -49,6 +49,17 @@ export async function fetchCategories(): Promise<Category[]> {
   return data ?? [];
 }
 
+export type Shop = {
+  id: string;
+  name: string;
+  maps_url: string | null;
+};
+
+export async function fetchShops(): Promise<Shop[]> {
+  const { data } = await getSupabaseClient().from("shops").select("id, name, maps_url").order("name");
+  return data ?? [];
+}
+
 export async function fetchProducts(categoryId?: string): Promise<Product[]> {
   let query = getSupabaseClient()
     .from("products")
