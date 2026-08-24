@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase";
 
-// Shows an "Inventory" link in the header, but only once the signed-in
-// session belongs to a staff profile with role owner/admin — a customer
-// session (or no session at all) renders nothing. Same Supabase Auth
-// session as /account and /staff/photos; which table it resolves to
+// Shows the staff-only nav links (Photos, Inventory), but only once the
+// signed-in session belongs to a staff profile with role owner/admin — a
+// customer session (or no session at all) renders nothing. Same Supabase
+// Auth session as /account and /staff/photos; which table it resolves to
 // (customers vs profiles) is what decides which of those a person actually
 // is, not which login form they used.
 export default function AdminLink() {
@@ -34,8 +34,13 @@ export default function AdminLink() {
   if (!isAdmin) return null;
 
   return (
-    <Link href="/staff/inventory" className="transition-colors hover:text-brass">
-      Inventory
-    </Link>
+    <>
+      <Link href="/staff/photos" className="transition-colors hover:text-brass">
+        Photos
+      </Link>
+      <Link href="/staff/inventory" className="transition-colors hover:text-brass">
+        Inventory
+      </Link>
+    </>
   );
 }
