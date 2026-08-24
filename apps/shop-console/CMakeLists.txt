@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 1.2.1 LANGUAGES CXX)
+project(ShopConsole VERSION 1.2.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -35,6 +35,8 @@ qt_add_executable(ShopConsole WIN32
     src/SoftwarePage.cpp
     src/ReturnDialog.h
     src/ReturnDialog.cpp
+    src/TransferStockDialog.h
+    src/TransferStockDialog.cpp
 )
 
 qt_add_resources(ShopConsole "icons"
