@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole LANGUAGES CXX)
+project(ShopConsole VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,9 +23,12 @@ qt_add_executable(ShopConsole WIN32
     src/ProductDialog.cpp
     src/ProductPhotosDialog.h
     src/ProductPhotosDialog.cpp
+    src/UpdateChecker.h
+    src/UpdateChecker.cpp
 )
 
 target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network)
+target_compile_definitions(ShopConsole PRIVATE APP_VERSION="${PROJECT_VERSION}")
 
 install(TARGETS ShopConsole
     BUNDLE DESTINATION .

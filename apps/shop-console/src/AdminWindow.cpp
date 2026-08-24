@@ -27,6 +27,11 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
     auto *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     toolbar->addWidget(spacer);
+    m_updateBanner = new QLabel(this);
+    m_updateBanner->setOpenExternalLinks(true);
+    m_updateBanner->setStyleSheet("padding: 0 8px;");
+    m_updateBanner->hide();
+    toolbar->addWidget(m_updateBanner);
     auto *refreshButton = new QPushButton("Refresh", this);
     toolbar->addWidget(refreshButton);
     auto *newProductButton = new QPushButton("New product", this);
@@ -85,6 +90,12 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
         statusBar()->showMessage("Stock update failed: " + message);
         m_client->fetchProducts();
     });
+}
+
+void AdminWindow::showUpdateBanner(const QString &version, const QString &releaseUrl) {
+    m_updateBanner->setText(
+        QString("<a href=\"%1\" style=\"color:#4f8cff;\">Update available — v%2</a>").arg(releaseUrl, version));
+    m_updateBanner->show();
 }
 
 void AdminWindow::rebuildTable() {

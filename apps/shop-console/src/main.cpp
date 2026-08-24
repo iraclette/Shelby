@@ -4,6 +4,7 @@
 #include "PosWindow.h"
 #include "SupabaseClient.h"
 #include "Theme.h"
+#include "UpdateChecker.h"
 
 #include <QApplication>
 #include <QMainWindow>
@@ -12,6 +13,12 @@
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setStyleSheet(kAppStyleSheet);
+
+    // Kicked off now so the network round-trip overlaps with someone typing
+    // their login credentials — by the time a window exists to show the
+    // notice on, the answer is usually already back.
+    auto *updateChecker = new UpdateChecker(&app);
+    updateChecker->checkForUpdate();
 
     const Config config = Config::load();
     if (!config.isValid()) {
@@ -27,6 +34,18 @@ int main(int argc, char *argv[]) {
 
     auto *login = new LoginWindow(client);
     QMainWindow *activeWindow = nullptr;
+
+    QObject::connect(updateChecker, &UpdateChecker::updateAvailable, &app,
+                      [&](const QString &version, const QString &releaseUrl) {
+        // If this fires before anyone's logged in, there's no window to put
+        // the notice on yet — skipped for this launch rather than buffered;
+        // it'll show up again next time regardless.
+        if (auto *admin = qobject_cast<AdminWindow *>(activeWindow)) {
+            admin->showUpdateBanner(version, releaseUrl);
+        } else if (auto *pos = qobject_cast<PosWindow *>(activeWindow)) {
+            pos->showUpdateBanner(version, releaseUrl);
+        }
+    });
 
     QObject::connect(login, &LoginWindow::authenticated, &app,
                       [&](const QString &role, const QString &shopId) {
