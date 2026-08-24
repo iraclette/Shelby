@@ -96,26 +96,33 @@ jobs:
         run: cmake --build build
 
       - name: Deploy Qt dependencies
-        shell: pwsh
-        run: |
-          windeployqt build\ShopConsole.exe --release --no-translations
-
-      - name: Bundle MinGW runtime DLLs
-        shell: pwsh
-        run: |
-          Copy-Item "$env:MINGW_BIN\libstdc++-6.dll" build\
-          Copy-Item "$env:MINGW_BIN\libgcc_s_seh-1.dll" build\
-          Copy-Item "$env:MINGW_BIN\libwinpthread-1.dll" build\
-
-      - name: Zip release folder
+        # --dir deploys ALL detected dependencies — every DLL and every
+        # plugin subfolder windeployqt decides the app actually needs
+        # (platforms, styles, imageformats, tls, ...) — straight into the
+        # release folder. Previously this ran in-place next to build\ and a
+        # separate step hand-copied only platforms/styles/imageformats into
+        # dist\, which silently missed tls\ (the actual TLS backend
+        # plugins) — every release before this one shipped with no working
+        # HTTPS at all, caught only when self-update swapped a real user
+        # onto a CI-built exe for the first time and login failed outright
+        # ("TLS init failed"). windeployqt does NOT copy the exe itself
+        # (per its own docs) — that's the explicit Copy-Item below.
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist\ShopConsole | Out-Null
           Copy-Item build\ShopConsole.exe dist\ShopConsole\
-          Copy-Item build\*.dll dist\ShopConsole\
-          Copy-Item -Recurse build\platforms dist\ShopConsole\ -ErrorAction SilentlyContinue
-          Copy-Item -Recurse build\styles dist\ShopConsole\ -ErrorAction SilentlyContinue
-          Copy-Item -Recurse build\imageformats dist\ShopConsole\ -ErrorAction SilentlyContinue
+          windeployqt dist\ShopConsole\ShopConsole.exe --release --no-translations
+
+      - name: Bundle MinGW runtime DLLs
+        shell: pwsh
+        run: |
+          Copy-Item "$env:MINGW_BIN\libstdc++-6.dll" dist\ShopConsole\
+          Copy-Item "$env:MINGW_BIN\libgcc_s_seh-1.dll" dist\ShopConsole\
+          Copy-Item "$env:MINGW_BIN\libwinpthread-1.dll" dist\ShopConsole\
+
+      - name: Zip release folder
+        shell: pwsh
+        run: |
           Copy-Item apps\shop-console\.env.example dist\ShopConsole\
           Copy-Item apps\shop-console\scripts\update.ps1 dist\ShopConsole\
           Compress-Archive -Path dist\ShopConsole\* -DestinationPath ShopConsole-windows.zip
