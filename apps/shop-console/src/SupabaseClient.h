@@ -123,6 +123,11 @@ public:
     void fetchShops();
     void upsertInventoryLevels(const QString &productId, const QVector<InventoryLevelInput> &levels);
 
+    // Moves stock between two shops via the atomic transfer_stock DB
+    // function — admin-only (see 0012_stock_transfers.sql's RLS policy),
+    // rejected server-side if the source shop doesn't have enough.
+    void transferStock(const QString &productId, const QString &fromShopId, const QString &toShopId, int quantity);
+
     void fetchProfiles();
     // field must be one of profiles' own column names (full_name/role/shop_id) —
     // always a fixed string from our own code, same guarantee as updateProductField.
@@ -204,6 +209,11 @@ signals:
 
     void inventoryLevelsUpserted();
     void inventoryLevelsUpsertFailed(const QString &message);
+
+    void stockTransferred();
+    // Also fires for a rejected transfer (e.g. "not enough stock at the
+    // source shop") — a normal validation failure, not a crash.
+    void stockTransferFailed(const QString &message);
 
     void imageUploaded();
     void imageUploadFailed(const QString &message);

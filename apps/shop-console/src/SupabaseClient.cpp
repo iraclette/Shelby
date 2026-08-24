@@ -413,6 +413,28 @@ void SupabaseClient::upsertInventoryLevels(const QString &productId, const QVect
     });
 }
 
+void SupabaseClient::transferStock(const QString &productId, const QString &fromShopId, const QString &toShopId,
+                                    int quantity) {
+    const QJsonObject body{
+        {"p_client_generated_id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
+        {"p_product_id", productId},
+        {"p_from_shop_id", fromShopId},
+        {"p_to_shop_id", toShopId},
+        {"p_quantity", quantity},
+    };
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("POST", "/rest/v1/rpc/transfer_stock", {}, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit stockTransferFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit stockTransferred();
+    });
+}
+
 void SupabaseClient::uploadProductImage(const QString &productId, const QString &localFilePath, bool isPrimary) {
     QFile file(localFilePath);
     if (!file.open(QIODevice::ReadOnly)) {

@@ -2,6 +2,7 @@
 #include "ProductDialog.h"
 #include "ProductPhotosDialog.h"
 #include "SupabaseClient.h"
+#include "TransferStockDialog.h"
 
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -19,6 +20,8 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     toolbar->addWidget(newProductButton);
     auto *photosButton = new QPushButton("Photos…", this);
     toolbar->addWidget(photosButton);
+    auto *transferButton = new QPushButton("Transfer Stock", this);
+    toolbar->addWidget(transferButton);
     toolbar->addStretch();
 
     connect(refreshButton, &QPushButton::clicked, this, [this]() { m_client->fetchProducts(); });
@@ -37,6 +40,19 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
         const Product &product = m_products[row];
         ProductPhotosDialog dialog(m_client, product.id, product.name, this);
         dialog.exec();
+    });
+    connect(transferButton, &QPushButton::clicked, this, [this]() {
+        if (m_shops.size() < 2) {
+            emit statusMessage("Need at least two shops to transfer stock between.");
+            return;
+        }
+        const int row = m_table->currentRow();
+        const QString preselectedId = (row >= 0 && row < m_products.size()) ? m_products[row].id : QString();
+        TransferStockDialog dialog(m_client, m_products, m_shops, preselectedId, this);
+        if (dialog.exec() == QDialog::Accepted) {
+            emit statusMessage("Stock transferred.");
+            m_client->fetchProducts();
+        }
     });
 
     m_table = new QTableWidget(this);
