@@ -20,38 +20,71 @@ jobs:
         uses: seanmiddleditch/gha-setup-ninja@master
 
       - name: Install Qt
-        # --autodesktop (the action's default) pulls in the matching MinGW
-        # toolchain automatically alongside win64_mingw — no separate
-        # `tools:` install needed (and the explicit tool-variant name for
-        # this isn't actually resolvable via aqt install-tool; confirmed by
-        # a failed CI run before removing this).
+        # win64_mingw's own automatic dependency install only pulls in a
+        # small MinGW *runtime* (a few DLLs) — not the actual compiler.
+        # The full ~112MB compiler toolchain is a separate package, verified
+        # directly against Qt's real package index (not guessed):
+        # https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_mingw1310/Updates.xml
+        # lists it as tool category "tools_mingw1310", variant
+        # "qt.tools.win64_mingw1310" — note the category is version-suffixed
+        # ("tools_mingw1310"), not the generic "tools_mingw" a previous
+        # attempt used (which only goes up to MinGW 8.1.0 and doesn't
+        # contain this variant at all — why that attempt failed outright).
         uses: jurplel/install-qt-action@v4
         with:
           version: "6.8.1"
           arch: "win64_mingw"
+          tools: "tools_mingw1310,qt.tools.win64_mingw1310"
 
       - name: Locate MinGW toolchain
-        # install-qt-action exports IQTA_TOOLS itself (= its install dir +
-        # "\Tools" — confirmed directly from its source, action/src/main.ts:
-        # `core.exportVariable("IQTA_TOOLS", path.resolve(inputs.dir,
-        # "Tools"))`), so this doesn't need to guess where that install dir
-        # actually is. A prior attempt guessed a path relative to
-        # GITHUB_WORKSPACE instead and that's almost certainly why it came
-        # up empty — searching under the tool's own reported root instead.
+        # windows-latest also has MSVC installed, so finding MinGW's g++
+        # matters for correctness, not just convenience — without it on
+        # PATH first, CMake can pick up cl.exe instead and fail to link
+        # against MinGW-built Qt.
         #
-        # Still a recursive search rather than a hardcoded folder name (e.g.
-        # "mingw1310_64") — that's tied to a specific MinGW point release
-        # bundled with this Qt version, not worth hand-pinning.
-        #
-        # windows-latest also has MSVC installed, so this matters for
-        # correctness, not just convenience — without MinGW's g++ on PATH
-        # first, CMake can pick up cl.exe instead and fail to link against
-        # MinGW-built Qt.
+        # This has taken multiple guesses to get right (IQTA_TOOLS per the
+        # action's own source; a GITHUB_WORKSPACE-relative path before
+        # that) and both came up empty against the real runner, for reasons
+        # that aren't visible without a log download this environment can't
+        # authenticate for. Rather than guess a third location, this
+        # searches every plausible root AND — if none of them work — dumps
+        # enough of the actual runner filesystem into the log to fix this
+        # for real on the next attempt instead of guessing again.
         shell: pwsh
         run: |
           Write-Host "IQTA_TOOLS = $env:IQTA_TOOLS"
-          $gxx = Get-ChildItem -Path $env:IQTA_TOOLS -Recurse -Filter "g++.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $gxx) { throw "Could not find g++.exe under IQTA_TOOLS ($env:IQTA_TOOLS)" }
+          Write-Host "QT_ROOT_DIR = $env:QT_ROOT_DIR"
+          Write-Host "GITHUB_WORKSPACE = $env:GITHUB_WORKSPACE"
+          Write-Host "RUNNER_TOOL_CACHE = $env:RUNNER_TOOL_CACHE"
+
+          $candidates = @(
+            $env:IQTA_TOOLS,
+            $(if ($env:QT_ROOT_DIR) { Split-Path (Split-Path $env:QT_ROOT_DIR -Parent) -Parent }),
+            $(if ($env:GITHUB_WORKSPACE) { Join-Path (Split-Path $env:GITHUB_WORKSPACE -Parent) "Qt" }),
+            "C:\Qt",
+            "D:\a"
+          ) | Where-Object { $_ -and (Test-Path $_) }
+
+          $gxx = $null
+          foreach ($root in $candidates) {
+            Write-Host "Searching for g++.exe under $root ..."
+            $found = Get-ChildItem -Path $root -Recurse -Filter "g++.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $gxx = $found; break }
+          }
+
+          if (-not $gxx) {
+            Write-Host "::error::Could not find g++.exe under any candidate root. Dumping diagnostics for the next fix:"
+            foreach ($root in ($candidates + @("D:\a\Shelby\Qt", "C:\Qt"))) {
+              if (Test-Path $root) {
+                Write-Host "--- Top-level contents of $root ---"
+                Get-ChildItem -Path $root -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+                Write-Host "--- Full recursive listing of $root (dirs only, depth-limited) ---"
+                Get-ChildItem -Path $root -Recurse -Directory -ErrorAction SilentlyContinue | Select-Object -First 200 | ForEach-Object { Write-Host $_.FullName }
+              }
+            }
+            throw "Could not find g++.exe — see diagnostics above."
+          }
+
           Write-Host "Found MinGW toolchain at $($gxx.DirectoryName)"
           Add-Content $env:GITHUB_PATH $gxx.DirectoryName
           Add-Content $env:GITHUB_ENV "MINGW_BIN=$($gxx.DirectoryName)"
