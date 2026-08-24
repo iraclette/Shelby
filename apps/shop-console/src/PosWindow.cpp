@@ -40,7 +40,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     auto *toolbar = addToolBar("main");
     toolbar->setMovable(false);
     auto *title = new QLabel("Checkout", this);
-    title->setStyleSheet("font-weight: 600; padding: 0 8px;");
+    title->setObjectName("pageTitle");
     toolbar->addWidget(title);
     auto *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);

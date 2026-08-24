@@ -38,6 +38,16 @@ bool isNewer(const QVector<int> &candidate, const QVector<int> &current) {
     return false;
 }
 
+// GitHub's own error responses (rate limits, auth failures, ...) are
+// {"message": "..."}. Prefer that verbatim over Qt's generic transport
+// error string when it's present, since it's the actually-useful part —
+// e.g. "API rate limit exceeded for 1.2.3.4." beats "Error transferring
+// https://... - server replied: Forbidden".
+QString describeError(const QByteArray &body, const QString &fallback) {
+    const QString message = QJsonDocument::fromJson(body).object().value("message").toString();
+    return message.isEmpty() ? fallback : message;
+}
+
 } // namespace
 
 UpdateChecker::UpdateChecker(QObject *parent)
@@ -54,22 +64,30 @@ void UpdateChecker::checkForUpdate() {
     QNetworkReply *reply = m_network->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
-        // Offline, GitHub down, rate-limited, no releases yet — all quietly
-        // do nothing. This check is a nice-to-have, not something worth
-        // ever bothering someone about failing.
-        if (reply->error() != QNetworkReply::NoError) return;
+        const QByteArray data = reply->readAll();
 
-        const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit checkFinished(false, false, {}, {}, describeError(data, reply->errorString()));
+            return;
+        }
+
+        const QJsonObject obj = QJsonDocument::fromJson(data).object();
         const QString tag = obj.value("tag_name").toString();
         const QString releaseUrl = obj.value("html_url").toString();
-        if (tag.isEmpty() || releaseUrl.isEmpty()) return;
+        if (tag.isEmpty() || releaseUrl.isEmpty()) {
+            emit checkFinished(false, false, {}, {}, "GitHub's response didn't include a release tag.");
+            return;
+        }
+
+        const QString displayVersion = tag.startsWith('v') ? tag.mid(1) : tag;
 
         QVector<int> latest;
         QVector<int> current;
-        if (!parseVersion(tag, latest) || !parseVersion(QStringLiteral(APP_VERSION), current)) return;
-
-        if (isNewer(latest, current)) {
-            emit updateAvailable(tag.startsWith('v') ? tag.mid(1) : tag, releaseUrl);
+        if (!parseVersion(tag, latest) || !parseVersion(QStringLiteral(APP_VERSION), current)) {
+            emit checkFinished(true, false, displayVersion, releaseUrl, {});
+            return;
         }
+
+        emit checkFinished(true, isNewer(latest, current), displayVersion, releaseUrl, {});
     });
 }

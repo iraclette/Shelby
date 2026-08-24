@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 1.0.0 LANGUAGES CXX)
+project(ShopConsole VERSION 1.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network Svg)
 qt_standard_project_setup()
 
 qt_add_executable(ShopConsole WIN32
@@ -25,9 +25,26 @@ qt_add_executable(ShopConsole WIN32
     src/ProductPhotosDialog.cpp
     src/UpdateChecker.h
     src/UpdateChecker.cpp
+    src/InventoryPage.h
+    src/InventoryPage.cpp
+    src/EmployeesPage.h
+    src/EmployeesPage.cpp
+    src/EmployeeDialog.h
+    src/EmployeeDialog.cpp
+    src/SoftwarePage.h
+    src/SoftwarePage.cpp
 )
 
-target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network)
+qt_add_resources(ShopConsole "icons"
+    PREFIX "/icons"
+    BASE "resources/icons"
+    FILES
+        resources/icons/inventory.svg
+        resources/icons/employees.svg
+        resources/icons/software.svg
+)
+
+target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network Qt6::Svg)
 target_compile_definitions(ShopConsole PRIVATE APP_VERSION="${PROJECT_VERSION}")
 
 install(TARGETS ShopConsole

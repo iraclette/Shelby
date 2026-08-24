@@ -35,16 +35,39 @@ int main(int argc, char *argv[]) {
     auto *login = new LoginWindow(client);
     QMainWindow *activeWindow = nullptr;
 
-    QObject::connect(updateChecker, &UpdateChecker::updateAvailable, &app,
-                      [&](const QString &version, const QString &releaseUrl) {
-        // If this fires before anyone's logged in, there's no window to put
-        // the notice on yet — skipped for this launch rather than buffered;
-        // it'll show up again next time regardless.
+    // The GitHub check usually finishes in well under a second — much
+    // faster than someone can type a username and password — so in
+    // practice checkFinished() almost always fires before activeWindow
+    // exists. Buffered here and applied as soon as a window shows up,
+    // rather than only in the (rare) case the window already exists when
+    // it fires.
+    bool haveUpdateResult = false;
+    bool pendingOk = false;
+    bool pendingIsNewer = false;
+    QString pendingVersion;
+    QString pendingReleaseUrl;
+    QString pendingErrorMessage;
+
+    auto applyUpdateBanner = [&]() {
+        if (!haveUpdateResult) return;
         if (auto *admin = qobject_cast<AdminWindow *>(activeWindow)) {
-            admin->showUpdateBanner(version, releaseUrl);
+            admin->reportUpdateCheckResult(pendingOk, pendingIsNewer, pendingVersion, pendingReleaseUrl,
+                                            pendingErrorMessage);
         } else if (auto *pos = qobject_cast<PosWindow *>(activeWindow)) {
-            pos->showUpdateBanner(version, releaseUrl);
+            if (pendingOk && pendingIsNewer) pos->showUpdateBanner(pendingVersion, pendingReleaseUrl);
         }
+    };
+
+    QObject::connect(updateChecker, &UpdateChecker::checkFinished, &app,
+                      [&](bool ok, bool isNewer, const QString &version, const QString &releaseUrl,
+                          const QString &errorMessage) {
+        haveUpdateResult = true;
+        pendingOk = ok;
+        pendingIsNewer = isNewer;
+        pendingVersion = version;
+        pendingReleaseUrl = releaseUrl;
+        pendingErrorMessage = errorMessage;
+        applyUpdateBanner();
     });
 
     QObject::connect(login, &LoginWindow::authenticated, &app,
@@ -68,6 +91,7 @@ int main(int argc, char *argv[]) {
             });
         }
         activeWindow->show();
+        applyUpdateBanner();
     });
 
     login->show();
