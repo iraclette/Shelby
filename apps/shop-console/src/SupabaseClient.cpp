@@ -115,7 +115,7 @@ void SupabaseClient::signIn(const QString &email, const QString &password) {
 void SupabaseClient::fetchProfile(const QString &userId) {
     QUrlQuery query;
     query.addQueryItem("id", "eq." + userId);
-    query.addQueryItem("select", "role,shop_id,full_name");
+    query.addQueryItem("select", "id,email,role,shop_id,full_name");
 
     authorizedGet("/rest/v1/profiles", query, [this](QNetworkReply *reply) {
         const QByteArray data = reply->readAll();
@@ -132,10 +132,98 @@ void SupabaseClient::fetchProfile(const QString &userId) {
 
         const QJsonObject row = rows.first().toObject();
         Profile profile;
+        profile.id = row.value("id").toString();
+        profile.email = row.value("email").toString();
         profile.role = row.value("role").toString();
         profile.shopId = row.value("shop_id").toString();
         profile.fullName = row.value("full_name").toString();
         emit profileFetched(profile);
+    });
+}
+
+void SupabaseClient::fetchProfiles() {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,email,role,shop_id,full_name");
+    query.addQueryItem("order", "full_name.asc");
+
+    authorizedGet("/rest/v1/profiles", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit profilesFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<Profile> profiles;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            Profile profile;
+            profile.id = row.value("id").toString();
+            profile.email = row.value("email").toString();
+            profile.role = row.value("role").toString();
+            profile.shopId = row.value("shop_id").toString();
+            profile.fullName = row.value("full_name").toString();
+            profiles.append(profile);
+        }
+        emit profilesFetched(profiles);
+    });
+}
+
+void SupabaseClient::updateProfileField(const QString &profileId, const QString &field, const QJsonValue &value) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + profileId);
+
+    const QJsonObject body{{field, value}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/profiles", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit profileUpdateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit profileUpdated();
+    });
+}
+
+void SupabaseClient::createStaffAccount(const QString &username, const QString &password, const QString &fullName,
+                                         const QString &role, const QString &shopId) {
+    const QJsonObject body{
+        {"action", "create"},
+        {"username", username},
+        {"password", password},
+        {"full_name", fullName},
+        {"role", role},
+        {"shop_id", shopId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(shopId)},
+    };
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("POST", "/functions/v1/staff-admin", {}, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit staffAccountCreateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit staffAccountCreated();
+    });
+}
+
+void SupabaseClient::deleteStaffAccount(const QString &profileId) {
+    const QJsonObject body{
+        {"action", "delete"},
+        {"profile_id", profileId},
+    };
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("POST", "/functions/v1/staff-admin", {}, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit staffAccountDeleteFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit staffAccountDeleted();
     });
 }
 

@@ -12,6 +12,8 @@ class QNetworkReply;
 class QUrlQuery;
 
 struct Profile {
+    QString id;
+    QString email;
     QString role;
     QString shopId;
     QString fullName;
@@ -101,6 +103,19 @@ public:
     void fetchShops();
     void upsertInventoryLevels(const QString &productId, const QVector<InventoryLevelInput> &levels);
 
+    void fetchProfiles();
+    // field must be one of profiles' own column names (full_name/role/shop_id) —
+    // always a fixed string from our own code, same guarantee as updateProductField.
+    void updateProfileField(const QString &profileId, const QString &field, const QJsonValue &value);
+
+    // Both go through the staff-admin Edge Function, not a direct table write —
+    // creating/deleting a Supabase Auth user needs the service-role key, which
+    // this app (shipped with only the public anon key) never holds. The function
+    // re-checks the caller is an admin server-side before doing anything.
+    void createStaffAccount(const QString &username, const QString &password, const QString &fullName,
+                             const QString &role, const QString &shopId);
+    void deleteStaffAccount(const QString &profileId);
+
     // Uploads the file to Storage, then records it in product_images.
     void uploadProductImage(const QString &productId, const QString &localFilePath, bool isPrimary);
     void fetchProductImages(const QString &productId);
@@ -145,6 +160,16 @@ signals:
 
     void shopsFetched(const QVector<Shop> &shops);
     void shopsFetchFailed(const QString &message);
+
+    void profilesFetched(const QVector<Profile> &profiles);
+    void profilesFetchFailed(const QString &message);
+    void profileUpdated();
+    void profileUpdateFailed(const QString &message);
+
+    void staffAccountCreated();
+    void staffAccountCreateFailed(const QString &message);
+    void staffAccountDeleted();
+    void staffAccountDeleteFailed(const QString &message);
 
     void inventoryLevelsUpserted();
     void inventoryLevelsUpsertFailed(const QString &message);

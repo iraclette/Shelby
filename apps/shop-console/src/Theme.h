@@ -19,6 +19,16 @@ QLabel {
     background: transparent;
 }
 
+/* The one place a real type scale exists — everything else in this app is
+   flat 13px on purpose (a dense admin/POS tool, not a marketing page), but
+   a toolbar needs one clear heading to anchor the eye. */
+QLabel#pageTitle {
+    font-size: 16px;
+    font-weight: 700;
+    padding: 0 8px;
+    color: #f2f3f5;
+}
+
 QLineEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
     background-color: #1c1e26;
     border: 1px solid #2f323d;
@@ -52,7 +62,7 @@ QPushButton {
     background-color: #23252f;
     border: 1px solid #2f323d;
     border-radius: 6px;
-    padding: 6px 14px;
+    padding: 8px 16px;
 }
 
 QPushButton:hover {
@@ -121,8 +131,8 @@ QPushButton#categoryChip:hover {
 QGroupBox {
     border: 1px solid #2f323d;
     border-radius: 8px;
-    margin-top: 14px;
-    padding-top: 10px;
+    margin-top: 16px;
+    padding-top: 12px;
     font-weight: 600;
 }
 
@@ -142,7 +152,7 @@ QTableWidget {
 }
 
 QTableWidget::item {
-    padding: 4px;
+    padding: 6px;
 }
 
 QTableWidget::item:selected {
@@ -152,7 +162,7 @@ QTableWidget::item:selected {
 QHeaderView::section {
     background-color: #23252f;
     color: #9aa0ac;
-    padding: 6px;
+    padding: 8px;
     border: none;
     border-bottom: 1px solid #2f323d;
     font-weight: 600;
@@ -162,8 +172,8 @@ QToolBar {
     background-color: #1c1e26;
     border: none;
     border-bottom: 1px solid #2f323d;
-    spacing: 6px;
-    padding: 6px;
+    spacing: 8px;
+    padding: 8px;
 }
 
 QStatusBar {
@@ -232,5 +242,33 @@ QWidget#loginBrandPanel {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 #0e0e10, stop:0.5 #231c12, stop:1 #14151a);
     border-right: 1px solid #2f323d;
+}
+
+QListWidget#adminSidebar {
+    background-color: #1c1e26;
+    border: none;
+    border-right: 1px solid #2f323d;
+    padding: 8px 0;
+    outline: none;
+}
+
+QListWidget#adminSidebar::item {
+    padding: 12px 16px;
+    margin: 0 8px;
+    border-radius: 6px;
+    color: #9aa0ac;
+}
+
+QListWidget#adminSidebar::item:hover {
+    background-color: #23252f;
+    color: #e8e9ec;
+}
+
+/* Same "selected = filled accent" language as categoryChip:checked, rather
+   than introducing a second, different selection style. */
+QListWidget#adminSidebar::item:selected {
+    background-color: #4f8cff;
+    color: white;
+    font-weight: 600;
 }
 )";
