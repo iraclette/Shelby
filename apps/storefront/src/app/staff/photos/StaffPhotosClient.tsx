@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { getSupabaseClient } from "@/lib/supabase";
+import StaffAuthGate from "@/components/StaffAuthGate";
 
 type Product = { id: string; name: string; sku: string };
 type ProductImage = { id: string; storage_path: string; is_primary: boolean };
@@ -21,25 +21,12 @@ function publicUrl(storagePath: string) {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${storagePath}`;
 }
 
-// Mirrors the Shop Console's login convention: staff sign in with a short
-// username, not a full email — Supabase Auth still needs an email shape
-// under the hood, so anything without "@" gets this fixed fake domain.
-function toEmail(identifier: string) {
-  const trimmed = identifier.trim();
-  return trimmed.includes("@") ? trimmed : `${trimmed}@shop.local`;
+export default function StaffPhotosClient() {
+  return <StaffAuthGate>{({ signOut }) => <PhotosManager onSignOut={signOut} />}</StaffAuthGate>;
 }
 
-export default function StaffPhotosClient() {
+function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
   const supabase = getSupabaseClient();
-
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [signingIn, setSigningIn] = useState(false);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
@@ -52,49 +39,6 @@ export default function StaffPhotosClient() {
   const [statusMessage, setStatusMessage] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Restore an existing session (this is a bookmarked page — sign in once,
-  // stays signed in via Supabase's own localStorage persistence).
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setCheckingSession(false);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      if (!newSession) setIsAdmin(null);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, [supabase]);
-
-  useEffect(() => {
-    if (!session) return;
-    supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", session.user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        setIsAdmin(data?.role === "owner" || data?.role === "admin");
-      });
-  }, [session, supabase]);
-
-  async function handleSignIn(event: React.FormEvent) {
-    event.preventDefault();
-    setLoginError("");
-    setSigningIn(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: toEmail(username),
-      password,
-    });
-    setSigningIn(false);
-    if (error) setLoginError(error.message);
-  }
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    setSelected(null);
-  }
 
   async function runSearch(text: string) {
     setQuery(text);
@@ -176,58 +120,6 @@ export default function StaffPhotosClient() {
     loadImages(selected.id);
   }
 
-  if (checkingSession) {
-    return <CenteredMessage>Loading…</CenteredMessage>;
-  }
-
-  if (!session) {
-    return (
-      <CenteredMessage>
-        <form onSubmit={handleSignIn} className="w-full max-w-sm space-y-4">
-          <h1 className="font-display text-2xl text-paper">Shelby Staff</h1>
-          {loginError && <p className="text-sm text-red-400">{loginError}</p>}
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
-            autoCapitalize="none"
-            autoCorrect="off"
-            className="w-full rounded-md border border-line bg-ink-soft px-4 py-3 text-base text-paper outline-none focus:border-brass"
-          />
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            type="password"
-            placeholder="Password"
-            className="w-full rounded-md border border-line bg-ink-soft px-4 py-3 text-base text-paper outline-none focus:border-brass"
-          />
-          <button
-            type="submit"
-            disabled={signingIn}
-            className="w-full rounded-md bg-brass px-4 py-3 text-base font-medium text-ink disabled:opacity-60"
-          >
-            {signingIn ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-      </CenteredMessage>
-    );
-  }
-
-  if (isAdmin === null) {
-    return <CenteredMessage>Loading…</CenteredMessage>;
-  }
-
-  if (!isAdmin) {
-    return (
-      <CenteredMessage>
-        <p className="text-paper-dim">This account isn&apos;t an admin, so it can&apos;t manage photos.</p>
-        <button onClick={handleSignOut} className="mt-4 text-sm text-brass underline">
-          Sign out
-        </button>
-      </CenteredMessage>
-    );
-  }
-
   if (selected) {
     return (
       <div className="mx-auto min-h-dvh max-w-lg px-4 py-6">
@@ -286,7 +178,7 @@ export default function StaffPhotosClient() {
     <div className="mx-auto min-h-dvh max-w-lg px-4 py-6">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl text-paper">Product Photos</h1>
-        <button onClick={handleSignOut} className="min-h-11 text-sm text-paper-dim active:text-brass">
+        <button onClick={onSignOut} className="min-h-11 text-sm text-paper-dim active:text-brass">
           Sign out
         </button>
       </div>
@@ -313,14 +205,6 @@ export default function StaffPhotosClient() {
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-function CenteredMessage({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-dvh items-center justify-center px-4 text-center">
-      <div>{children}</div>
     </div>
   );
 }

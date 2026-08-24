@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdminLink from "./AdminLink";
 import CartLink from "./CartLink";
 
 export default function Header() {
@@ -18,6 +19,7 @@ export default function Header() {
           <Link href="/account" className="transition-colors hover:text-brass">
             Account
           </Link>
+          <AdminLink />
           <CartLink />
         </nav>
       </div>
