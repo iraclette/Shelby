@@ -1,4 +1,5 @@
 #include "PosWindow.h"
+#include "ReturnDialog.h"
 
 #include <QButtonGroup>
 #include <QGridLayout>
@@ -54,6 +55,12 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     m_updateBanner->setStyleSheet("padding: 0 8px;");
     m_updateBanner->hide();
     toolbar->addWidget(m_updateBanner);
+    auto *returnsButton = new QPushButton("Returns", this);
+    toolbar->addWidget(returnsButton);
+    connect(returnsButton, &QPushButton::clicked, this, [this]() {
+        ReturnDialog dialog(m_client, m_shopId, this);
+        dialog.exec();
+    });
     auto *signOutButton = new QPushButton("Sign out", this);
     toolbar->addWidget(signOutButton);
     connect(signOutButton, &QPushButton::clicked, this, &PosWindow::signedOut);
