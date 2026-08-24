@@ -15,6 +15,9 @@ export default function Header() {
           <Link href="/products" className="transition-colors hover:text-brass">
             Shop
           </Link>
+          <Link href="/account" className="transition-colors hover:text-brass">
+            Account
+          </Link>
           <CartLink />
         </nav>
       </div>
