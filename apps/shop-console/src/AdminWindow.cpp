@@ -1,6 +1,7 @@
 #include "AdminWindow.h"
 #include "EmployeesPage.h"
 #include "InventoryPage.h"
+#include "SalaryPage.h"
 #include "SoftwarePage.h"
 #include "SupabaseClient.h"
 #include "UpdateChecker.h"
@@ -57,14 +58,17 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, Q
     sidebar->setFocusPolicy(Qt::NoFocus);
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/inventory.svg"), "Inventory"));
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/employees.svg"), "Employees"));
+    sidebar->addItem(new QListWidgetItem(QIcon(":/icons/salary.svg"), "Salary"));
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/software.svg"), "Software"));
 
     auto *pages = new QStackedWidget(this);
     auto *inventoryPage = new InventoryPage(client, this);
     auto *employeesPage = new EmployeesPage(client, this);
+    auto *salaryPage = new SalaryPage(client, this);
     m_softwarePage = new SoftwarePage(updateChecker, this);
     pages->addWidget(inventoryPage);
     pages->addWidget(employeesPage);
+    pages->addWidget(salaryPage);
     pages->addWidget(m_softwarePage);
 
     connect(sidebar, &QListWidget::currentRowChanged, pages, &QStackedWidget::setCurrentIndex);
@@ -73,6 +77,8 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, Q
     connect(inventoryPage, &InventoryPage::statusMessage, this,
             [this](const QString &message) { statusBar()->showMessage(message); });
     connect(employeesPage, &EmployeesPage::statusMessage, this,
+            [this](const QString &message) { statusBar()->showMessage(message); });
+    connect(salaryPage, &SalaryPage::statusMessage, this,
             [this](const QString &message) { statusBar()->showMessage(message); });
 
     auto *central = new QWidget(this);
