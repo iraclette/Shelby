@@ -1,4 +1,5 @@
 #include "PosWindow.h"
+#include "DiscountDialog.h"
 #include "ReturnDialog.h"
 
 #include <QButtonGroup>
@@ -104,8 +105,8 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     cartLayout->addLayout(barcodeRow);
 
     m_cartTable = new QTableWidget(this);
-    m_cartTable->setColumnCount(4);
-    m_cartTable->setHorizontalHeaderLabels({"Product", "Qty", "Unit price", "Line total"});
+    m_cartTable->setColumnCount(5);
+    m_cartTable->setHorizontalHeaderLabels({"Product", "Qty", "Unit price", "Line total", ""});
     m_cartTable->horizontalHeader()->setStretchLastSection(true);
     m_cartTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_cartTable->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -272,7 +273,7 @@ void PosWindow::addToCart(const Product &product) {
         }
     }
 
-    m_cart.append({product.id, product.name, 1, product.sellPrice, product.costPrice});
+    m_cart.append({product.id, product.name, 1, product.sellPrice, product.sellPrice, product.costPrice});
     refreshCartTable();
 }
 
@@ -281,6 +282,17 @@ void PosWindow::removeSelectedLine() {
     if (row < 0 || row >= m_cart.size()) return;
     m_cart.remove(row);
     refreshCartTable();
+}
+
+void PosWindow::openDiscountDialog(int row) {
+    if (row < 0 || row >= m_cart.size()) return;
+    CartLine &line = m_cart[row];
+
+    DiscountDialog dialog(line.name, line.listPrice, line.unitPrice, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        line.unitPrice = dialog.resultUnitPrice();
+        refreshCartTable();
+    }
 }
 
 void PosWindow::refreshCartTable() {
@@ -295,6 +307,15 @@ void PosWindow::refreshCartTable() {
         m_cartTable->setItem(row, 1, new QTableWidgetItem(QString::number(line.quantity)));
         m_cartTable->setItem(row, 2, new QTableWidgetItem(QString::number(line.unitPrice, 'f', 2)));
         m_cartTable->setItem(row, 3, new QTableWidgetItem(QString::number(lineTotal, 'f', 2)));
+
+        const bool discounted = line.unitPrice < line.listPrice;
+        auto *discountButton = new QPushButton(
+            discounted ? QString("-%1%").arg(qRound((1.0 - line.unitPrice / line.listPrice) * 100.0))
+                       : "Discount",
+            this);
+        if (discounted) discountButton->setStyleSheet("color: #22c55e;");
+        connect(discountButton, &QPushButton::clicked, this, [this, row]() { openDiscountDialog(row); });
+        m_cartTable->setCellWidget(row, 4, discountButton);
     }
     m_totalLabel->setText(QString("Total: GEL %1").arg(total, 0, 'f', 2));
 }
@@ -314,7 +335,7 @@ void PosWindow::completeSale() {
     QVector<SaleItemInput> items;
     double total = 0;
     for (const CartLine &line : m_cart) {
-        items.append({line.productId, line.quantity, line.unitPrice, line.unitCost});
+        items.append({line.productId, line.quantity, line.unitPrice, line.unitCost, line.listPrice});
         total += line.quantity * line.unitPrice;
     }
 

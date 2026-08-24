@@ -63,8 +63,9 @@ struct InventoryLevelInput {
 struct SaleItemInput {
     QString productId;
     int quantity = 0;
-    double unitPrice = 0;
+    double unitPrice = 0; // price actually charged, may be discounted below listPrice
     double unitCost = 0;
+    double listPrice = 0; // product's sell_price at the time it was added to the cart
 };
 
 struct SaleItemSummary {
