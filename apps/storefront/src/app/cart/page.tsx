@@ -25,7 +25,7 @@ export default function CartPage() {
 
       <div className="mt-8 divide-y divide-line border-y border-line">
         {lines.map((line) => (
-          <div key={line.productId} className="flex items-center gap-4 py-4">
+          <div key={line.productId} className="flex gap-4 py-4">
             <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden border border-line bg-ink-elevated">
               {line.imagePath && (
                 <Image
@@ -37,26 +37,26 @@ export default function CartPage() {
                 />
               )}
             </div>
-            <div className="flex-1">
-              <p className="text-paper">{line.name}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-paper">{line.name}</p>
               <p className="text-sm text-paper-dim">GEL {line.unitPrice.toFixed(2)}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  value={line.quantity}
+                  onChange={(e) => setQuantity(line.productId, parseInt(e.target.value, 10) || 0)}
+                  className="w-16 border border-line bg-ink-soft px-2 py-1 text-center text-paper"
+                />
+                <p className="text-paper">GEL {(line.quantity * line.unitPrice).toFixed(2)}</p>
+                <button
+                  onClick={() => removeItem(line.productId)}
+                  className="text-sm text-paper-dim hover:text-brass"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
-            <input
-              type="number"
-              min={1}
-              value={line.quantity}
-              onChange={(e) => setQuantity(line.productId, parseInt(e.target.value, 10) || 0)}
-              className="w-16 border border-line bg-ink-soft px-2 py-1 text-center text-paper"
-            />
-            <p className="w-24 text-right text-paper">
-              GEL {(line.quantity * line.unitPrice).toFixed(2)}
-            </p>
-            <button
-              onClick={() => removeItem(line.productId)}
-              className="text-sm text-paper-dim hover:text-brass"
-            >
-              Remove
-            </button>
           </div>
         ))}
       </div>
