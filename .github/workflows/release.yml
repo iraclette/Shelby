@@ -20,18 +20,35 @@ jobs:
         uses: seanmiddleditch/gha-setup-ninja@master
 
       - name: Install Qt
+        # --autodesktop (the action's default) pulls in the matching MinGW
+        # toolchain automatically alongside win64_mingw — no separate
+        # `tools:` install needed (and the explicit tool-variant name for
+        # this isn't actually resolvable via aqt install-tool; confirmed by
+        # a failed CI run before removing this).
         uses: jurplel/install-qt-action@v4
         with:
           version: "6.8.1"
           arch: "win64_mingw"
-          tools: "tools_mingw,qt.tools.win64_mingw1310"
 
-      - name: Put MinGW's compiler on PATH
-        # windows-latest also has MSVC installed; without this, CMake can
-        # pick that up instead and fail to link against MinGW-built Qt.
+      - name: Locate MinGW toolchain
+        # Searches for it rather than hardcoding the exact folder name (e.g.
+        # "mingw1310_64") — that's tied to a specific MinGW point release
+        # bundled with this Qt version, not something worth hand-pinning
+        # here. install-qt-action's default output dir is a "Qt" folder
+        # next to the checkout (confirmed from an earlier run's log:
+        # `--outputdir D:\a\Shelby\Qt` alongside `D:\a\Shelby\Shelby`).
+        # windows-latest also has MSVC installed, so this also matters for
+        # correctness, not just convenience — without MinGW's g++ on PATH
+        # first, CMake can pick up cl.exe instead and fail to link against
+        # MinGW-built Qt.
         shell: pwsh
         run: |
-          Add-Content $env:GITHUB_PATH "$env:IQTA_TOOLS\mingw1310_64\bin"
+          $qtRoot = Join-Path (Split-Path $env:GITHUB_WORKSPACE -Parent) "Qt"
+          $gxx = Get-ChildItem -Path $qtRoot -Recurse -Filter "g++.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $gxx) { throw "Could not find g++.exe under $qtRoot" }
+          Write-Host "Found MinGW toolchain at $($gxx.DirectoryName)"
+          Add-Content $env:GITHUB_PATH $gxx.DirectoryName
+          Add-Content $env:GITHUB_ENV "MINGW_BIN=$($gxx.DirectoryName)"
 
       - name: Configure
         run: cmake -S apps/shop-console -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -47,10 +64,9 @@ jobs:
       - name: Bundle MinGW runtime DLLs
         shell: pwsh
         run: |
-          $mingwBin = "${env:IQTA_TOOLS}\mingw1310_64\bin"
-          Copy-Item "$mingwBin\libstdc++-6.dll" build\
-          Copy-Item "$mingwBin\libgcc_s_seh-1.dll" build\
-          Copy-Item "$mingwBin\libwinpthread-1.dll" build\
+          Copy-Item "$env:MINGW_BIN\libstdc++-6.dll" build\
+          Copy-Item "$env:MINGW_BIN\libgcc_s_seh-1.dll" build\
+          Copy-Item "$env:MINGW_BIN\libwinpthread-1.dll" build\
 
       - name: Zip release folder
         shell: pwsh
