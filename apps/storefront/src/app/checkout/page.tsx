@@ -2,9 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useCart } from "@/lib/cart";
-import { getSupabaseClient } from "@/lib/supabase";
-
-type Shop = { id: string; name: string };
+import { fetchShops, type Shop } from "@/lib/supabase";
 
 export default function CheckoutPage() {
   const { lines, subtotal, clear } = useCart();
@@ -17,14 +15,10 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getSupabaseClient()
-      .from("shops")
-      .select("id, name")
-      .order("name")
-      .then(({ data }) => {
-        setShops(data ?? []);
-        if (data && data.length > 0) setShopId(data[0].id);
-      });
+    fetchShops().then((data) => {
+      setShops(data);
+      if (data.length > 0) setShopId(data[0].id);
+    });
   }, []);
 
   if (lines.length === 0) {
