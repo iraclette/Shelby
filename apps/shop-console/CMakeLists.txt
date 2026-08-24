@@ -33,6 +33,10 @@ qt_add_executable(ShopConsole WIN32
     src/EmployeesPage.cpp
     src/EmployeeDialog.h
     src/EmployeeDialog.cpp
+    src/SalaryPage.h
+    src/SalaryPage.cpp
+    src/PaySalaryDialog.h
+    src/PaySalaryDialog.cpp
     src/SoftwarePage.h
     src/SoftwarePage.cpp
     src/ReturnDialog.h
@@ -47,6 +51,7 @@ qt_add_resources(ShopConsole "icons"
     FILES
         resources/icons/inventory.svg
         resources/icons/employees.svg
+        resources/icons/salary.svg
         resources/icons/software.svg
 )
 

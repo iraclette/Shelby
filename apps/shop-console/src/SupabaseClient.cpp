@@ -143,7 +143,7 @@ void SupabaseClient::fetchProfile(const QString &userId) {
 
 void SupabaseClient::fetchProfiles() {
     QUrlQuery query;
-    query.addQueryItem("select", "id,email,role,shop_id,full_name");
+    query.addQueryItem("select", "id,email,role,shop_id,full_name,daily_rate,bonus_threshold,bonus_amount");
     query.addQueryItem("order", "full_name.asc");
 
     authorizedGet("/rest/v1/profiles", query, [this](QNetworkReply *reply) {
@@ -162,6 +162,9 @@ void SupabaseClient::fetchProfiles() {
             profile.role = row.value("role").toString();
             profile.shopId = row.value("shop_id").toString();
             profile.fullName = row.value("full_name").toString();
+            profile.dailyRate = row.value("daily_rate").toDouble();
+            profile.bonusThreshold = row.value("bonus_threshold").toDouble();
+            profile.bonusAmount = row.value("bonus_amount").toDouble();
             profiles.append(profile);
         }
         emit profilesFetched(profiles);
@@ -686,6 +689,84 @@ void SupabaseClient::submitReturn(const QString &shopId, const QString &saleId, 
             return;
         }
         emit returnRecorded();
+    });
+}
+
+void SupabaseClient::fetchSalesForPeriod(const QString &shopId, const QString &startDateIso,
+                                          const QString &endDateIsoExclusive) {
+    QUrlQuery query;
+    query.addQueryItem("select", "staff_id,sold_at,total");
+    query.addQueryItem("sold_at", "gte." + startDateIso);
+    query.addQueryItem("sold_at", "lt." + endDateIsoExclusive);
+    if (!shopId.isEmpty()) query.addQueryItem("shop_id", "eq." + shopId);
+    query.addQueryItem("order", "sold_at.asc");
+
+    authorizedGet("/rest/v1/sales", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit salesForPeriodFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<SaleAttribution> sales;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            sales.append({row.value("staff_id").toString(), row.value("sold_at").toString(),
+                          row.value("total").toDouble()});
+        }
+        emit salesForPeriodFetched(sales);
+    });
+}
+
+void SupabaseClient::fetchSalaryPayments(const QString &periodStartIso, const QString &periodEndIso) {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,staff_id,amount,note,paid_at");
+    query.addQueryItem("period_start", "eq." + periodStartIso);
+    query.addQueryItem("period_end", "eq." + periodEndIso);
+
+    authorizedGet("/rest/v1/salary_payments", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit salaryPaymentsFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<SalaryPayment> payments;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            SalaryPayment payment;
+            payment.id = row.value("id").toString();
+            payment.staffId = row.value("staff_id").toString();
+            payment.amount = row.value("amount").toDouble();
+            payment.note = row.value("note").toString();
+            payment.paidAt = row.value("paid_at").toString();
+            payments.append(payment);
+        }
+        emit salaryPaymentsFetched(payments);
+    });
+}
+
+void SupabaseClient::recordSalaryPayment(const QString &staffId, const QString &shopId,
+                                          const QString &periodStartIso, const QString &periodEndIso, double amount,
+                                          const QString &note) {
+    QJsonObject body{
+        {"staff_id", staffId},
+        {"shop_id", shopId},
+        {"period_start", periodStartIso},
+        {"period_end", periodEndIso},
+        {"amount", amount},
+    };
+    if (!note.isEmpty()) body["note"] = note;
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("POST", "/rest/v1/salary_payments", {}, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit salaryPaymentRecordFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit salaryPaymentRecorded();
     });
 }
 

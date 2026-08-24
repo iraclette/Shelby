@@ -17,6 +17,11 @@ struct Profile {
     QString role;
     QString shopId;
     QString fullName;
+    // Daily-wage pay config — unset (0) until an admin configures it on the
+    // Salary page. See SalaryPage for how these turn into a period's earnings.
+    double dailyRate = 0;
+    double bonusThreshold = 0;
+    double bonusAmount = 0;
 };
 
 struct Product {
@@ -88,6 +93,24 @@ struct ReturnItemInput {
     int quantity = 0;
 };
 
+// One sale, stripped to just what SalaryPage needs to compute daily-wage
+// earnings — who made it, when, and for how much. Unlike SaleSummary (used
+// by ReturnDialog) this carries no line items.
+struct SaleAttribution {
+    QString staffId;
+    QString soldAt;
+    double total = 0;
+};
+
+// A logged payout from the salary_payments ledger (see SalaryPage).
+struct SalaryPayment {
+    QString id;
+    QString staffId;
+    double amount = 0;
+    QString note;
+    QString paidAt;
+};
+
 // A sale that couldn't reach the server (offline) and is waiting to sync.
 // clientGeneratedId is assigned up front and reused on every retry, so a
 // retry that actually landed server-side but whose response got lost can't
@@ -130,9 +153,22 @@ public:
     void transferStock(const QString &productId, const QString &fromShopId, const QString &toShopId, int quantity);
 
     void fetchProfiles();
-    // field must be one of profiles' own column names (full_name/role/shop_id) —
-    // always a fixed string from our own code, same guarantee as updateProductField.
+    // field must be one of profiles' own column names (full_name/role/shop_id/
+    // daily_rate/bonus_threshold/bonus_amount) — always a fixed string from
+    // our own code, same guarantee as updateProductField.
     void updateProfileField(const QString &profileId, const QString &field, const QJsonValue &value);
+
+    // Sales in [startDateIso, endDateIsoExclusive), stripped to staff_id/sold_at/
+    // total for SalaryPage's earnings calculation. shopId empty = every shop
+    // (only meaningful for an admin — RLS still scopes a non-admin to their own).
+    void fetchSalesForPeriod(const QString &shopId, const QString &startDateIso, const QString &endDateIsoExclusive);
+
+    // Payouts already logged for exactly this period (see recordSalaryPayment).
+    void fetchSalaryPayments(const QString &periodStartIso, const QString &periodEndIso);
+    // Logs a payout. paid_by is set server-side from auth.uid() (see
+    // 0014_salary_tracking.sql), never trusted from here.
+    void recordSalaryPayment(const QString &staffId, const QString &shopId, const QString &periodStartIso,
+                              const QString &periodEndIso, double amount, const QString &note);
 
     // Both go through the staff-admin Edge Function, not a direct table write —
     // creating/deleting a Supabase Auth user needs the service-role key, which
@@ -239,6 +275,14 @@ signals:
     // Also fires for a rejected over-return (e.g. "only 1 left un-returned") —
     // that's a normal validation failure from record_return, not a crash.
     void returnRecordFailed(const QString &message);
+
+    void salesForPeriodFetched(const QVector<SaleAttribution> &sales);
+    void salesForPeriodFetchFailed(const QString &message);
+
+    void salaryPaymentsFetched(const QVector<SalaryPayment> &payments);
+    void salaryPaymentsFetchFailed(const QString &message);
+    void salaryPaymentRecorded();
+    void salaryPaymentRecordFailed(const QString &message);
 
 private:
     QNetworkAccessManager *m_network;
