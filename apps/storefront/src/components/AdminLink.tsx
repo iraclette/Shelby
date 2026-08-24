@@ -10,7 +10,13 @@ import { getSupabaseClient } from "@/lib/supabase";
 // Auth session as /account and /staff/photos; which table it resolves to
 // (customers vs profiles) is what decides which of those a person actually
 // is, not which login form they used.
-export default function AdminLink() {
+export default function AdminLink({
+  linkClassName = "transition-colors hover:text-brass",
+  onNavigate,
+}: {
+  linkClassName?: string;
+  onNavigate?: () => void;
+}) {
   const supabase = getSupabaseClient();
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -35,10 +41,10 @@ export default function AdminLink() {
 
   return (
     <>
-      <Link href="/staff/photos" className="transition-colors hover:text-brass">
+      <Link href="/staff/photos" className={linkClassName} onClick={onNavigate}>
         Photos
       </Link>
-      <Link href="/staff/inventory" className="transition-colors hover:text-brass">
+      <Link href="/staff/inventory" className={linkClassName} onClick={onNavigate}>
         Inventory
       </Link>
     </>
