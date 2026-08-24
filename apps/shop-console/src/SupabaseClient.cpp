@@ -574,6 +574,7 @@ void SupabaseClient::submitSale(const QString &shopId, const QString &clientGene
             {"quantity", item.quantity},
             {"unit_price", item.unitPrice},
             {"unit_cost", item.unitCost},
+            {"list_price", item.listPrice},
         });
     }
 
@@ -722,6 +723,10 @@ void SupabaseClient::loadPendingSales() {
                 itemObj.value("quantity").toInt(),
                 itemObj.value("unit_price").toDouble(),
                 itemObj.value("unit_cost").toDouble(),
+                // Sales queued offline before this field existed fall back to
+                // unit_price, same as record_sale's own coalesce.
+                itemObj.contains("list_price") ? itemObj.value("list_price").toDouble()
+                                                : itemObj.value("unit_price").toDouble(),
             });
         }
         m_pendingSales.append(sale);
@@ -738,6 +743,7 @@ void SupabaseClient::savePendingSales() const {
                 {"quantity", item.quantity},
                 {"unit_price", item.unitPrice},
                 {"unit_cost", item.unitCost},
+                {"list_price", item.listPrice},
             });
         }
         arr.append(QJsonObject{

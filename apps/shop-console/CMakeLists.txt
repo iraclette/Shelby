@@ -19,6 +19,8 @@ qt_add_executable(ShopConsole WIN32
     src/AdminWindow.cpp
     src/PosWindow.h
     src/PosWindow.cpp
+    src/DiscountDialog.h
+    src/DiscountDialog.cpp
     src/ProductDialog.h
     src/ProductDialog.cpp
     src/ProductPhotosDialog.h

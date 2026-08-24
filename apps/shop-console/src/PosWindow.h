@@ -18,7 +18,8 @@ struct CartLine {
     QString productId;
     QString name;
     int quantity = 0;
-    double unitPrice = 0;
+    double unitPrice = 0; // price actually charged, may be discounted below listPrice
+    double listPrice = 0; // product's sell_price at the moment it was added to the cart
     double unitCost = 0;
 };
 
@@ -45,6 +46,7 @@ private:
     void handleBarcodeEntered();
     void addToCart(const Product &product);
     void removeSelectedLine();
+    void openDiscountDialog(int row);
     void completeSale();
     void refreshCartTable();
     void rebuildCategoryChips();
