@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 1.1.0 LANGUAGES CXX)
+project(ShopConsole VERSION 1.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -46,6 +46,12 @@ qt_add_resources(ShopConsole "icons"
 
 target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network Qt6::Svg)
 target_compile_definitions(ShopConsole PRIVATE APP_VERSION="${PROJECT_VERSION}")
+
+# UpdateChecker::downloadAndInstall() looks for this next to the exe — kept
+# next to the build output locally too so the two never drift apart, even
+# though exercising the self-update flow for real needs an actual GitHub
+# release (a signed asset URL), not just a local build.
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/update.ps1 DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 install(TARGETS ShopConsole
     BUNDLE DESTINATION .

@@ -3,6 +3,7 @@
 #include "InventoryPage.h"
 #include "SoftwarePage.h"
 #include "SupabaseClient.h"
+#include "UpdateChecker.h"
 
 #include <QHBoxLayout>
 #include <QIcon>
@@ -16,8 +17,8 @@
 #include <QToolBar>
 #include <QWidget>
 
-AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
-    : QMainWindow(parent) {
+AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, QWidget *parent)
+    : QMainWindow(parent), m_updateChecker(updateChecker) {
     setWindowTitle("Shop Console — Admin");
     showMaximized();
 
@@ -29,14 +30,25 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
     auto *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     toolbar->addWidget(spacer);
-    m_updateBanner = new QLabel(this);
-    m_updateBanner->setOpenExternalLinks(true);
-    m_updateBanner->setStyleSheet("padding: 0 8px;");
-    m_updateBanner->hide();
-    toolbar->addWidget(m_updateBanner);
+    m_updateButton = new QPushButton("Update now", this);
+    m_updateButton->setObjectName("primaryButton");
+    m_updateButton->hide();
+    toolbar->addWidget(m_updateButton);
     auto *signOutButton = new QPushButton("Sign out", this);
     toolbar->addWidget(signOutButton);
     connect(signOutButton, &QPushButton::clicked, this, &AdminWindow::signedOut);
+    connect(m_updateButton, &QPushButton::clicked, this, [this]() {
+        m_updateButton->setEnabled(false);
+        m_updateButton->setText("Updating…");
+        m_updateChecker->downloadAndInstall(m_pendingAssetUrl);
+    });
+    connect(m_updateChecker, &UpdateChecker::installFailed, this, [this](const QString &) {
+        m_updateButton->setEnabled(true);
+        m_updateButton->setText("Update now");
+    });
+    connect(m_updateChecker, &UpdateChecker::downloadProgress, this, [this](int percent) {
+        m_updateButton->setText(QString("Updating… %1%").arg(percent));
+    });
 
     auto *sidebar = new QListWidget(this);
     sidebar->setObjectName("adminSidebar");
@@ -50,7 +62,7 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
     auto *pages = new QStackedWidget(this);
     auto *inventoryPage = new InventoryPage(client, this);
     auto *employeesPage = new EmployeesPage(client, this);
-    m_softwarePage = new SoftwarePage(this);
+    m_softwarePage = new SoftwarePage(updateChecker, this);
     pages->addWidget(inventoryPage);
     pages->addWidget(employeesPage);
     pages->addWidget(m_softwarePage);
@@ -73,13 +85,14 @@ AdminWindow::AdminWindow(SupabaseClient *client, QWidget *parent)
 }
 
 void AdminWindow::reportUpdateCheckResult(bool ok, bool isNewer, const QString &version, const QString &releaseUrl,
-                                           const QString &errorMessage) {
-    if (ok && isNewer) {
-        m_updateBanner->setText(
-            QString("<a href=\"%1\" style=\"color:#4f8cff;\">Update available — v%2</a>").arg(releaseUrl, version));
-        m_updateBanner->show();
+                                           const QString &assetUrl, const QString &errorMessage) {
+    m_pendingAssetUrl = assetUrl;
+    if (ok && isNewer && !assetUrl.isEmpty()) {
+        m_updateButton->setText(QString("Update now — v%1").arg(version));
+        m_updateButton->setEnabled(true);
+        m_updateButton->show();
     } else {
-        m_updateBanner->hide();
+        m_updateButton->hide();
     }
-    m_softwarePage->reportUpdateCheckResult(ok, isNewer, version, releaseUrl, errorMessage);
+    m_softwarePage->reportUpdateCheckResult(ok, isNewer, version, releaseUrl, assetUrl, errorMessage);
 }

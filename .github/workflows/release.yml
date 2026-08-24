@@ -117,6 +117,7 @@ jobs:
           Copy-Item -Recurse build\styles dist\ShopConsole\ -ErrorAction SilentlyContinue
           Copy-Item -Recurse build\imageformats dist\ShopConsole\ -ErrorAction SilentlyContinue
           Copy-Item apps\shop-console\.env.example dist\ShopConsole\
+          Copy-Item apps\shop-console\scripts\update.ps1 dist\ShopConsole\
           Compress-Archive -Path dist\ShopConsole\* -DestinationPath ShopConsole-windows.zip
 
       - name: Publish release
