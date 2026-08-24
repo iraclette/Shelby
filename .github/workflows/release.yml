@@ -31,21 +31,27 @@ jobs:
           arch: "win64_mingw"
 
       - name: Locate MinGW toolchain
-        # Searches for it rather than hardcoding the exact folder name (e.g.
+        # install-qt-action exports IQTA_TOOLS itself (= its install dir +
+        # "\Tools" — confirmed directly from its source, action/src/main.ts:
+        # `core.exportVariable("IQTA_TOOLS", path.resolve(inputs.dir,
+        # "Tools"))`), so this doesn't need to guess where that install dir
+        # actually is. A prior attempt guessed a path relative to
+        # GITHUB_WORKSPACE instead and that's almost certainly why it came
+        # up empty — searching under the tool's own reported root instead.
+        #
+        # Still a recursive search rather than a hardcoded folder name (e.g.
         # "mingw1310_64") — that's tied to a specific MinGW point release
-        # bundled with this Qt version, not something worth hand-pinning
-        # here. install-qt-action's default output dir is a "Qt" folder
-        # next to the checkout (confirmed from an earlier run's log:
-        # `--outputdir D:\a\Shelby\Qt` alongside `D:\a\Shelby\Shelby`).
-        # windows-latest also has MSVC installed, so this also matters for
+        # bundled with this Qt version, not worth hand-pinning.
+        #
+        # windows-latest also has MSVC installed, so this matters for
         # correctness, not just convenience — without MinGW's g++ on PATH
         # first, CMake can pick up cl.exe instead and fail to link against
         # MinGW-built Qt.
         shell: pwsh
         run: |
-          $qtRoot = Join-Path (Split-Path $env:GITHUB_WORKSPACE -Parent) "Qt"
-          $gxx = Get-ChildItem -Path $qtRoot -Recurse -Filter "g++.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $gxx) { throw "Could not find g++.exe under $qtRoot" }
+          Write-Host "IQTA_TOOLS = $env:IQTA_TOOLS"
+          $gxx = Get-ChildItem -Path $env:IQTA_TOOLS -Recurse -Filter "g++.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $gxx) { throw "Could not find g++.exe under IQTA_TOOLS ($env:IQTA_TOOLS)" }
           Write-Host "Found MinGW toolchain at $($gxx.DirectoryName)"
           Add-Content $env:GITHUB_PATH $gxx.DirectoryName
           Add-Content $env:GITHUB_ENV "MINGW_BIN=$($gxx.DirectoryName)"
