@@ -1,10 +1,17 @@
 #include "UpdateChecker.h"
 
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QProcess>
+#include <QStandardPaths>
 #include <QVector>
 
 namespace {
@@ -67,7 +74,7 @@ void UpdateChecker::checkForUpdate() {
         const QByteArray data = reply->readAll();
 
         if (reply->error() != QNetworkReply::NoError) {
-            emit checkFinished(false, false, {}, {}, describeError(data, reply->errorString()));
+            emit checkFinished(false, false, {}, {}, {}, describeError(data, reply->errorString()));
             return;
         }
 
@@ -75,8 +82,17 @@ void UpdateChecker::checkForUpdate() {
         const QString tag = obj.value("tag_name").toString();
         const QString releaseUrl = obj.value("html_url").toString();
         if (tag.isEmpty() || releaseUrl.isEmpty()) {
-            emit checkFinished(false, false, {}, {}, "GitHub's response didn't include a release tag.");
+            emit checkFinished(false, false, {}, {}, {}, "GitHub's response didn't include a release tag.");
             return;
+        }
+
+        QString assetUrl;
+        for (const QJsonValue &value : obj.value("assets").toArray()) {
+            const QJsonObject asset = value.toObject();
+            if (asset.value("name").toString().endsWith(".zip")) {
+                assetUrl = asset.value("browser_download_url").toString();
+                break;
+            }
         }
 
         const QString displayVersion = tag.startsWith('v') ? tag.mid(1) : tag;
@@ -84,10 +100,64 @@ void UpdateChecker::checkForUpdate() {
         QVector<int> latest;
         QVector<int> current;
         if (!parseVersion(tag, latest) || !parseVersion(QStringLiteral(APP_VERSION), current)) {
-            emit checkFinished(true, false, displayVersion, releaseUrl, {});
+            emit checkFinished(true, false, displayVersion, releaseUrl, assetUrl, {});
             return;
         }
 
-        emit checkFinished(true, isNewer(latest, current), displayVersion, releaseUrl, {});
+        emit checkFinished(true, isNewer(latest, current), displayVersion, releaseUrl, assetUrl, {});
+    });
+}
+
+void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
+    if (assetUrl.isEmpty()) {
+        emit installFailed("This release has no downloadable build attached.");
+        return;
+    }
+
+    const QString scriptPath = QCoreApplication::applicationDirPath() + "/update.ps1";
+    if (!QFile::exists(scriptPath)) {
+        emit installFailed("update.ps1 is missing from the install folder — can't self-update.");
+        return;
+    }
+
+    QNetworkRequest request((QUrl(assetUrl)));
+    request.setRawHeader("User-Agent", "ShopConsole-UpdateChecker");
+    // GitHub asset links redirect to a signed S3/object-storage URL; Qt
+    // doesn't follow redirects unless explicitly told to.
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+
+    QNetworkReply *reply = m_network->get(request);
+    connect(reply, &QNetworkReply::downloadProgress, this, [this](qint64 received, qint64 total) {
+        if (total > 0) emit downloadProgress(static_cast<int>(received * 100 / total));
+    });
+    connect(reply, &QNetworkReply::finished, this, [this, reply, scriptPath]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit installFailed("Download failed: " + reply->errorString());
+            return;
+        }
+
+        const QString zipPath =
+            QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/ShopConsole-update.zip";
+        QFile zipFile(zipPath);
+        if (!zipFile.open(QIODevice::WriteOnly) || zipFile.write(reply->readAll()) < 0) {
+            emit installFailed("Couldn't save the downloaded update to disk.");
+            return;
+        }
+        zipFile.close();
+
+        const QString installDir = QDir::toNativeSeparators(QCoreApplication::applicationDirPath());
+        const QString exeName = QFileInfo(QCoreApplication::applicationFilePath()).fileName();
+
+        const bool started = QProcess::startDetached(
+            "powershell.exe",
+            {"-ExecutionPolicy", "Bypass", "-File", QDir::toNativeSeparators(scriptPath), "-ZipPath",
+             QDir::toNativeSeparators(zipPath), "-InstallDir", installDir, "-ExeName", exeName});
+
+        if (!started) {
+            emit installFailed("Couldn't start the update script.");
+            return;
+        }
+        emit installStarting();
     });
 }

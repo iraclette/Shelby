@@ -46,13 +46,14 @@ int main(int argc, char *argv[]) {
     bool pendingIsNewer = false;
     QString pendingVersion;
     QString pendingReleaseUrl;
+    QString pendingAssetUrl;
     QString pendingErrorMessage;
 
     auto applyUpdateBanner = [&]() {
         if (!haveUpdateResult) return;
         if (auto *admin = qobject_cast<AdminWindow *>(activeWindow)) {
             admin->reportUpdateCheckResult(pendingOk, pendingIsNewer, pendingVersion, pendingReleaseUrl,
-                                            pendingErrorMessage);
+                                            pendingAssetUrl, pendingErrorMessage);
         } else if (auto *pos = qobject_cast<PosWindow *>(activeWindow)) {
             if (pendingOk && pendingIsNewer) pos->showUpdateBanner(pendingVersion, pendingReleaseUrl);
         }
@@ -60,14 +61,25 @@ int main(int argc, char *argv[]) {
 
     QObject::connect(updateChecker, &UpdateChecker::checkFinished, &app,
                       [&](bool ok, bool isNewer, const QString &version, const QString &releaseUrl,
-                          const QString &errorMessage) {
+                          const QString &assetUrl, const QString &errorMessage) {
         haveUpdateResult = true;
         pendingOk = ok;
         pendingIsNewer = isNewer;
         pendingVersion = version;
         pendingReleaseUrl = releaseUrl;
+        pendingAssetUrl = assetUrl;
         pendingErrorMessage = errorMessage;
         applyUpdateBanner();
+    });
+
+    // "Update now" (AdminWindow toolbar, or the Software page) only ever
+    // fires downloadAndInstall() from an explicit click — never on its own.
+    // Once the new build is downloaded and the relaunch script is handed
+    // off, quitting right away is what lets that script's "wait for the
+    // old process to exit" step actually proceed instead of stalling.
+    QObject::connect(updateChecker, &UpdateChecker::installStarting, &app, [&]() { app.quit(); });
+    QObject::connect(updateChecker, &UpdateChecker::installFailed, &app, [&](const QString &message) {
+        QMessageBox::warning(activeWindow, "Update failed", message);
     });
 
     QObject::connect(login, &LoginWindow::authenticated, &app,
@@ -76,7 +88,7 @@ int main(int argc, char *argv[]) {
 
         const bool isAdmin = role == "owner" || role == "admin";
         if (isAdmin) {
-            activeWindow = new AdminWindow(client);
+            activeWindow = new AdminWindow(client, updateChecker);
             QObject::connect(static_cast<AdminWindow *>(activeWindow), &AdminWindow::signedOut,
                               &app, [&]() {
                 activeWindow->close();
