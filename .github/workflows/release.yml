@@ -1,0 +1,70 @@
+name: Release Shop Console
+
+# Push a version tag (vX.Y.Z) to build the Shop Console and publish it as a
+# GitHub Release. The app checks this same Releases API on launch — see
+# apps/shop-console/src/UpdateChecker.cpp — so this is what feeds it.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.1"
+          arch: "win64_mingw"
+          tools: "tools_mingw,qt.tools.win64_mingw1310"
+
+      - name: Put MinGW's compiler on PATH
+        # windows-latest also has MSVC installed; without this, CMake can
+        # pick that up instead and fail to link against MinGW-built Qt.
+        shell: pwsh
+        run: |
+          Add-Content $env:GITHUB_PATH "$env:IQTA_TOOLS\mingw1310_64\bin"
+
+      - name: Configure
+        run: cmake -S apps/shop-console -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Deploy Qt dependencies
+        shell: pwsh
+        run: |
+          windeployqt build\ShopConsole.exe --release --no-translations
+
+      - name: Bundle MinGW runtime DLLs
+        shell: pwsh
+        run: |
+          $mingwBin = "${env:IQTA_TOOLS}\mingw1310_64\bin"
+          Copy-Item "$mingwBin\libstdc++-6.dll" build\
+          Copy-Item "$mingwBin\libgcc_s_seh-1.dll" build\
+          Copy-Item "$mingwBin\libwinpthread-1.dll" build\
+
+      - name: Zip release folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist\ShopConsole | Out-Null
+          Copy-Item build\ShopConsole.exe dist\ShopConsole\
+          Copy-Item build\*.dll dist\ShopConsole\
+          Copy-Item -Recurse build\platforms dist\ShopConsole\ -ErrorAction SilentlyContinue
+          Copy-Item -Recurse build\styles dist\ShopConsole\ -ErrorAction SilentlyContinue
+          Copy-Item -Recurse build\imageformats dist\ShopConsole\ -ErrorAction SilentlyContinue
+          Copy-Item apps\shop-console\.env.example dist\ShopConsole\
+          Compress-Archive -Path dist\ShopConsole\* -DestinationPath ShopConsole-windows.zip
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ShopConsole-windows.zip

@@ -49,6 +49,11 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     m_pendingBadge->setStyleSheet("color: #f59e0b; font-weight: 600; padding: 0 8px;");
     m_pendingBadge->hide();
     toolbar->addWidget(m_pendingBadge);
+    m_updateBanner = new QLabel(this);
+    m_updateBanner->setOpenExternalLinks(true);
+    m_updateBanner->setStyleSheet("padding: 0 8px;");
+    m_updateBanner->hide();
+    toolbar->addWidget(m_updateBanner);
     auto *signOutButton = new QPushButton("Sign out", this);
     toolbar->addWidget(signOutButton);
     connect(signOutButton, &QPushButton::clicked, this, &PosWindow::signedOut);
@@ -181,6 +186,12 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     m_client->flushPendingSales();
 
     m_barcodeInput->setFocus();
+}
+
+void PosWindow::showUpdateBanner(const QString &version, const QString &releaseUrl) {
+    m_updateBanner->setText(
+        QString("<a href=\"%1\" style=\"color:#4f8cff;\">Update available — v%2</a>").arg(releaseUrl, version));
+    m_updateBanner->show();
 }
 
 void PosWindow::updatePendingBadge(int count) {

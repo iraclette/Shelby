@@ -24,6 +24,10 @@ QLineEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
     border: 1px solid #2f323d;
     border-radius: 6px;
     padding: 6px 8px;
+    /* Without this, Qt sizes these to font-height alone and the padding
+       above eats into that instead of adding to it, so the text renders
+       vertically clipped through the middle instead of fully visible. */
+    min-height: 20px;
     selection-background-color: #2b3a5c;
 }
 

@@ -5,6 +5,7 @@
 
 #include "SupabaseClient.h"
 
+class QLabel;
 class QTableWidget;
 
 // Product list with inline editing: double-click a cell to change name,
@@ -15,6 +16,10 @@ class AdminWindow : public QMainWindow {
 public:
     explicit AdminWindow(SupabaseClient *client, QWidget *parent = nullptr);
 
+    // Shows a clickable toolbar notice; clicking opens releaseUrl (the
+    // release's GitHub page) in the default browser. See UpdateChecker.
+    void showUpdateBanner(const QString &version, const QString &releaseUrl);
+
 signals:
     void signedOut();
 
@@ -24,6 +29,7 @@ private:
 
     SupabaseClient *m_client;
     QTableWidget *m_table;
+    QLabel *m_updateBanner;
 
     QVector<Shop> m_shops;
     QVector<Product> m_products;

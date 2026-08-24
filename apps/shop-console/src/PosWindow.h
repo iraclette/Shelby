@@ -34,6 +34,10 @@ class PosWindow : public QMainWindow {
 public:
     PosWindow(SupabaseClient *client, QString shopId, QWidget *parent = nullptr);
 
+    // Shows a clickable toolbar notice; clicking opens releaseUrl (the
+    // release's GitHub page) in the default browser. See UpdateChecker.
+    void showUpdateBanner(const QString &version, const QString &releaseUrl);
+
 signals:
     void signedOut();
 
@@ -55,6 +59,7 @@ private:
     QLabel *m_totalLabel;
     QLabel *m_statusLabel;
     QLabel *m_pendingBadge;
+    QLabel *m_updateBanner;
     QPushButton *m_completeSaleButton;
 
     QHBoxLayout *m_categoryChipsLayout;
