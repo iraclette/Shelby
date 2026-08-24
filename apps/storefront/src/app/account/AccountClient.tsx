@@ -4,6 +4,14 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 
+// Staff accounts sign in with a short username (see the Shop Console's
+// LoginWindow), not a full email — mirrored here so an admin can sign in
+// from this page too and have the header's admin link pick them up.
+function toSignInEmail(identifier: string) {
+  const trimmed = identifier.trim();
+  return trimmed.includes("@") ? trimmed : `${trimmed}@shop.local`;
+}
+
 type Customer = { full_name: string | null; email: string };
 
 export default function AccountClient() {
@@ -47,7 +55,7 @@ export default function AccountClient() {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: toSignInEmail(email), password });
     setSubmitting(false);
     if (error) setError(error.message);
   }
@@ -137,10 +145,14 @@ export default function AccountClient() {
           </div>
         )}
         <div>
-          <label className="block text-sm text-paper-dim">Email</label>
+          <label className="block text-sm text-paper-dim">
+            {mode === "sign-in" ? "Email or username" : "Email"}
+          </label>
           <input
             required
-            type="email"
+            type={mode === "sign-up" ? "email" : "text"}
+            autoCapitalize="none"
+            autoCorrect="off"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="mt-1 w-full border border-line bg-ink-soft px-3 py-2 text-paper"
