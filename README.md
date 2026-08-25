@@ -1,6 +1,6 @@
 # Shelby
 
-Shelby is the software behind three real shops in Georgia: Black Eye Beauty, Shelby, and End. They sell knives, leather goods, and cosmetics, and everything runs in GEL.
+Shelby is the software behind three real shops in Georgia, boasting their variety in goods, going from knives, decorative souvenirs, leather goods, both handmade and imported, camping equipment, lighters, jewelry, perfume, both sprayed and oil, and cosmetics.
 
 The project is three pieces that all talk to the same backend:
 
@@ -21,7 +21,3 @@ Customers can browse the catalog and check out online through Bank of Georgia, w
 ## What ties it together
 
 Both apps read and write to one shared database, so a sale rung up at the register updates stock immediately, inventory stays consistent across all three shops, and nothing customers do on the website steps on what's happening at checkout. Every login, whether it's a customer, a cashier, or an admin, only ever sees and touches what it's supposed to.
-
-## Versioning
-
-Shop Console releases follow x.y.z. x is a major overhaul, y is new functionality, z is a bugfix.
