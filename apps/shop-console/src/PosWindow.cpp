@@ -256,6 +256,7 @@ void PosWindow::rebuildProductGrid() {
     int index = 0;
     for (const Product &product : m_allProducts) {
         if (!m_selectedCategoryId.isEmpty() && product.categoryId != m_selectedCategoryId) continue;
+        if (!productHasStockAtShop(product)) continue;
 
         auto *tile = new QPushButton(
             QString("%1\nGEL %2").arg(product.name).arg(product.sellPrice, 0, 'f', 2), this);
@@ -286,6 +287,7 @@ void PosWindow::handleBarcodeEntered() {
 void PosWindow::promptForVariant(const Product &product, QWidget *anchor) {
     QMenu menu(this);
     for (const ProductVariant &variant : product.variants) {
+        if (variant.stockByShop.value(m_shopId, 0) <= 0) continue; // out of stock at this shop
         QAction *action = menu.addAction(variant.name);
         connect(action, &QAction::triggered, this, [this, product, variant]() {
             Product selected = product;
@@ -294,7 +296,19 @@ void PosWindow::promptForVariant(const Product &product, QWidget *anchor) {
             addToCart(selected);
         });
     }
+    if (menu.isEmpty()) {
+        m_statusLabel->setText(product.name + " has no variants in stock at this shop.");
+        return;
+    }
     menu.exec(anchor->mapToGlobal(QPoint(0, anchor->height())));
+}
+
+bool PosWindow::productHasStockAtShop(const Product &product) const {
+    if (product.variants.isEmpty()) return product.stockByShop.value(m_shopId, 0) > 0;
+    for (const ProductVariant &variant : product.variants) {
+        if (variant.stockByShop.value(m_shopId, 0) > 0) return true;
+    }
+    return false;
 }
 
 void PosWindow::addToCart(const Product &product) {
@@ -308,10 +322,39 @@ void PosWindow::addToCart(const Product &product) {
         return;
     }
 
+    // Stock check happens here (not just by hiding out-of-stock tiles from
+    // the grid) so a barcode scan can't add something with nothing left at
+    // this shop either — hiding the tile alone doesn't cover that path.
+    int availableStock = 0;
+    if (product.selectedVariantId.isEmpty()) {
+        availableStock = product.stockByShop.value(m_shopId, 0);
+    } else {
+        for (const ProductVariant &variant : product.variants) {
+            if (variant.id == product.selectedVariantId) {
+                availableStock = variant.stockByShop.value(m_shopId, 0);
+                break;
+            }
+        }
+    }
+
+    const QString &variantId = product.selectedVariantId;
+    int alreadyInCart = 0;
+    for (const CartLine &line : m_cart) {
+        if (line.productId == product.id && line.variantId == variantId) {
+            alreadyInCart = line.quantity;
+            break;
+        }
+    }
+
+    if (availableStock <= alreadyInCart) {
+        m_statusLabel->setText(product.name + " is out of stock at this shop.");
+        m_barcodeInput->clear();
+        return;
+    }
+
     m_barcodeInput->clear();
     m_barcodeInput->setFocus();
 
-    const QString &variantId = product.selectedVariantId;
     const QString lineName = variantId.isEmpty()
         ? product.name
         : QString("%1 (%2)").arg(product.name, product.selectedVariantName);

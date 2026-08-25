@@ -59,6 +59,10 @@ private:
     void handleBarcodeEntered();
     void addToCart(const Product &product);
     void promptForVariant(const Product &product, QWidget *anchor);
+    // Whether the product has any sellable stock at m_shopId — for a
+    // variant product, true if at least one variant does (the picker
+    // itself filters down to just the in-stock ones).
+    bool productHasStockAtShop(const Product &product) const;
     void removeSelectedLine();
     void openDiscountDialog(int row);
     void completeSale();
