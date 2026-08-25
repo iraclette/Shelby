@@ -41,6 +41,33 @@ static QString extractErrorMessage(const QByteArray &body, const QString &fallba
     return fallback;
 }
 
+// Splits a product's inventory_levels rows into its own "no variant"
+// bucket vs its variants' buckets, by variant_id — shared by fetchProducts
+// and lookupProductBySku so every Product built anywhere has the same
+// per-shop stock data available (PosWindow relies on this to hide/refuse
+// items with no stock at the current shop). Expects product.variants to
+// already be populated, so a variant_id here always has a match to fold
+// into.
+static void applyInventoryLevels(Product &product, const QJsonArray &levels) {
+    for (const QJsonValue &levelValue : levels) {
+        const QJsonObject level = levelValue.toObject();
+        const QString shopId = level.value("shop_id").toString();
+        const int quantity = level.value("quantity").toInt();
+        const QString variantId = level.value("variant_id").toString();
+
+        if (variantId.isEmpty()) {
+            product.stockByShop.insert(shopId, quantity);
+            continue;
+        }
+        for (ProductVariant &variant : product.variants) {
+            if (variant.id == variantId) {
+                variant.stockByShop.insert(shopId, quantity);
+                break;
+            }
+        }
+    }
+}
+
 // Shared parser for the sales?...&select=id,sold_at,total,shop_id,staff_id,
 // sale_items(...) shape — used by both fetchRecentSales (ReturnDialog's
 // picker) and fetchSalesForDay (DailySummaryPage).
@@ -302,23 +329,7 @@ void SupabaseClient::fetchProducts() {
                 product.variants.append(variant);
             }
 
-            for (const QJsonValue &levelValue : row.value("inventory_levels").toArray()) {
-                const QJsonObject level = levelValue.toObject();
-                const QString shopId = level.value("shop_id").toString();
-                const int quantity = level.value("quantity").toInt();
-                const QString variantId = level.value("variant_id").toString();
-
-                if (variantId.isEmpty()) {
-                    product.stockByShop.insert(shopId, quantity);
-                    continue;
-                }
-                for (ProductVariant &variant : product.variants) {
-                    if (variant.id == variantId) {
-                        variant.stockByShop.insert(shopId, quantity);
-                        break;
-                    }
-                }
-            }
+            applyInventoryLevels(product, row.value("inventory_levels").toArray());
 
             products.append(product);
         }
@@ -737,10 +748,14 @@ QString SupabaseClient::publicImageUrl(const QString &storagePath) const {
 
 void SupabaseClient::lookupProductBySku(const QString &sku) {
     // Step 1: a variant's own barcode, if this one matches — lets a direct
-    // scan bypass PosWindow's variant picker entirely.
+    // scan bypass PosWindow's variant picker entirely. inventory_levels is
+    // embedded directly under product_variants (resolves via variant_id,
+    // the only relationship from that context) so PosWindow can still
+    // check this variant's stock at the current shop before adding it.
     QUrlQuery variantQuery;
     variantQuery.addQueryItem("sku", "eq." + sku);
-    variantQuery.addQueryItem("select", "id,name,products(id,name,sku,sell_price,cost_price)");
+    variantQuery.addQueryItem("select",
+                               "id,name,inventory_levels(shop_id,quantity),products(id,name,sku,sell_price,cost_price)");
     variantQuery.addQueryItem("limit", "1");
 
     authorizedGet("/rest/v1/product_variants", variantQuery, [this, sku](QNetworkReply *variantReply) {
@@ -757,21 +772,35 @@ void SupabaseClient::lookupProductBySku(const QString &sku) {
                 product.sku = productRow.value("sku").toString();
                 product.sellPrice = productRow.value("sell_price").toDouble();
                 product.costPrice = productRow.value("cost_price").toDouble();
-                product.selectedVariantId = variantRow.value("id").toString();
-                product.selectedVariantName = variantRow.value("name").toString();
+
+                ProductVariant variant;
+                variant.id = variantRow.value("id").toString();
+                variant.productId = product.id;
+                variant.name = variantRow.value("name").toString();
+                for (const QJsonValue &levelValue : variantRow.value("inventory_levels").toArray()) {
+                    const QJsonObject level = levelValue.toObject();
+                    variant.stockByShop.insert(level.value("shop_id").toString(), level.value("quantity").toInt());
+                }
+                product.variants.append(variant);
+                product.selectedVariantId = variant.id;
+                product.selectedVariantName = variant.name;
                 emit productLookedUp(product);
                 return;
             }
         }
 
-        // Step 2: fall back to the product's own barcode. Still embeds
-        // product_variants so, if this product DOES have variants but was
-        // scanned via its own top-level sku, PosWindow knows to show the
-        // picker rather than silently adding a "no variant" line that has
-        // no matching inventory bucket (variant products never get one).
+        // Step 2: fall back to the product's own barcode. Same shape
+        // fetchProducts uses (own + every variant's stock, via
+        // applyInventoryLevels) so PosWindow can check stock and, if this
+        // product DOES have variants but was scanned via its own top-level
+        // sku, show the picker rather than silently adding a "no variant"
+        // line that has no matching inventory bucket (variant products
+        // never get one — see 0015_product_variants.sql).
         QUrlQuery productQuery;
         productQuery.addQueryItem("sku", "eq." + sku);
-        productQuery.addQueryItem("select", "id,name,sku,sell_price,cost_price,product_variants(id,name,sku)");
+        productQuery.addQueryItem(
+            "select",
+            "id,name,sku,sell_price,cost_price,inventory_levels(shop_id,quantity,variant_id),product_variants(id,name,sku)");
         productQuery.addQueryItem("limit", "1");
 
         authorizedGet("/rest/v1/products", productQuery, [this](QNetworkReply *reply) {
@@ -803,6 +832,7 @@ void SupabaseClient::lookupProductBySku(const QString &sku) {
                 variant.sku = variantRow.value("sku").toString();
                 product.variants.append(variant);
             }
+            applyInventoryLevels(product, row.value("inventory_levels").toArray());
             emit productLookedUp(product);
         });
     });
