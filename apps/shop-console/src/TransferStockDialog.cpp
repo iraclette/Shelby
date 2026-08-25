@@ -9,10 +9,15 @@
 #include <QVBoxLayout>
 
 TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product> products, QVector<Shop> shops,
-                                          const QString &preselectedProductId, QWidget *parent)
-    : QDialog(parent), m_client(client), m_products(std::move(products)), m_shops(std::move(shops)) {
+                                          const QString &preselectedProductId, const QString &preselectedVariantId,
+                                          QWidget *parent)
+    : QDialog(parent)
+    , m_client(client)
+    , m_products(std::move(products))
+    , m_shops(std::move(shops))
+    , m_preselectedVariantId(preselectedVariantId) {
     setWindowTitle("Transfer Stock");
-    resize(360, 280);
+    resize(360, 320);
 
     m_productCombo = new QComboBox(this);
     for (const Product &product : m_products) {
@@ -22,6 +27,8 @@ TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product
         const int index = m_productCombo->findData(preselectedProductId);
         if (index >= 0) m_productCombo->setCurrentIndex(index);
     }
+
+    m_variantCombo = new QComboBox(this);
 
     m_fromShopCombo = new QComboBox(this);
     m_toShopCombo = new QComboBox(this);
@@ -39,6 +46,8 @@ TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product
 
     auto *form = new QFormLayout;
     form->addRow("Product", m_productCombo);
+    m_variantLabel = new QLabel("Variant", this);
+    form->addRow(m_variantLabel, m_variantCombo);
     form->addRow("From shop", m_fromShopCombo);
     form->addRow("To shop", m_toShopCombo);
     form->addRow("Quantity", m_quantitySpin);
@@ -58,7 +67,8 @@ TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product
     layout->addStretch();
     layout->addWidget(buttons);
 
-    connect(m_productCombo, &QComboBox::currentIndexChanged, this, &TransferStockDialog::updateAvailable);
+    connect(m_productCombo, &QComboBox::currentIndexChanged, this, &TransferStockDialog::rebuildVariantCombo);
+    connect(m_variantCombo, &QComboBox::currentIndexChanged, this, &TransferStockDialog::updateAvailable);
     connect(m_fromShopCombo, &QComboBox::currentIndexChanged, this, &TransferStockDialog::updateAvailable);
     connect(m_submitButton, &QPushButton::clicked, this, &TransferStockDialog::submit);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -69,19 +79,60 @@ TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product
         m_statusLabel->setText(message);
     });
 
+    rebuildVariantCombo();
+}
+
+void TransferStockDialog::rebuildVariantCombo() {
+    m_variantCombo->blockSignals(true);
+    m_variantCombo->clear();
+
+    const QString productId = m_productCombo->currentData().toString();
+    const Product *selectedProduct = nullptr;
+    for (const Product &product : m_products) {
+        if (product.id == productId) {
+            selectedProduct = &product;
+            break;
+        }
+    }
+
+    const bool hasVariants = selectedProduct && !selectedProduct->variants.isEmpty();
+    m_variantCombo->setVisible(hasVariants);
+    m_variantLabel->setVisible(hasVariants);
+
+    if (hasVariants) {
+        for (const ProductVariant &variant : selectedProduct->variants) {
+            m_variantCombo->addItem(variant.name, variant.id);
+        }
+        if (!m_preselectedVariantId.isEmpty()) {
+            const int index = m_variantCombo->findData(m_preselectedVariantId);
+            if (index >= 0) m_variantCombo->setCurrentIndex(index);
+        }
+    }
+    m_preselectedVariantId.clear();
+
+    m_variantCombo->blockSignals(false);
     updateAvailable();
 }
 
 void TransferStockDialog::updateAvailable() {
     const QString productId = m_productCombo->currentData().toString();
     const QString fromShopId = m_fromShopCombo->currentData().toString();
+    const QString variantId = m_variantCombo->isVisible() ? m_variantCombo->currentData().toString() : QString();
 
     int available = 0;
     for (const Product &product : m_products) {
-        if (product.id == productId) {
+        if (product.id != productId) continue;
+        if (variantId.isEmpty()) {
             available = product.stockByShop.value(fromShopId, 0);
-            break;
+        } else {
+            for (const ProductVariant &variant : product.variants) {
+                if (variant.id == variantId) {
+                    available = variant.stockByShop.value(fromShopId, 0);
+                    break;
+                }
+            }
         }
+        break;
     }
 
     m_availableLabel->setText(QString("%1 available at this shop").arg(available));
@@ -103,6 +154,7 @@ void TransferStockDialog::submit() {
     m_statusLabel->setStyleSheet("color: #737373;");
     m_statusLabel->setText("Transferring…");
 
-    m_client->transferStock(m_productCombo->currentData().toString(), fromShopId, toShopId,
-                             m_quantitySpin->value());
+    const QString variantId = m_variantCombo->isVisible() ? m_variantCombo->currentData().toString() : QString();
+    m_client->transferStock(m_productCombo->currentData().toString(), fromShopId, toShopId, m_quantitySpin->value(),
+                             variantId);
 }

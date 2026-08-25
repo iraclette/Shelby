@@ -80,8 +80,11 @@ void ReturnDialog::showItemPicker() {
 
     for (const SaleItemSummary &item : sale.items) {
         auto *row = new QHBoxLayout;
+        const QString itemLabel = item.productName.isEmpty() ? item.productId : item.productName;
+        const QString displayName =
+            item.variantName.isEmpty() ? itemLabel : QString("%1 (%2)").arg(itemLabel, item.variantName);
         auto *label = new QLabel(QString("%1 (bought %2, GEL %3 each)")
-                                      .arg(item.productName.isEmpty() ? item.productId : item.productName)
+                                      .arg(displayName)
                                       .arg(item.quantity)
                                       .arg(item.unitPrice, 0, 'f', 2));
         auto *spin = new QSpinBox;
