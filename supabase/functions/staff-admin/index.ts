@@ -48,6 +48,24 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+    // Best-effort activity trail (see 0018_audit_log.sql) — this function
+    // already runs server-side with the caller's verified identity, the
+    // cleanest place to log staff create/delete from. A logging failure is
+    // swallowed, never fails the actual account operation.
+    async function logAudit(action: string, entityId: string, detail: string) {
+      try {
+        await admin.from("audit_log").insert({
+          actor_id: userData.user!.id,
+          action,
+          entity_type: "profile",
+          entity_id: entityId,
+          detail,
+        });
+      } catch (_err) {
+        // fire and forget
+      }
+    }
+
     if (body.action === "create") {
       const { username, password, full_name, role, shop_id } = body;
       if (!username || !password || !role) {
@@ -80,6 +98,8 @@ Deno.serve(async (req) => {
         return json({ error: updateError.message }, 400);
       }
 
+      await logAudit("staff_created", created.user.id, `Created ${full_name || username} (${role})`);
+
       return json({ ok: true, id: created.user.id });
     }
 
@@ -88,12 +108,23 @@ Deno.serve(async (req) => {
       if (!profile_id) {
         return json({ error: "profile_id is required." }, 400);
       }
+      // Fetched before the delete so the audit detail can name who was
+      // removed — deleteUser cascades the profiles row away immediately.
+      const { data: deletedProfile } = await admin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", profile_id)
+        .maybeSingle();
+
       // profiles.id references auth.users(id) on delete cascade, so
       // deleting the auth user removes the profile row too.
       const { error: deleteError } = await admin.auth.admin.deleteUser(profile_id);
       if (deleteError) {
         return json({ error: deleteError.message }, 400);
       }
+
+      await logAudit("staff_deleted", profile_id, `Removed ${deletedProfile?.full_name ?? profile_id}`);
+
       return json({ ok: true }, 200);
     }
 

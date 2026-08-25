@@ -1,4 +1,6 @@
 #include "AdminWindow.h"
+#include "AuditLogPage.h"
+#include "DailySummaryPage.h"
 #include "EmployeesPage.h"
 #include "InventoryPage.h"
 #include "SalaryPage.h"
@@ -59,16 +61,22 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, Q
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/inventory.svg"), "Inventory"));
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/employees.svg"), "Employees"));
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/salary.svg"), "Salary"));
+    sidebar->addItem(new QListWidgetItem(QIcon(":/icons/daily-summary.svg"), "Daily Summary"));
+    sidebar->addItem(new QListWidgetItem(QIcon(":/icons/audit-log.svg"), "Audit Log"));
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/software.svg"), "Software"));
 
     auto *pages = new QStackedWidget(this);
     auto *inventoryPage = new InventoryPage(client, this);
     auto *employeesPage = new EmployeesPage(client, this);
     auto *salaryPage = new SalaryPage(client, this);
+    auto *dailySummaryPage = new DailySummaryPage(client, this);
+    auto *auditLogPage = new AuditLogPage(client, this);
     m_softwarePage = new SoftwarePage(updateChecker, this);
     pages->addWidget(inventoryPage);
     pages->addWidget(employeesPage);
     pages->addWidget(salaryPage);
+    pages->addWidget(dailySummaryPage);
+    pages->addWidget(auditLogPage);
     pages->addWidget(m_softwarePage);
 
     connect(sidebar, &QListWidget::currentRowChanged, pages, &QStackedWidget::setCurrentIndex);
@@ -79,6 +87,10 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, Q
     connect(employeesPage, &EmployeesPage::statusMessage, this,
             [this](const QString &message) { statusBar()->showMessage(message); });
     connect(salaryPage, &SalaryPage::statusMessage, this,
+            [this](const QString &message) { statusBar()->showMessage(message); });
+    connect(dailySummaryPage, &DailySummaryPage::statusMessage, this,
+            [this](const QString &message) { statusBar()->showMessage(message); });
+    connect(auditLogPage, &AuditLogPage::statusMessage, this,
             [this](const QString &message) { statusBar()->showMessage(message); });
 
     auto *central = new QWidget(this);

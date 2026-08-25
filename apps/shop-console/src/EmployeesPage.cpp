@@ -121,6 +121,7 @@ void EmployeesPage::handleItemChanged(QTableWidgetItem *item) {
     if (profileId.isEmpty()) return;
 
     const QString text = item->text().trimmed();
+    const Profile &profile = m_profiles[row];
 
     if (col == kColName) {
         m_client->updateProfileField(profileId, "full_name", text);
@@ -132,9 +133,13 @@ void EmployeesPage::handleItemChanged(QTableWidgetItem *item) {
             return;
         }
         m_client->updateProfileField(profileId, "role", role);
+        m_client->logAuditEvent("staff_updated", "profile", profileId,
+                                 QString("%1 role: %2 -> %3").arg(profile.fullName, profile.role, role));
     } else if (col == kColShop) {
         if (text.isEmpty()) {
             m_client->updateProfileField(profileId, "shop_id", QJsonValue(QJsonValue::Null));
+            m_client->logAuditEvent("staff_updated", "profile", profileId,
+                                     QString("%1 shop: unassigned").arg(profile.fullName));
             return;
         }
         QString shopId;
@@ -150,6 +155,8 @@ void EmployeesPage::handleItemChanged(QTableWidgetItem *item) {
             return;
         }
         m_client->updateProfileField(profileId, "shop_id", shopId);
+        m_client->logAuditEvent("staff_updated", "profile", profileId,
+                                 QString("%1 shop: %2").arg(profile.fullName, text));
     }
 }
 

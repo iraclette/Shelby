@@ -41,6 +41,36 @@ static QString extractErrorMessage(const QByteArray &body, const QString &fallba
     return fallback;
 }
 
+// Shared parser for the sales?...&select=id,sold_at,total,shop_id,staff_id,
+// sale_items(...) shape — used by both fetchRecentSales (ReturnDialog's
+// picker) and fetchSalesForDay (DailySummaryPage).
+static QVector<SaleSummary> parseSaleSummaries(const QByteArray &data) {
+    QVector<SaleSummary> sales;
+    for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+        const QJsonObject row = value.toObject();
+        SaleSummary sale;
+        sale.id = row.value("id").toString();
+        sale.soldAt = row.value("sold_at").toString();
+        sale.shopId = row.value("shop_id").toString();
+        sale.staffId = row.value("staff_id").toString();
+        sale.total = row.value("total").toDouble();
+
+        for (const QJsonValue &itemValue : row.value("sale_items").toArray()) {
+            const QJsonObject itemRow = itemValue.toObject();
+            SaleItemSummary item;
+            item.saleItemId = itemRow.value("id").toString();
+            item.productId = itemRow.value("product_id").toString();
+            item.quantity = itemRow.value("quantity").toInt();
+            item.unitPrice = itemRow.value("unit_price").toDouble();
+            item.productName = itemRow.value("products").toObject().value("name").toString();
+            item.variantName = itemRow.value("product_variants").toObject().value("name").toString();
+            sale.items.append(item);
+        }
+        sales.append(sale);
+    }
+    return sales;
+}
+
 void SupabaseClient::authorizedGet(const QString &path, const QUrlQuery &query,
                                     const std::function<void(QNetworkReply *)> &onFinished) {
     QUrl url(m_baseUrl + path);
@@ -232,9 +262,13 @@ void SupabaseClient::deleteStaffAccount(const QString &profileId) {
 
 void SupabaseClient::fetchProducts() {
     QUrlQuery query;
-    // Embeds each product's per-shop stock rows via the inventory_levels
-    // foreign key, so per-shop quantities are available in one round trip.
-    query.addQueryItem("select", "id,name,sku,category_id,sell_price,cost_price,inventory_levels(shop_id,quantity)");
+    // Embeds each product's per-shop stock rows (one inventory_levels row
+    // per shop, plus one per (variant, shop) once a product has variants —
+    // split by variant_id below) and its variants, so both are available in
+    // one round trip.
+    query.addQueryItem("select",
+                        "id,name,sku,category_id,supplier_id,sell_price,cost_price,low_stock_threshold,"
+                        "inventory_levels(shop_id,quantity,variant_id),product_variants(id,name,sku)");
     query.addQueryItem("order", "created_at.desc");
     query.addQueryItem("limit", "50");
 
@@ -253,12 +287,37 @@ void SupabaseClient::fetchProducts() {
             product.name = row.value("name").toString();
             product.sku = row.value("sku").toString();
             product.categoryId = row.value("category_id").toString();
+            product.supplierId = row.value("supplier_id").toString();
             product.sellPrice = row.value("sell_price").toDouble();
             product.costPrice = row.value("cost_price").toDouble();
+            product.lowStockThreshold = row.value("low_stock_threshold").toInt();
+
+            for (const QJsonValue &variantValue : row.value("product_variants").toArray()) {
+                const QJsonObject variantRow = variantValue.toObject();
+                ProductVariant variant;
+                variant.id = variantRow.value("id").toString();
+                variant.productId = product.id;
+                variant.name = variantRow.value("name").toString();
+                variant.sku = variantRow.value("sku").toString();
+                product.variants.append(variant);
+            }
 
             for (const QJsonValue &levelValue : row.value("inventory_levels").toArray()) {
                 const QJsonObject level = levelValue.toObject();
-                product.stockByShop.insert(level.value("shop_id").toString(), level.value("quantity").toInt());
+                const QString shopId = level.value("shop_id").toString();
+                const int quantity = level.value("quantity").toInt();
+                const QString variantId = level.value("variant_id").toString();
+
+                if (variantId.isEmpty()) {
+                    product.stockByShop.insert(shopId, quantity);
+                    continue;
+                }
+                for (ProductVariant &variant : product.variants) {
+                    if (variant.id == variantId) {
+                        variant.stockByShop.insert(shopId, quantity);
+                        break;
+                    }
+                }
             }
 
             products.append(product);
@@ -275,8 +334,10 @@ void SupabaseClient::createProduct(const ProductInput &input) {
         {"sell_price", input.sellPrice},
         {"sku", input.sku},
         {"has_native_barcode", input.hasNativeBarcode},
+        {"low_stock_threshold", input.lowStockThreshold},
     };
     if (!input.categoryId.isEmpty()) body["category_id"] = input.categoryId;
+    if (!input.supplierId.isEmpty()) body["supplier_id"] = input.supplierId;
 
     const QMap<QByteArray, QByteArray> headers{
         {"Content-Type", "application/json"},
@@ -366,6 +427,106 @@ void SupabaseClient::createCategory(const QString &name) {
     });
 }
 
+void SupabaseClient::fetchSuppliers() {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,name");
+    query.addQueryItem("order", "name.asc");
+
+    authorizedGet("/rest/v1/suppliers", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit suppliersFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<Supplier> suppliers;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            suppliers.append({row.value("id").toString(), row.value("name").toString()});
+        }
+        emit suppliersFetched(suppliers);
+    });
+}
+
+void SupabaseClient::createSupplier(const QString &name) {
+    const QJsonObject body{{"name", name}};
+    const QMap<QByteArray, QByteArray> headers{
+        {"Content-Type", "application/json"},
+        {"Prefer", "return=representation"},
+    };
+
+    authorizedWrite("POST", "/rest/v1/suppliers", {}, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit supplierCreateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        const QJsonArray rows = QJsonDocument::fromJson(data).array();
+        if (rows.isEmpty()) {
+            emit supplierCreateFailed("Supplier was created but no id was returned.");
+            return;
+        }
+
+        const QJsonObject row = rows.first().toObject();
+        emit supplierCreated({row.value("id").toString(), row.value("name").toString()});
+    });
+}
+
+void SupabaseClient::createVariants(const QString &productId, const QVector<ProductVariantInput> &variants) {
+    QJsonArray rows;
+    for (const ProductVariantInput &variant : variants) {
+        QJsonObject row{{"product_id", productId}, {"name", variant.name}};
+        if (!variant.sku.isEmpty()) row["sku"] = variant.sku;
+        rows.append(row);
+    }
+
+    const QMap<QByteArray, QByteArray> headers{
+        {"Content-Type", "application/json"},
+        {"Prefer", "return=representation"},
+    };
+
+    authorizedWrite("POST", "/rest/v1/product_variants", {}, QJsonDocument(rows).toJson(), headers,
+                    [this, productId](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit variantsCreateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<ProductVariant> created;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            ProductVariant variant;
+            variant.id = row.value("id").toString();
+            variant.productId = productId;
+            variant.name = row.value("name").toString();
+            variant.sku = row.value("sku").toString();
+            created.append(variant);
+        }
+        emit variantsCreated(created);
+    });
+}
+
+void SupabaseClient::updateVariantField(const QString &variantId, const QString &field, const QJsonValue &value) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + variantId);
+
+    const QJsonObject body{{field, value}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/product_variants", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit variantUpdateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit variantUpdated();
+    });
+}
+
 void SupabaseClient::fetchShops() {
     QUrlQuery query;
     query.addQueryItem("select", "id,name");
@@ -387,18 +548,25 @@ void SupabaseClient::fetchShops() {
     });
 }
 
-void SupabaseClient::upsertInventoryLevels(const QString &productId, const QVector<InventoryLevelInput> &levels) {
+void SupabaseClient::upsertInventoryLevels(const QString &productId, const QVector<InventoryLevelInput> &levels,
+                                            const QString &variantId) {
     QJsonArray rows;
     for (const InventoryLevelInput &level : levels) {
-        rows.append(QJsonObject{
+        QJsonObject row{
             {"product_id", productId},
             {"shop_id", level.shopId},
             {"quantity", level.quantity},
-        });
+        };
+        if (!variantId.isEmpty()) row["variant_id"] = variantId;
+        rows.append(row);
     }
 
     QUrlQuery query;
-    query.addQueryItem("on_conflict", "product_id,shop_id");
+    // Targets the generated variant_key column's constraint (see
+    // 0015_product_variants.sql) — a null-safe replacement for the old
+    // product_id,shop_id constraint, needed for both variant and
+    // non-variant rows now that that constraint no longer exists.
+    query.addQueryItem("on_conflict", "product_id,variant_key,shop_id");
 
     const QMap<QByteArray, QByteArray> headers{
         {"Content-Type", "application/json"},
@@ -417,14 +585,15 @@ void SupabaseClient::upsertInventoryLevels(const QString &productId, const QVect
 }
 
 void SupabaseClient::transferStock(const QString &productId, const QString &fromShopId, const QString &toShopId,
-                                    int quantity) {
-    const QJsonObject body{
+                                    int quantity, const QString &variantId) {
+    QJsonObject body{
         {"p_client_generated_id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
         {"p_product_id", productId},
         {"p_from_shop_id", fromShopId},
         {"p_to_shop_id", toShopId},
         {"p_quantity", quantity},
     };
+    if (!variantId.isEmpty()) body["p_variant_id"] = variantId;
     const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
 
     authorizedWrite("POST", "/rest/v1/rpc/transfer_stock", {}, QJsonDocument(body).toJson(), headers,
@@ -435,6 +604,39 @@ void SupabaseClient::transferStock(const QString &productId, const QString &from
             return;
         }
         emit stockTransferred();
+    });
+}
+
+void SupabaseClient::fetchStockTransfers() {
+    QUrlQuery query;
+    query.addQueryItem("select",
+                        "id,from_shop_id,to_shop_id,quantity,staff_id,created_at,"
+                        "products(name),product_variants(name)");
+    query.addQueryItem("order", "created_at.desc");
+    query.addQueryItem("limit", "200");
+
+    authorizedGet("/rest/v1/stock_transfers", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit stockTransfersFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<StockTransferSummary> transfers;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            StockTransferSummary transfer;
+            transfer.id = row.value("id").toString();
+            transfer.productName = row.value("products").toObject().value("name").toString();
+            transfer.variantName = row.value("product_variants").toObject().value("name").toString();
+            transfer.fromShopId = row.value("from_shop_id").toString();
+            transfer.toShopId = row.value("to_shop_id").toString();
+            transfer.quantity = row.value("quantity").toInt();
+            transfer.staffId = row.value("staff_id").toString();
+            transfer.createdAt = row.value("created_at").toString();
+            transfers.append(transfer);
+        }
+        emit stockTransfersFetched(transfers);
     });
 }
 
@@ -534,32 +736,75 @@ QString SupabaseClient::publicImageUrl(const QString &storagePath) const {
 }
 
 void SupabaseClient::lookupProductBySku(const QString &sku) {
-    QUrlQuery query;
-    query.addQueryItem("sku", "eq." + sku);
-    query.addQueryItem("select", "id,name,sku,sell_price,cost_price");
-    query.addQueryItem("limit", "1");
+    // Step 1: a variant's own barcode, if this one matches — lets a direct
+    // scan bypass PosWindow's variant picker entirely.
+    QUrlQuery variantQuery;
+    variantQuery.addQueryItem("sku", "eq." + sku);
+    variantQuery.addQueryItem("select", "id,name,products(id,name,sku,sell_price,cost_price)");
+    variantQuery.addQueryItem("limit", "1");
 
-    authorizedGet("/rest/v1/products", query, [this](QNetworkReply *reply) {
-        const QByteArray data = reply->readAll();
-        if (reply->error() != QNetworkReply::NoError) {
-            emit productLookupFailed(extractErrorMessage(data, reply->errorString()));
-            return;
+    authorizedGet("/rest/v1/product_variants", variantQuery, [this, sku](QNetworkReply *variantReply) {
+        const QByteArray variantData = variantReply->readAll();
+        if (variantReply->error() == QNetworkReply::NoError) {
+            const QJsonArray variantRows = QJsonDocument::fromJson(variantData).array();
+            if (!variantRows.isEmpty()) {
+                const QJsonObject variantRow = variantRows.first().toObject();
+                const QJsonObject productRow = variantRow.value("products").toObject();
+
+                Product product;
+                product.id = productRow.value("id").toString();
+                product.name = productRow.value("name").toString();
+                product.sku = productRow.value("sku").toString();
+                product.sellPrice = productRow.value("sell_price").toDouble();
+                product.costPrice = productRow.value("cost_price").toDouble();
+                product.selectedVariantId = variantRow.value("id").toString();
+                product.selectedVariantName = variantRow.value("name").toString();
+                emit productLookedUp(product);
+                return;
+            }
         }
 
-        const QJsonArray rows = QJsonDocument::fromJson(data).array();
-        if (rows.isEmpty()) {
-            emit productLookupFailed("No product found with that barcode.");
-            return;
-        }
+        // Step 2: fall back to the product's own barcode. Still embeds
+        // product_variants so, if this product DOES have variants but was
+        // scanned via its own top-level sku, PosWindow knows to show the
+        // picker rather than silently adding a "no variant" line that has
+        // no matching inventory bucket (variant products never get one).
+        QUrlQuery productQuery;
+        productQuery.addQueryItem("sku", "eq." + sku);
+        productQuery.addQueryItem("select", "id,name,sku,sell_price,cost_price,product_variants(id,name,sku)");
+        productQuery.addQueryItem("limit", "1");
 
-        const QJsonObject row = rows.first().toObject();
-        Product product;
-        product.id = row.value("id").toString();
-        product.name = row.value("name").toString();
-        product.sku = row.value("sku").toString();
-        product.sellPrice = row.value("sell_price").toDouble();
-        product.costPrice = row.value("cost_price").toDouble();
-        emit productLookedUp(product);
+        authorizedGet("/rest/v1/products", productQuery, [this](QNetworkReply *reply) {
+            const QByteArray data = reply->readAll();
+            if (reply->error() != QNetworkReply::NoError) {
+                emit productLookupFailed(extractErrorMessage(data, reply->errorString()));
+                return;
+            }
+
+            const QJsonArray rows = QJsonDocument::fromJson(data).array();
+            if (rows.isEmpty()) {
+                emit productLookupFailed("No product found with that barcode.");
+                return;
+            }
+
+            const QJsonObject row = rows.first().toObject();
+            Product product;
+            product.id = row.value("id").toString();
+            product.name = row.value("name").toString();
+            product.sku = row.value("sku").toString();
+            product.sellPrice = row.value("sell_price").toDouble();
+            product.costPrice = row.value("cost_price").toDouble();
+            for (const QJsonValue &variantValue : row.value("product_variants").toArray()) {
+                const QJsonObject variantRow = variantValue.toObject();
+                ProductVariant variant;
+                variant.id = variantRow.value("id").toString();
+                variant.productId = product.id;
+                variant.name = variantRow.value("name").toString();
+                variant.sku = variantRow.value("sku").toString();
+                product.variants.append(variant);
+            }
+            emit productLookedUp(product);
+        });
     });
 }
 
@@ -572,13 +817,15 @@ void SupabaseClient::submitSale(const QString &shopId, const QString &clientGene
                                   const QVector<SaleItemInput> &items, double total, bool isRetryFromQueue) {
     QJsonArray itemsJson;
     for (const SaleItemInput &item : items) {
-        itemsJson.append(QJsonObject{
+        QJsonObject itemJson{
             {"product_id", item.productId},
             {"quantity", item.quantity},
             {"unit_price", item.unitPrice},
             {"unit_cost", item.unitCost},
             {"list_price", item.listPrice},
-        });
+        };
+        if (!item.variantId.isEmpty()) itemJson["variant_id"] = item.variantId;
+        itemsJson.append(itemJson);
     }
 
     const QJsonObject body{
@@ -627,7 +874,9 @@ void SupabaseClient::submitSale(const QString &shopId, const QString &clientGene
 void SupabaseClient::fetchRecentSales(const QString &shopId) {
     QUrlQuery query;
     query.addQueryItem("shop_id", "eq." + shopId);
-    query.addQueryItem("select", "id,sold_at,total,sale_items(id,product_id,quantity,unit_price,products(name))");
+    query.addQueryItem("select",
+                        "id,sold_at,total,shop_id,staff_id,"
+                        "sale_items(id,product_id,quantity,unit_price,products(name),product_variants(name))");
     query.addQueryItem("order", "sold_at.desc");
     query.addQueryItem("limit", "50");
 
@@ -637,28 +886,7 @@ void SupabaseClient::fetchRecentSales(const QString &shopId) {
             emit recentSalesFetchFailed(extractErrorMessage(data, reply->errorString()));
             return;
         }
-
-        QVector<SaleSummary> sales;
-        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
-            const QJsonObject row = value.toObject();
-            SaleSummary sale;
-            sale.id = row.value("id").toString();
-            sale.soldAt = row.value("sold_at").toString();
-            sale.total = row.value("total").toDouble();
-
-            for (const QJsonValue &itemValue : row.value("sale_items").toArray()) {
-                const QJsonObject itemRow = itemValue.toObject();
-                SaleItemSummary item;
-                item.saleItemId = itemRow.value("id").toString();
-                item.productId = itemRow.value("product_id").toString();
-                item.quantity = itemRow.value("quantity").toInt();
-                item.unitPrice = itemRow.value("unit_price").toDouble();
-                item.productName = itemRow.value("products").toObject().value("name").toString();
-                sale.items.append(item);
-            }
-            sales.append(sale);
-        }
-        emit recentSalesFetched(sales);
+        emit recentSalesFetched(parseSaleSummaries(data));
     });
 }
 
@@ -715,6 +943,74 @@ void SupabaseClient::fetchSalesForPeriod(const QString &shopId, const QString &s
                           row.value("total").toDouble()});
         }
         emit salesForPeriodFetched(sales);
+    });
+}
+
+void SupabaseClient::fetchSalesForDay(const QString &shopId, const QString &dayStartIso,
+                                       const QString &dayEndIsoExclusive) {
+    QUrlQuery query;
+    query.addQueryItem("select",
+                        "id,sold_at,total,shop_id,staff_id,"
+                        "sale_items(id,product_id,quantity,unit_price,products(name),product_variants(name))");
+    query.addQueryItem("sold_at", "gte." + dayStartIso);
+    query.addQueryItem("sold_at", "lt." + dayEndIsoExclusive);
+    if (!shopId.isEmpty()) query.addQueryItem("shop_id", "eq." + shopId);
+    query.addQueryItem("order", "sold_at.desc");
+
+    authorizedGet("/rest/v1/sales", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit dailySalesFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit dailySalesFetched(parseSaleSummaries(data));
+    });
+}
+
+void SupabaseClient::logAuditEvent(const QString &action, const QString &entityType, const QString &entityId,
+                                    const QString &detail) {
+    QJsonObject body{
+        {"actor_id", m_userId},
+        {"action", action},
+        {"entity_type", entityType},
+        {"detail", detail},
+    };
+    if (!entityId.isEmpty()) body["entity_id"] = entityId;
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    // Fire and forget by design (see header comment) — a logging failure
+    // shouldn't block or surface an error for the primary action.
+    authorizedWrite("POST", "/rest/v1/audit_log", {}, QJsonDocument(body).toJson(), headers,
+                    [](QNetworkReply *) {});
+}
+
+void SupabaseClient::fetchAuditLog() {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,actor_id,action,entity_type,entity_id,detail,created_at");
+    query.addQueryItem("order", "created_at.desc");
+    query.addQueryItem("limit", "200");
+
+    authorizedGet("/rest/v1/audit_log", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit auditLogFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<AuditLogEntry> entries;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            AuditLogEntry entry;
+            entry.id = row.value("id").toString();
+            entry.actorId = row.value("actor_id").toString();
+            entry.action = row.value("action").toString();
+            entry.entityType = row.value("entity_type").toString();
+            entry.entityId = row.value("entity_id").toString();
+            entry.detail = row.value("detail").toString();
+            entry.createdAt = row.value("created_at").toString();
+            entries.append(entry);
+        }
+        emit auditLogFetched(entries);
     });
 }
 
@@ -801,6 +1097,9 @@ void SupabaseClient::loadPendingSales() {
             const QJsonObject itemObj = itemValue.toObject();
             sale.items.append({
                 itemObj.value("product_id").toString(),
+                // Sales queued offline before variants existed simply have
+                // no key here, same fallback shape as list_price below.
+                itemObj.value("variant_id").toString(),
                 itemObj.value("quantity").toInt(),
                 itemObj.value("unit_price").toDouble(),
                 itemObj.value("unit_cost").toDouble(),
@@ -819,13 +1118,15 @@ void SupabaseClient::savePendingSales() const {
     for (const QueuedSale &sale : m_pendingSales) {
         QJsonArray itemsArr;
         for (const SaleItemInput &item : sale.items) {
-            itemsArr.append(QJsonObject{
+            QJsonObject itemJson{
                 {"product_id", item.productId},
                 {"quantity", item.quantity},
                 {"unit_price", item.unitPrice},
                 {"unit_cost", item.unitCost},
                 {"list_price", item.listPrice},
-            });
+            };
+            if (!item.variantId.isEmpty()) itemJson["variant_id"] = item.variantId;
+            itemsArr.append(itemJson);
         }
         arr.append(QJsonObject{
             {"client_generated_id", sale.clientGeneratedId},

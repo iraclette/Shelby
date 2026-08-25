@@ -36,12 +36,13 @@ QString generateInternalSku() {
 ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     : QDialog(parent), m_client(client) {
     setWindowTitle("New Product");
-    resize(480, 640);
+    resize(480, 720);
 
     m_name = new QLineEdit(this);
     m_description = new QPlainTextEdit(this);
     m_description->setFixedHeight(70);
     m_category = new QComboBox(this);
+    m_supplier = new QComboBox(this);
     m_costPrice = new QDoubleSpinBox(this);
     m_costPrice->setRange(0, 999999);
     m_costPrice->setDecimals(2);
@@ -50,6 +51,9 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     m_sellPrice->setRange(0, 999999);
     m_sellPrice->setDecimals(2);
     m_sellPrice->setPrefix("GEL ");
+    m_lowStockThreshold = new QSpinBox(this);
+    m_lowStockThreshold->setRange(0, 999999);
+    m_lowStockThreshold->setSpecialValueText("Disabled");
 
     m_sku = new QLineEdit(this);
     m_sku->setPlaceholderText("Scan or type the barcode");
@@ -60,12 +64,19 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     categoryRow->addWidget(m_category, 1);
     categoryRow->addWidget(addCategoryButton);
 
+    auto *addSupplierButton = new QPushButton("+ New", this);
+    auto *supplierRow = new QHBoxLayout;
+    supplierRow->addWidget(m_supplier, 1);
+    supplierRow->addWidget(addSupplierButton);
+
     auto *form = new QFormLayout;
     form->addRow("Name", m_name);
     form->addRow("Description", m_description);
     form->addRow("Category", categoryRow);
+    form->addRow("Supplier", supplierRow);
     form->addRow("Cost price", m_costPrice);
     form->addRow("Sell price", m_sellPrice);
+    form->addRow("Low stock threshold", m_lowStockThreshold);
     form->addRow("Barcode / SKU", m_sku);
     form->addRow("", m_noBarcode);
 
@@ -81,6 +92,17 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     auto *stockGroup = new QGroupBox("Stock per shop", this);
     m_shopStockLayout = new QFormLayout(stockGroup);
 
+    // Variants: name+sku row pairs, no per-shop stock here — initial stock
+    // is 0 everywhere, filled in via the Inventory page afterward, exactly
+    // like base-product stock already works. Leave empty for a product with
+    // no variants (the common case — knives/leather goods).
+    auto *variantsGroup = new QGroupBox("Variants (e.g. shades/sizes)", this);
+    m_variantRowsLayout = new QVBoxLayout;
+    auto *addVariantButton = new QPushButton("+ Add variant", this);
+    auto *variantsLayout = new QVBoxLayout(variantsGroup);
+    variantsLayout->addLayout(m_variantRowsLayout);
+    variantsLayout->addWidget(addVariantButton, 0, Qt::AlignLeft);
+
     m_statusLabel = new QLabel(this);
     m_statusLabel->setStyleSheet("color: #dc2626;");
     m_statusLabel->setWordWrap(true);
@@ -93,14 +115,17 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     layout->addLayout(form);
     layout->addWidget(photosGroup);
     layout->addWidget(stockGroup);
+    layout->addWidget(variantsGroup);
     layout->addWidget(m_statusLabel);
     layout->addStretch();
     layout->addWidget(buttons);
 
     connect(addPhotoButton, &QPushButton::clicked, this, &ProductDialog::addPhotos);
+    connect(addVariantButton, &QPushButton::clicked, this, &ProductDialog::addVariantRow);
     connect(m_saveButton, &QPushButton::clicked, this, &ProductDialog::save);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(addCategoryButton, &QPushButton::clicked, this, &ProductDialog::promptForNewCategory);
+    connect(addSupplierButton, &QPushButton::clicked, this, &ProductDialog::promptForNewSupplier);
 
     connect(m_noBarcode, &QCheckBox::toggled, this, [this](bool checked) {
         m_sku->setReadOnly(checked);
@@ -129,6 +154,26 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
         QMessageBox::warning(this, "Couldn't create category", message);
     });
 
+    m_supplier->addItem("None", QString());
+    connect(m_client, &SupabaseClient::suppliersFetched, this, [this](const QVector<Supplier> &suppliers) {
+        m_suppliers = suppliers;
+        m_supplier->clear();
+        m_supplier->addItem("None", QString());
+        for (const Supplier &supplier : m_suppliers) {
+            m_supplier->addItem(supplier.name, supplier.id);
+        }
+    });
+    m_client->fetchSuppliers();
+
+    connect(m_client, &SupabaseClient::supplierCreated, this, [this](const Supplier &supplier) {
+        m_suppliers.append(supplier);
+        m_supplier->addItem(supplier.name, supplier.id);
+        m_supplier->setCurrentIndex(m_supplier->count() - 1);
+    });
+    connect(m_client, &SupabaseClient::supplierCreateFailed, this, [this](const QString &message) {
+        QMessageBox::warning(this, "Couldn't create supplier", message);
+    });
+
     connect(m_client, &SupabaseClient::shopsFetched, this, [this](const QVector<Shop> &shops) {
         m_shops = shops;
         rebuildShopRows();
@@ -140,21 +185,54 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
         m_statusLabel->setText(message);
     });
 
+    // Bonus fix: previously this dialog never checked whether the
+    // post-creation stock upsert actually succeeded, so a failure here
+    // silently left every shop's stock at 0 with no error shown anywhere.
+    connect(m_client, &SupabaseClient::inventoryLevelsUpsertFailed, this, [this](const QString &message) {
+        m_statusLabel->setStyleSheet("color: #f59e0b;");
+        m_statusLabel->setText("Product saved, but stock wasn't set: " + message);
+    });
+
+    connect(m_client, &SupabaseClient::variantsCreateFailed, this, [this](const QString &message) {
+        m_statusLabel->setStyleSheet("color: #f59e0b;");
+        m_statusLabel->setText("Product saved, but variants failed: " + message);
+    });
+    connect(m_client, &SupabaseClient::variantsCreated, this, &ProductDialog::seedVariantStock);
+
     connect(m_client, &SupabaseClient::productCreated, this, [this](const QString &productId) {
-        QVector<InventoryLevelInput> levels;
-        for (auto it = m_shopSpinBoxes.constBegin(); it != m_shopSpinBoxes.constEnd(); ++it) {
-            levels.append({it.key(), it.value()->value()});
+        m_pendingProductId = productId;
+
+        QVector<ProductVariantInput> variantInputs;
+        for (const VariantRow &row : m_variantRows) {
+            const QString name = row.name->text().trimmed();
+            if (name.isEmpty()) continue;
+            variantInputs.append({name, row.sku->text().trimmed()});
         }
-        if (!levels.isEmpty()) {
-            m_client->upsertInventoryLevels(productId, levels);
+
+        if (variantInputs.isEmpty()) {
+            QVector<InventoryLevelInput> levels;
+            for (auto it = m_shopSpinBoxes.constBegin(); it != m_shopSpinBoxes.constEnd(); ++it) {
+                levels.append({it.key(), it.value()->value()});
+            }
+            if (!levels.isEmpty()) {
+                m_client->upsertInventoryLevels(productId, levels);
+            }
+        } else {
+            // Deliberately no base-bucket row seeded for this product —
+            // every sale for it now goes through a variant, so a "no
+            // variant" row would sit at 0 forever. seedVariantStock (fired
+            // on variantsCreated, once the created rows' ids come back)
+            // seeds a 0-stock row per (variant, shop) instead.
+            m_client->createVariants(productId, variantInputs);
         }
 
         for (int i = 0; i < m_pendingImagePaths.size(); ++i) {
             m_client->uploadProductImage(productId, m_pendingImagePaths.at(i), /*isPrimary=*/i == 0);
         }
 
-        // Photos and stock levels finish uploading in the background; the
-        // product record itself already exists, so the dialog can close now.
+        // Photos, stock levels, and variants finish saving in the
+        // background; the product record itself already exists, so the
+        // dialog can close now.
         accept();
     });
 }
@@ -173,6 +251,50 @@ void ProductDialog::rebuildShopRows() {
     }
 }
 
+void ProductDialog::addVariantRow() {
+    auto *rowWidget = new QWidget(this);
+    auto *rowLayout = new QHBoxLayout(rowWidget);
+    rowLayout->setContentsMargins(0, 0, 0, 0);
+
+    auto *nameEdit = new QLineEdit(rowWidget);
+    nameEdit->setPlaceholderText("e.g. Red");
+    auto *skuEdit = new QLineEdit(rowWidget);
+    skuEdit->setPlaceholderText("Optional barcode");
+    auto *removeButton = new QPushButton("×", rowWidget);
+    removeButton->setFixedWidth(28);
+
+    rowLayout->addWidget(nameEdit, 1);
+    rowLayout->addWidget(skuEdit, 1);
+    rowLayout->addWidget(removeButton);
+
+    m_variantRowsLayout->addWidget(rowWidget);
+    m_variantRows.append({rowWidget, nameEdit, skuEdit});
+
+    connect(removeButton, &QPushButton::clicked, this, [this, rowWidget]() { removeVariantRow(rowWidget); });
+}
+
+void ProductDialog::removeVariantRow(QWidget *rowWidget) {
+    for (int i = 0; i < m_variantRows.size(); ++i) {
+        if (m_variantRows[i].rowWidget == rowWidget) {
+            m_variantRows.remove(i);
+            break;
+        }
+    }
+    m_variantRowsLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+}
+
+void ProductDialog::seedVariantStock(const QVector<ProductVariant> &createdVariants) {
+    if (m_pendingProductId.isEmpty() || m_shops.isEmpty()) return;
+
+    QVector<InventoryLevelInput> zeroLevels;
+    for (const Shop &shop : m_shops) zeroLevels.append({shop.id, 0});
+
+    for (const ProductVariant &variant : createdVariants) {
+        m_client->upsertInventoryLevels(m_pendingProductId, zeroLevels, variant.id);
+    }
+}
+
 void ProductDialog::promptForNewCategory() {
     bool ok = false;
     const QString name = QInputDialog::getText(this, "New category", "Category name:",
@@ -180,6 +302,15 @@ void ProductDialog::promptForNewCategory() {
     if (!ok || name.trimmed().isEmpty()) return;
 
     m_client->createCategory(name.trimmed());
+}
+
+void ProductDialog::promptForNewSupplier() {
+    bool ok = false;
+    const QString name = QInputDialog::getText(this, "New supplier", "Supplier name:",
+                                                 QLineEdit::Normal, {}, &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+
+    m_client->createSupplier(name.trimmed());
 }
 
 void ProductDialog::addPhotos() {
@@ -210,13 +341,15 @@ void ProductDialog::save() {
     input.name = m_name->text().trimmed();
     input.description = m_description->toPlainText().trimmed();
     input.categoryId = m_category->currentData().toString();
+    input.supplierId = m_supplier->currentData().toString();
     input.costPrice = m_costPrice->value();
     input.sellPrice = m_sellPrice->value();
+    input.lowStockThreshold = m_lowStockThreshold->value();
     input.sku = m_sku->text().trimmed();
     input.hasNativeBarcode = !m_noBarcode->isChecked();
 
     m_saveButton->setEnabled(false);
-    m_statusLabel->setText("Saving…");
     m_statusLabel->setStyleSheet("color: #737373;");
+    m_statusLabel->setText("Saving…");
     m_client->createProduct(input);
 }

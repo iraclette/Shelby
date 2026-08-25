@@ -1,13 +1,16 @@
 #include "PosWindow.h"
 #include "DiscountDialog.h"
+#include "HeldSalesDialog.h"
 #include "ReturnDialog.h"
 
+#include <QAction>
 #include <QButtonGroup>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QStatusBar>
@@ -56,6 +59,10 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     m_updateBanner->setStyleSheet("padding: 0 8px;");
     m_updateBanner->hide();
     toolbar->addWidget(m_updateBanner);
+    m_heldButton = new QPushButton(this);
+    m_heldButton->hide();
+    toolbar->addWidget(m_heldButton);
+    connect(m_heldButton, &QPushButton::clicked, this, &PosWindow::openHeldSalesDialog);
     auto *returnsButton = new QPushButton("Returns", this);
     toolbar->addWidget(returnsButton);
     connect(returnsButton, &QPushButton::clicked, this, [this]() {
@@ -110,10 +117,17 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     m_cartTable->horizontalHeader()->setStretchLastSection(true);
     m_cartTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_cartTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_cartTable->setAlternatingRowColors(true);
     cartLayout->addWidget(m_cartTable, 1);
 
+    auto *cartButtonsRow = new QHBoxLayout;
     auto *removeButton = new QPushButton("Remove selected", this);
-    cartLayout->addWidget(removeButton, 0, Qt::AlignLeft);
+    cartButtonsRow->addWidget(removeButton);
+    m_holdButton = new QPushButton("Hold", this);
+    m_holdButton->setEnabled(false);
+    cartButtonsRow->addWidget(m_holdButton);
+    cartButtonsRow->addStretch();
+    cartLayout->addLayout(cartButtonsRow);
 
     m_statusLabel = new QLabel(this);
     m_statusLabel->setStyleSheet("color: #ef4444;");
@@ -135,6 +149,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
 
     connect(m_barcodeInput, &QLineEdit::returnPressed, this, &PosWindow::handleBarcodeEntered);
     connect(removeButton, &QPushButton::clicked, this, &PosWindow::removeSelectedLine);
+    connect(m_holdButton, &QPushButton::clicked, this, &PosWindow::holdCart);
     connect(m_completeSaleButton, &QPushButton::clicked, this, &PosWindow::completeSale);
 
     connect(m_client, &SupabaseClient::productLookedUp, this, &PosWindow::addToCart);
@@ -187,6 +202,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     connect(m_client, &SupabaseClient::pendingSalesChanged, this, &PosWindow::updatePendingBadge);
 
     updatePendingBadge(m_client->pendingSalesCount());
+    updateHeldButton();
 
     auto *syncTimer = new QTimer(this);
     connect(syncTimer, &QTimer::timeout, this, [this]() { m_client->flushPendingSales(); });
@@ -246,7 +262,13 @@ void PosWindow::rebuildProductGrid() {
         tile->setObjectName("productTile");
         tile->setMinimumSize(140, 84);
         tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        connect(tile, &QPushButton::clicked, this, [this, product]() { addToCart(product); });
+        connect(tile, &QPushButton::clicked, this, [this, product, tile]() {
+            if (product.variants.isEmpty()) {
+                addToCart(product);
+            } else {
+                promptForVariant(product, tile);
+            }
+        });
 
         m_productGridLayout->addWidget(tile, index / kTileColumns, index % kTileColumns);
         ++index;
@@ -261,19 +283,48 @@ void PosWindow::handleBarcodeEntered() {
     m_client->lookupProductBySku(sku);
 }
 
+void PosWindow::promptForVariant(const Product &product, QWidget *anchor) {
+    QMenu menu(this);
+    for (const ProductVariant &variant : product.variants) {
+        QAction *action = menu.addAction(variant.name);
+        connect(action, &QAction::triggered, this, [this, product, variant]() {
+            Product selected = product;
+            selected.selectedVariantId = variant.id;
+            selected.selectedVariantName = variant.name;
+            addToCart(selected);
+        });
+    }
+    menu.exec(anchor->mapToGlobal(QPoint(0, anchor->height())));
+}
+
 void PosWindow::addToCart(const Product &product) {
+    // A product that HAS variants but wasn't scanned/picked via a specific
+    // variant has no sellable "no variant" stock bucket — ProductDialog
+    // deliberately never seeds one (see 0015_product_variants.sql notes).
+    // Ask which variant instead of silently recording a sale against a
+    // bucket that doesn't exist.
+    if (product.selectedVariantId.isEmpty() && !product.variants.isEmpty()) {
+        promptForVariant(product, m_barcodeInput);
+        return;
+    }
+
     m_barcodeInput->clear();
     m_barcodeInput->setFocus();
 
+    const QString &variantId = product.selectedVariantId;
+    const QString lineName = variantId.isEmpty()
+        ? product.name
+        : QString("%1 (%2)").arg(product.name, product.selectedVariantName);
+
     for (CartLine &line : m_cart) {
-        if (line.productId == product.id) {
+        if (line.productId == product.id && line.variantId == variantId) {
             line.quantity += 1;
             refreshCartTable();
             return;
         }
     }
 
-    m_cart.append({product.id, product.name, 1, product.sellPrice, product.sellPrice, product.costPrice});
+    m_cart.append({product.id, variantId, lineName, 1, product.sellPrice, product.sellPrice, product.costPrice});
     refreshCartTable();
 }
 
@@ -296,6 +347,8 @@ void PosWindow::openDiscountDialog(int row) {
 }
 
 void PosWindow::refreshCartTable() {
+    m_holdButton->setEnabled(!m_cart.isEmpty());
+
     m_cartTable->setRowCount(m_cart.size());
     double total = 0;
     for (int row = 0; row < m_cart.size(); ++row) {
@@ -320,6 +373,39 @@ void PosWindow::refreshCartTable() {
     m_totalLabel->setText(QString("Total: GEL %1").arg(total, 0, 'f', 2));
 }
 
+void PosWindow::holdCart() {
+    if (m_cart.isEmpty()) return;
+    m_heldSales.append({QDateTime::currentDateTime(), m_cart});
+    m_cart.clear();
+    refreshCartTable();
+    updateHeldButton();
+    m_statusLabel->setStyleSheet("color: #9aa0ac;");
+    m_statusLabel->setText("Sale held.");
+}
+
+void PosWindow::updateHeldButton() {
+    if (m_heldSales.isEmpty()) {
+        m_heldButton->hide();
+        return;
+    }
+    m_heldButton->setText(QString("Held (%1)").arg(m_heldSales.size()));
+    m_heldButton->show();
+}
+
+void PosWindow::openHeldSalesDialog() {
+    // Passed by reference — both Resume and Discard mutate m_heldSales
+    // directly inside the dialog, so there's nothing to reconcile here
+    // afterward beyond refreshing the button/count and, on a resume,
+    // loading the returned cart.
+    HeldSalesDialog dialog(m_heldSales, !m_cart.isEmpty(), this);
+    dialog.exec();
+    updateHeldButton();
+    if (dialog.didResume()) {
+        m_cart = dialog.resumedCart();
+        refreshCartTable();
+    }
+}
+
 void PosWindow::completeSale() {
     m_statusLabel->clear();
 
@@ -335,7 +421,7 @@ void PosWindow::completeSale() {
     QVector<SaleItemInput> items;
     double total = 0;
     for (const CartLine &line : m_cart) {
-        items.append({line.productId, line.quantity, line.unitPrice, line.unitCost, line.listPrice});
+        items.append({line.productId, line.variantId, line.quantity, line.unitPrice, line.unitCost, line.listPrice});
         total += line.quantity * line.unitPrice;
     }
 

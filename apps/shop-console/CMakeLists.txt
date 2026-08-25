@@ -43,6 +43,12 @@ qt_add_executable(ShopConsole WIN32
     src/ReturnDialog.cpp
     src/TransferStockDialog.h
     src/TransferStockDialog.cpp
+    src/HeldSalesDialog.h
+    src/HeldSalesDialog.cpp
+    src/DailySummaryPage.h
+    src/DailySummaryPage.cpp
+    src/AuditLogPage.h
+    src/AuditLogPage.cpp
 )
 
 qt_add_resources(ShopConsole "icons"
@@ -52,6 +58,8 @@ qt_add_resources(ShopConsole "icons"
         resources/icons/inventory.svg
         resources/icons/employees.svg
         resources/icons/salary.svg
+        resources/icons/daily-summary.svg
+        resources/icons/audit-log.svg
         resources/icons/software.svg
 )
 
