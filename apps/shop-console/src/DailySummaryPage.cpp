@@ -62,7 +62,16 @@ DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
 
     connect(m_client, &SupabaseClient::shopsFetched, this, [this](const QVector<Shop> &shops) {
         m_shops = shops;
+        // shopsFetched fires for every page's fetchShops() call, not just
+        // this one — every admin page shares the same SupabaseClient, so
+        // without clearing first this combo re-adds the whole shop list
+        // each time another page (Inventory, Employees, ...) triggers it.
+        const QString previouslySelected = m_shopCombo->currentData().toString();
+        m_shopCombo->clear();
+        m_shopCombo->addItem("All shops", QString());
         for (const Shop &shop : m_shops) m_shopCombo->addItem(shop.name, shop.id);
+        const int index = m_shopCombo->findData(previouslySelected);
+        if (index >= 0) m_shopCombo->setCurrentIndex(index);
         rebuildTable();
     });
     m_client->fetchShops();
