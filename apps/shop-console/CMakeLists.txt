@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 1.3.2 LANGUAGES CXX)
+project(ShopConsole VERSION 1.4.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -49,6 +49,12 @@ qt_add_executable(ShopConsole WIN32
     src/DailySummaryPage.cpp
     src/AuditLogPage.h
     src/AuditLogPage.cpp
+    src/CategoriesPage.h
+    src/CategoriesPage.cpp
+    src/CustomOrdersPage.h
+    src/CustomOrdersPage.cpp
+    src/MessagesPage.h
+    src/MessagesPage.cpp
 )
 
 qt_add_resources(ShopConsole "icons"
@@ -61,6 +67,9 @@ qt_add_resources(ShopConsole "icons"
         resources/icons/daily-summary.svg
         resources/icons/audit-log.svg
         resources/icons/software.svg
+        resources/icons/categories.svg
+        resources/icons/orders.svg
+        resources/icons/help.svg
 )
 
 target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network Qt6::Svg)

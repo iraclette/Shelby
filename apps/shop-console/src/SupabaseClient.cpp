@@ -393,7 +393,7 @@ void SupabaseClient::updateProductField(const QString &productId, const QString 
 
 void SupabaseClient::fetchCategories() {
     QUrlQuery query;
-    query.addQueryItem("select", "id,name");
+    query.addQueryItem("select", "id,name,visible_on_storefront");
     query.addQueryItem("order", "name.asc");
 
     authorizedGet("/rest/v1/categories", query, [this](QNetworkReply *reply) {
@@ -406,9 +406,31 @@ void SupabaseClient::fetchCategories() {
         QVector<Category> categories;
         for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
             const QJsonObject row = value.toObject();
-            categories.append({row.value("id").toString(), row.value("name").toString()});
+            Category category;
+            category.id = row.value("id").toString();
+            category.name = row.value("name").toString();
+            category.visibleOnStorefront = row.value("visible_on_storefront").toBool(true);
+            categories.append(category);
         }
         emit categoriesFetched(categories);
+    });
+}
+
+void SupabaseClient::updateCategoryField(const QString &categoryId, const QString &field, const QJsonValue &value) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + categoryId);
+
+    const QJsonObject body{{field, value}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/categories", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit categoryUpdateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit categoryUpdated();
     });
 }
 
@@ -1041,6 +1063,101 @@ void SupabaseClient::fetchAuditLog() {
             entries.append(entry);
         }
         emit auditLogFetched(entries);
+    });
+}
+
+void SupabaseClient::fetchCustomLeatherOrders() {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,customer_name,customer_email,customer_phone,preferred_shop_id,item_description,status,created_at");
+    query.addQueryItem("order", "created_at.desc");
+
+    authorizedGet("/rest/v1/custom_leather_orders", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit customLeatherOrdersFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<CustomLeatherOrder> orders;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            CustomLeatherOrder order;
+            order.id = row.value("id").toString();
+            order.customerName = row.value("customer_name").toString();
+            order.customerEmail = row.value("customer_email").toString();
+            order.customerPhone = row.value("customer_phone").toString();
+            order.preferredShopId = row.value("preferred_shop_id").toString();
+            order.itemDescription = row.value("item_description").toString();
+            order.status = row.value("status").toString();
+            order.createdAt = row.value("created_at").toString();
+            orders.append(order);
+        }
+        emit customLeatherOrdersFetched(orders);
+    });
+}
+
+void SupabaseClient::updateCustomLeatherOrderField(const QString &orderId, const QString &field, const QJsonValue &value) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + orderId);
+
+    const QJsonObject body{{field, value}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/custom_leather_orders", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit customLeatherOrderUpdateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit customLeatherOrderUpdated();
+    });
+}
+
+void SupabaseClient::fetchContactMessages() {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,name,email,message,status,email_sent,created_at");
+    query.addQueryItem("order", "created_at.desc");
+
+    authorizedGet("/rest/v1/contact_messages", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit contactMessagesFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<ContactMessage> messages;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            ContactMessage message;
+            message.id = row.value("id").toString();
+            message.name = row.value("name").toString();
+            message.email = row.value("email").toString();
+            message.message = row.value("message").toString();
+            message.status = row.value("status").toString();
+            message.emailSent = row.value("email_sent").toBool();
+            message.createdAt = row.value("created_at").toString();
+            messages.append(message);
+        }
+        emit contactMessagesFetched(messages);
+    });
+}
+
+void SupabaseClient::updateContactMessageField(const QString &messageId, const QString &field, const QJsonValue &value) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + messageId);
+
+    const QJsonObject body{{field, value}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/contact_messages", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit contactMessageUpdateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit contactMessageUpdated();
     });
 }
 

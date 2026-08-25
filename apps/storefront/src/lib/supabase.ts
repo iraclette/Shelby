@@ -27,6 +27,7 @@ export function productImageUrl(storagePath: string) {
 export type Category = {
   id: string;
   name: string;
+  visible_on_storefront: boolean;
 };
 
 export type ProductImage = {
@@ -45,7 +46,13 @@ export type Product = {
 };
 
 export async function fetchCategories(): Promise<Category[]> {
-  const { data } = await getSupabaseClient().from("categories").select("id, name").order("name");
+  // Only categories the admin has toggled visible — every caller here is
+  // customer-facing (nav, /products filter chips), so filter at the source.
+  const { data } = await getSupabaseClient()
+    .from("categories")
+    .select("id, name, visible_on_storefront")
+    .eq("visible_on_storefront", true)
+    .order("name");
   return data ?? [];
 }
 

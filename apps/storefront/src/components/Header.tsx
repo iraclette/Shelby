@@ -7,7 +7,7 @@ import CartLink from "./CartLink";
 
 const navLinkClass = "block py-3 transition-colors hover:text-brass md:inline md:py-0";
 
-export default function Header() {
+export default function Header({ showHandmadeLeather }: { showHandmadeLeather: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -24,6 +24,11 @@ export default function Header() {
           <Link href="/products" className={navLinkClass}>
             Shop
           </Link>
+          {showHandmadeLeather && (
+            <Link href="/handmade-leather" className={navLinkClass}>
+              Handmade Leather
+            </Link>
+          )}
           <Link href="/account" className={navLinkClass}>
             Account
           </Link>
@@ -55,6 +60,11 @@ export default function Header() {
           <Link href="/products" className={navLinkClass} onClick={() => setMenuOpen(false)}>
             Shop
           </Link>
+          {showHandmadeLeather && (
+            <Link href="/handmade-leather" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+              Handmade Leather
+            </Link>
+          )}
           <Link href="/account" className={navLinkClass} onClick={() => setMenuOpen(false)}>
             Account
           </Link>

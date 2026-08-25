@@ -54,6 +54,32 @@ struct Product {
 struct Category {
     QString id;
     QString name;
+    bool visibleOnStorefront = true;
+};
+
+// A handmade-leather custom order request submitted from the storefront's
+// /handmade-leather form (see 0019_handmade_leather_and_contact.sql) — a
+// free-text description, not a priced product line item.
+struct CustomLeatherOrder {
+    QString id;
+    QString customerName;
+    QString customerEmail;
+    QString customerPhone;
+    QString preferredShopId;
+    QString itemDescription;
+    QString status; // new/reviewed/quoted/in_progress/completed/cancelled
+    QString createdAt;
+};
+
+// A Contact Us submission from the storefront's /contact form.
+struct ContactMessage {
+    QString id;
+    QString name;
+    QString email;
+    QString message;
+    QString status; // unread/read
+    bool emailSent = false;
+    QString createdAt;
 };
 
 struct Supplier {
@@ -203,6 +229,20 @@ public:
 
     void fetchCategories();
     void createCategory(const QString &name);
+    // field must be one of categories' own column names (currently just
+    // visible_on_storefront) — same fixed-string guarantee as updateProductField.
+    void updateCategoryField(const QString &categoryId, const QString &field, const QJsonValue &value);
+
+    // Admin-only per custom_leather_orders' RLS policy (mirrors salary_payments).
+    void fetchCustomLeatherOrders();
+    // field must be one of custom_leather_orders' own column names
+    // (currently just status).
+    void updateCustomLeatherOrderField(const QString &orderId, const QString &field, const QJsonValue &value);
+
+    // Admin-only per contact_messages' RLS policy.
+    void fetchContactMessages();
+    // field must be one of contact_messages' own column names (currently just status).
+    void updateContactMessageField(const QString &messageId, const QString &field, const QJsonValue &value);
 
     void fetchSuppliers();
     void createSupplier(const QString &name);
@@ -321,6 +361,18 @@ signals:
     void categoriesFetchFailed(const QString &message);
     void categoryCreated(const Category &category);
     void categoryCreateFailed(const QString &message);
+    void categoryUpdated();
+    void categoryUpdateFailed(const QString &message);
+
+    void customLeatherOrdersFetched(const QVector<CustomLeatherOrder> &orders);
+    void customLeatherOrdersFetchFailed(const QString &message);
+    void customLeatherOrderUpdated();
+    void customLeatherOrderUpdateFailed(const QString &message);
+
+    void contactMessagesFetched(const QVector<ContactMessage> &messages);
+    void contactMessagesFetchFailed(const QString &message);
+    void contactMessageUpdated();
+    void contactMessageUpdateFailed(const QString &message);
 
     void suppliersFetched(const QVector<Supplier> &suppliers);
     void suppliersFetchFailed(const QString &message);

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { fetchShops } from "@/lib/supabase";
 
 export default async function Footer() {
@@ -33,6 +34,16 @@ export default async function Footer() {
                   <li key={shop.id}>{shop.name}</li>
                 ),
               )}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs tracking-[0.2em] text-brass uppercase">Get in touch</p>
+            <ul className="mt-3 space-y-1 text-sm text-paper-dim">
+              <li>
+                <Link href="/contact" className="transition-colors hover:text-brass">
+                  Contact us
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
