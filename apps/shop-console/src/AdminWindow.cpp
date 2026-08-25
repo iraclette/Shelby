@@ -1,8 +1,11 @@
 #include "AdminWindow.h"
 #include "AuditLogPage.h"
+#include "CategoriesPage.h"
+#include "CustomOrdersPage.h"
 #include "DailySummaryPage.h"
 #include "EmployeesPage.h"
 #include "InventoryPage.h"
+#include "MessagesPage.h"
 #include "SalaryPage.h"
 #include "SoftwarePage.h"
 #include "SupabaseClient.h"
@@ -63,6 +66,9 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, Q
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/salary.svg"), "Salary"));
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/daily-summary.svg"), "Daily Summary"));
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/audit-log.svg"), "Audit Log"));
+    sidebar->addItem(new QListWidgetItem(QIcon(":/icons/categories.svg"), "Categories"));
+    sidebar->addItem(new QListWidgetItem(QIcon(":/icons/orders.svg"), "Custom Orders"));
+    sidebar->addItem(new QListWidgetItem(QIcon(":/icons/help.svg"), "Help"));
     sidebar->addItem(new QListWidgetItem(QIcon(":/icons/software.svg"), "Software"));
 
     auto *pages = new QStackedWidget(this);
@@ -71,12 +77,18 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, Q
     auto *salaryPage = new SalaryPage(client, this);
     auto *dailySummaryPage = new DailySummaryPage(client, this);
     auto *auditLogPage = new AuditLogPage(client, this);
+    auto *categoriesPage = new CategoriesPage(client, this);
+    auto *customOrdersPage = new CustomOrdersPage(client, this);
+    auto *messagesPage = new MessagesPage(client, this);
     m_softwarePage = new SoftwarePage(updateChecker, this);
     pages->addWidget(inventoryPage);
     pages->addWidget(employeesPage);
     pages->addWidget(salaryPage);
     pages->addWidget(dailySummaryPage);
     pages->addWidget(auditLogPage);
+    pages->addWidget(categoriesPage);
+    pages->addWidget(customOrdersPage);
+    pages->addWidget(messagesPage);
     pages->addWidget(m_softwarePage);
 
     connect(sidebar, &QListWidget::currentRowChanged, pages, &QStackedWidget::setCurrentIndex);
@@ -91,6 +103,12 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, Q
     connect(dailySummaryPage, &DailySummaryPage::statusMessage, this,
             [this](const QString &message) { statusBar()->showMessage(message); });
     connect(auditLogPage, &AuditLogPage::statusMessage, this,
+            [this](const QString &message) { statusBar()->showMessage(message); });
+    connect(categoriesPage, &CategoriesPage::statusMessage, this,
+            [this](const QString &message) { statusBar()->showMessage(message); });
+    connect(customOrdersPage, &CustomOrdersPage::statusMessage, this,
+            [this](const QString &message) { statusBar()->showMessage(message); });
+    connect(messagesPage, &MessagesPage::statusMessage, this,
             [this](const QString &message) { statusBar()->showMessage(message); });
 
     auto *central = new QWidget(this);
