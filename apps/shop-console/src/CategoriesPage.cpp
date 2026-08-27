@@ -3,6 +3,9 @@
 
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTableWidgetItem>
@@ -13,9 +16,18 @@ CategoriesPage::CategoriesPage(SupabaseClient *client, QWidget *parent)
     auto *toolbar = new QHBoxLayout;
     auto *refreshButton = new QPushButton("Refresh", this);
     toolbar->addWidget(refreshButton);
+    auto *newCategoryButton = new QPushButton("New category", this);
+    toolbar->addWidget(newCategoryButton);
     toolbar->addStretch();
 
     connect(refreshButton, &QPushButton::clicked, this, [this]() { m_client->fetchCategories(); });
+    connect(newCategoryButton, &QPushButton::clicked, this, [this]() {
+        bool ok = false;
+        const QString name = QInputDialog::getText(this, "New category", "Category name:",
+                                                     QLineEdit::Normal, {}, &ok);
+        if (!ok || name.trimmed().isEmpty()) return;
+        m_client->createCategory(name.trimmed());
+    });
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(2);
@@ -45,6 +57,11 @@ CategoriesPage::CategoriesPage(SupabaseClient *client, QWidget *parent)
         m_client->fetchCategories();
     });
     connect(m_client, &SupabaseClient::categoryUpdated, this, [this]() { m_client->fetchCategories(); });
+
+    connect(m_client, &SupabaseClient::categoryCreated, this, [this]() { m_client->fetchCategories(); });
+    connect(m_client, &SupabaseClient::categoryCreateFailed, this, [this](const QString &message) {
+        QMessageBox::warning(this, "Couldn't create category", message);
+    });
 }
 
 void CategoriesPage::rebuildTable() {
