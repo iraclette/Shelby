@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { createBogOrder } from "@/lib/bog";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isNonEmptyString, isOptionalString, isUuid, isValidEmail } from "@/lib/validate";
 
 type CheckoutRequest = {
   customerName: string;
@@ -11,11 +13,26 @@ type CheckoutRequest = {
 };
 
 export async function POST(request: NextRequest) {
+  // Hits the live BOG payment API twice per call, so this is the most
+  // expensive route to spam — keep the window tight.
+  if (!checkRateLimit(`checkout:${getClientIp(request)}`, 5, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests, try again later." }, { status: 429 });
+  }
+
   const supabaseAdmin = getSupabaseAdmin();
   const body = (await request.json()) as CheckoutRequest;
 
-  if (!body.customerName || !body.customerEmail || !body.pickupShopId || !body.items?.length) {
-    return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+  if (
+    !isNonEmptyString(body.customerName, 200) ||
+    !isValidEmail(body.customerEmail) ||
+    !isOptionalString(body.customerPhone, 30) ||
+    !isUuid(body.pickupShopId) ||
+    !body.items?.length ||
+    !body.items.every(
+      (item) => isUuid(item.productId) && Number.isInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100,
+    )
+  ) {
+    return NextResponse.json({ error: "Missing or invalid fields." }, { status: 400 });
   }
 
   // Never trust prices from the client — look up each product's current

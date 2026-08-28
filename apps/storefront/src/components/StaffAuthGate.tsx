@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
+import Turnstile from "@/components/Turnstile";
 
 // Mirrors the Shop Console's login convention: staff sign in with a short
 // username, not a full email — anything without "@" gets this fixed fake
@@ -38,6 +39,31 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
   const [loginError, setLoginError] = useState("");
   const [signingIn, setSigningIn] = useState(false);
 
+  const captchaEnabled = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+
+  async function verifyCaptcha(): Promise<boolean> {
+    if (!captchaEnabled) return true;
+    if (!captchaToken) {
+      setLoginError("Please complete the CAPTCHA challenge.");
+      return false;
+    }
+    const res = await fetch("/api/verify-captcha", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: captchaToken }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      setLoginError(data.error ?? "CAPTCHA verification failed.");
+      setCaptchaToken(null);
+      setCaptchaKey((k) => k + 1);
+      return false;
+    }
+    return true;
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -66,6 +92,12 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
     event.preventDefault();
     setLoginError("");
     setSigningIn(true);
+
+    if (!(await verifyCaptcha())) {
+      setSigningIn(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email: toEmail(username),
       password,
@@ -103,9 +135,10 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
             placeholder="Password"
             className="w-full rounded-md border border-line bg-ink-soft px-4 py-3 text-base text-paper outline-none focus:border-brass"
           />
+          <Turnstile key={captchaKey} onToken={setCaptchaToken} />
           <button
             type="submit"
-            disabled={signingIn}
+            disabled={signingIn || (captchaEnabled && !captchaToken)}
             className="w-full rounded-md bg-brass px-4 py-3 text-base font-medium text-ink disabled:opacity-60"
           >
             {signingIn ? "Signing in…" : "Sign in"}
