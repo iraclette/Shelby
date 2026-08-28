@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendContactNotification } from "@/lib/email";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { isNonEmptyString, isValidEmail } from "@/lib/validate";
 
 type ContactRequest = {
   name: string;
@@ -9,10 +11,16 @@ type ContactRequest = {
 };
 
 export async function POST(request: NextRequest) {
+  // Also protects the Resend send quota once a real sending domain replaces
+  // the sandbox address (see src/lib/email.ts).
+  if (!checkRateLimit(`contact:${getClientIp(request)}`, 5, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests, try again later." }, { status: 429 });
+  }
+
   const body = (await request.json()) as ContactRequest;
 
-  if (!body.name || !body.email || !body.message) {
-    return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+  if (!isNonEmptyString(body.name, 200) || !isValidEmail(body.email) || !isNonEmptyString(body.message, 5000)) {
+    return NextResponse.json({ error: "Missing or invalid fields." }, { status: 400 });
   }
 
   const supabaseAdmin = getSupabaseAdmin();

@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
+import Turnstile from "@/components/Turnstile";
 
 // Staff accounts sign in with a short username (see the Shop Console's
 // LoginWindow), not a full email — mirrored here so an admin can sign in
@@ -28,6 +29,31 @@ export default function AccountClient() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const captchaEnabled = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+
+  async function verifyCaptcha(): Promise<boolean> {
+    if (!captchaEnabled) return true;
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA challenge.");
+      return false;
+    }
+    const res = await fetch("/api/verify-captcha", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: captchaToken }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      setError(data.error ?? "CAPTCHA verification failed.");
+      setCaptchaToken(null);
+      setCaptchaKey((k) => k + 1);
+      return false;
+    }
+    return true;
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -55,6 +81,12 @@ export default function AccountClient() {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
+
+    if (!(await verifyCaptcha())) {
+      setSubmitting(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({ email: toSignInEmail(email), password });
     setSubmitting(false);
     if (error) setError(error.message);
@@ -65,6 +97,11 @@ export default function AccountClient() {
     setError(null);
     setNotice(null);
     setSubmitting(true);
+
+    if (!(await verifyCaptcha())) {
+      setSubmitting(false);
+      return;
+    }
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -170,11 +207,13 @@ export default function AccountClient() {
           />
         </div>
 
+        <Turnstile key={captchaKey} onToken={setCaptchaToken} />
+
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || (captchaEnabled && !captchaToken)}
           className="w-full border border-brass py-3 text-sm tracking-[0.15em] text-brass uppercase transition-colors hover:bg-brass hover:text-ink disabled:opacity-50"
         >
           {submitting ? "Please wait…" : mode === "sign-in" ? "Sign In" : "Create Account"}

@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { verifyBogCallbackSignature, getBogOrderStatus } from "@/lib/bog";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
+  // Signature verification below is the real gate; this is just cheap flood
+  // insurance, generous enough that legitimate BOG callback traffic never
+  // hits it.
+  if (!checkRateLimit(`bog-webhook:${getClientIp(request)}`, 30, 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+  }
+
   const supabaseAdmin = getSupabaseAdmin();
   const rawBody = await request.text();
   const signature = request.headers.get("Callback-Signature");
