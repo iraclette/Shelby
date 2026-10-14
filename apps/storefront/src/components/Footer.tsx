@@ -47,7 +47,7 @@ export default async function Footer() {
             </ul>
           </div>
         </div>
-        <p className="mt-10 border-t border-line pt-6 text-xs text-paper-dim/70">
+        <p className="mt-10 border-t border-line pt-6 text-xs text-paper-dim">
           © {new Date().getFullYear()} Shelby. All rights reserved.
         </p>
       </div>

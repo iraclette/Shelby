@@ -17,10 +17,10 @@ export default function ProductCard({ product }: { product: Product }) {
             alt={product.name}
             fill
             sizes="(min-width: 768px) 25vw, 50vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-300 motion-safe:group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-paper-dim/50">
+          <div className="flex h-full items-center justify-center text-paper-dim/80">
             <span className="font-display text-3xl italic">Shelby</span>
           </div>
         )}

@@ -36,6 +36,9 @@ export default function AdminLink({
 
   return (
     <>
+      <Link href="/staff/new-product" className={linkClassName} onClick={onNavigate}>
+        Add Product
+      </Link>
       <Link href="/staff/photos" className={linkClassName} onClick={onNavigate}>
         Photos
       </Link>

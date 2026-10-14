@@ -12,7 +12,7 @@ export default async function CheckoutSuccessPage({
         Your payment was received. We&apos;ll have your order ready for pickup
         shortly.
       </p>
-      {order && <p className="mt-2 text-xs text-paper-dim/60">Order #{order}</p>}
+      {order && <p className="mt-2 text-xs text-paper-dim">Order #{order}</p>}
     </div>
   );
 }

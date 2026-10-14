@@ -4,15 +4,10 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { getSupabaseClient } from "@/lib/supabase";
 import StaffAuthGate from "@/components/StaffAuthGate";
+import { randomId } from "@/lib/randomId";
 
 type Product = { id: string; name: string; sku: string };
 type ProductImage = { id: string; storage_path: string; is_primary: boolean };
-
-// crypto.randomUUID() is undefined over plain http (e.g. testing from a phone on LAN).
-function randomId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
 
 function publicUrl(storagePath: string) {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${storagePath}`;
