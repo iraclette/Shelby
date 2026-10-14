@@ -46,7 +46,21 @@ export default async function ProductsPage({
       </div>
 
       {products.length === 0 ? (
-        <p className="mt-16 text-paper-dim">No products here yet.</p>
+        <div className="relative mt-12 overflow-hidden border border-line px-6 py-14 text-center">
+          <div className="atmosphere-subtle" />
+          <p className="relative font-display text-2xl italic text-paper">
+            {category ? "Nothing online in this category yet." : "The collection is coming online."}
+          </p>
+          <p className="relative mx-auto mt-3 max-w-md text-sm text-paper-dim">
+            Our shops in Gori have it on the shelves. Drop by, or check back soon.
+          </p>
+          <Link
+            href="/#shops"
+            className="relative mt-6 inline-block text-sm tracking-[0.15em] text-brass uppercase hover:text-brass-soft"
+          >
+            Find a shop →
+          </Link>
+        </div>
       ) : (
         <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4">
           {products.map((product) => (

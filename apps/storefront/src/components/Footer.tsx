@@ -11,8 +11,8 @@ export default async function Footer() {
           <div>
             <p className="font-display text-xl text-paper">Shelby</p>
             <p className="mt-2 max-w-xs text-sm text-paper-dim">
-              Knives, leather goods, cosmetics, and souvenirs — browse online,
-              visit us in store.
+              Blades, leather, gifts and beauty from three shops in Gori. Browse
+              online, pick up in store.
             </p>
           </div>
           <div>
