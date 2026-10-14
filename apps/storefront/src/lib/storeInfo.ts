@@ -4,14 +4,17 @@
 export const TOWN = "Gori";
 
 export const SHOP_BLURBS: Record<string, string> = {
-  "Black Eye Beauty": "Cosmetics, skincare, nail and hair care, and perfume.",
-  Shelby: "Knives (hunting, folding, butterfly, karambit), decorative katanas, leather goods, hookahs, lighters and snus, oil perfumes, gift boxes and souvenirs.",
-  End: "A little of both: beauty from Black Eye and the pick of Shelby, under one roof.",
+  "Black Eye Beauty":
+    "Your everyday ritual, start to finish: makeup and skincare, hair and nail care, and a fragrance to complete the look.",
+  Shelby:
+    "Blades for collectors and the outdoors, from hunting knives and karambits to display katanas, alongside fine leather, deep oil-based perfumes and gift boxes made to impress. Hookahs, lighters and souvenirs round out the shelves.",
+  End:
+    "The best of both: beauty essentials next to Shelby's blades and gifts, for when you're shopping for yourself and someone else in one stop.",
 };
 
 export const PROMISES = [
-  { title: "Pick up in store", text: "Order online, collect from any of our three shops." },
+  { title: "Pick up or delivery", text: "Collect from any of our shops, or have it delivered at your cost." },
   { title: "Secure payment", text: "Card payments handled by Bank of Georgia." },
   { title: "Ready to gift", text: "Boxed sets with chess, flasks and shot cups." },
-  { title: "Real people", text: `Three shops in ${TOWN}, run by one family.` },
+  { title: `Three shops in ${TOWN}`, text: "Drop in to see, smell and hold it before you buy." },
 ];

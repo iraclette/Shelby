@@ -42,7 +42,7 @@ export default async function Home() {
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-paper-dim">
             Knives of every kind, katanas, leather goods and gift boxes, cosmetics, skincare
-            and perfume. Browse online, pick up in any of our three shops.
+            and perfume. Browse online, then pick up in store or have it delivered.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Link
@@ -130,8 +130,8 @@ export default async function Home() {
             <p className={eyebrow}>{TOWN}</p>
             <h2 className={`mt-3 ${sectionHeading}`}>Our Shops</h2>
             <p className="mt-3 max-w-xl text-paper-dim">
-              Three shops, one family. Each has its own character; all of them hold your online
-              orders for pickup.
+              Each shop has its own character. Any of them can hold your online order for pickup,
+              or send it to your door.
             </p>
             <div className="mt-10 grid gap-6 md:grid-cols-3">
               {shops.map((shop) => (

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchProduct, primaryImage } from "@/lib/supabase";
 import AddToCartButton from "@/components/AddToCartButton";
@@ -45,8 +46,11 @@ export default async function ProductPage({
           />
 
           <div className="mt-4 border border-line px-6 py-4 text-sm text-paper-dim">
-            Buy online and pick up in store, or visit Black Eye Beauty, Shelby,
-            or End directly.
+            Buy online and pick up in store, or{" "}
+            <Link href="/contact" className="text-brass underline-offset-4 hover:underline">
+              contact us
+            </Link>{" "}
+            to have it delivered (delivery at your cost).
           </div>
         </div>
       </div>
