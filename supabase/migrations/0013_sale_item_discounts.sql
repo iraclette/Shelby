@@ -1,14 +1,8 @@
--- Lets the POS record a line at less than the product's current sell_price
--- (shops routinely negotiate down) while still knowing how much was given
--- away: list_price snapshots the price the cashier started from, the same
--- way unit_cost already snapshots cost_price, so it stays meaningful even
--- if sell_price changes later.
+-- list_price snapshots the price before any discount.
 
 alter table sale_items add column list_price numeric(12, 2);
 
--- Backfill existing rows so the column can be made not-null: without a
--- record of what the discount actually was, the least wrong assumption is
--- that the row wasn't discounted, i.e. list_price equaled unit_price.
+-- Assume existing rows weren't discounted.
 update sale_items set list_price = unit_price where list_price is null;
 
 alter table sale_items alter column list_price set not null;

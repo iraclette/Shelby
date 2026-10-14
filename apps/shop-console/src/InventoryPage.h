@@ -7,11 +7,7 @@
 
 class QTableWidget;
 
-// The product/stock table — this is everything AdminWindow used to be
-// before it became a multi-page shell (see EmployeesPage, SoftwarePage).
-// One row per variant for a product that has variants (Variant column shows
-// "—" and stays non-editable for a plain product's own row); non-variant
-// products keep exactly one row each, same as always.
+// One row per variant for products that have variants.
 class InventoryPage : public QWidget {
     Q_OBJECT
 

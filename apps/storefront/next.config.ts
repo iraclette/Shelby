@@ -5,10 +5,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [new URL("https://xlrvofdiqnuuafzwtefe.supabase.co/storage/v1/object/public/**")],
   },
 
-  // Baseline hardening only — no CSP here yet. A strict CSP risks breaking
-  // the Turnstile widget/Supabase/Google Fonts and can't be verified without
-  // live browser testing, so it's deliberately deferred rather than shipped
-  // half-tested.
+  // No CSP yet; needs live testing against Turnstile/Supabase/Google Fonts.
   async headers() {
     return [
       {

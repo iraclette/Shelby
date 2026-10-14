@@ -7,9 +7,7 @@ import ProductCard from "@/components/ProductCard";
 
 export const revalidate = 60;
 
-// Real hero photography (see public/hero/README.md) is optional — when it
-// shows up, it renders behind the gradient/grain overlay instead of the
-// plain ink background, with zero other changes needed.
+// Optional; renders behind the overlay when present (see public/hero/README.md).
 const HERO_PHOTO = "/hero/hero.jpg";
 const hasHeroPhoto = existsSync(path.join(process.cwd(), "public", HERO_PHOTO));
 

@@ -12,14 +12,8 @@ class QLabel;
 class QTableWidget;
 class QTableWidgetItem;
 
-// Daily-wage earnings per employee for a selected month, plus a payout
-// ledger. There's no clock-in system, so a "day worked" is inferred from
-// sales.staff_id: any calendar day the employee has at least one recorded
-// sale counts as a paid day (see SupabaseClient::fetchSalesForPeriod).
-// Earnings are computed here client-side from that plus each employee's pay
-// config (profiles.daily_rate/bonus_threshold/bonus_amount, editable inline
-// like InventoryPage's price cells) — nothing about the calculation itself
-// is persisted, only the actual payments an admin records via "Pay".
+// Daily-wage earnings per employee for a month, plus a payout ledger.
+// A day worked = any day with at least one sale by that employee.
 class SalaryPage : public QWidget {
     Q_OBJECT
 

@@ -1,7 +1,3 @@
-// Shared request-body validation for the storefront's API routes — replaces
-// bare truthiness checks (`!body.x`) with actual type/length/format bounds,
-// since these values go straight into Supabase inserts otherwise.
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

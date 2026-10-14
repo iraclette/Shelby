@@ -1,10 +1,4 @@
--- In-person POS returns (against sales/sale_items). Deliberately not
--- touching online orders/BOG — that's a real payment refund, a separate
--- undertaking once BOG is actually live.
---
--- Same append-only philosophy as sales/sale_items: a return never edits or
--- deletes the original sale, it's a new ledger entry that reverses its
--- effects (restores stock, records what was refunded).
+-- In-person POS returns. Append-only: a return never edits the original sale.
 
 create table returns (
   id uuid primary key default gen_random_uuid(),
@@ -48,9 +42,7 @@ create policy "create own shop return_items" on return_items for insert to authe
     select 1 from returns where returns.id = return_items.return_id and returns.shop_id = current_profile_shop_id()
   ));
 
--- No SECURITY DEFINER — same as record_sale/decrement_inventory, runs as
--- the calling staff member so the RLS policies above still apply; staff_id
--- comes from auth.uid(), never a client-supplied parameter.
+-- No SECURITY DEFINER so RLS applies; staff_id comes from auth.uid().
 create function record_return(
   p_shop_id uuid,
   p_client_generated_id uuid,

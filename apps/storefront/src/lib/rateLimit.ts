@@ -1,12 +1,7 @@
 import "server-only";
 import type { NextRequest } from "next/server";
 
-// Fixed-window counter, in-process. Render runs this app as one persistent
-// `next start` process (not per-request serverless functions), so this
-// actually persists across requests here — it just wouldn't be shared if
-// this ever scaled to multiple instances, and resets on every deploy/restart.
-// Fine for this app's traffic; swap for a shared store (e.g. Redis) if that
-// ever changes.
+// In-memory, per process: resets on restart and isn't shared across instances.
 type Bucket = { count: number; resetAt: number };
 const buckets = new Map<string, Bucket>();
 

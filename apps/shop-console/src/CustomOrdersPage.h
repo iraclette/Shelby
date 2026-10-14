@@ -8,9 +8,7 @@
 class QTableWidget;
 class QTableWidgetItem;
 
-// Handmade-leather custom order requests submitted from the storefront's
-// /handmade-leather form — free-text descriptions, not priced products, so
-// they live outside the regular `orders`/POS sales flow entirely.
+// Custom leather order requests from the storefront's /handmade-leather form.
 class CustomOrdersPage : public QWidget {
     Q_OBJECT
 

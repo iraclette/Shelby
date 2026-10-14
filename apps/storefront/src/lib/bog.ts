@@ -1,10 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 
-// Bank of Georgia's "Online Payment API" (the current one — its predecessor,
-// "iPay", is deprecated). Docs: https://api.bog.ge/docs/en/payments/introduction
-// Stripe isn't usable here at all — Georgia isn't on Stripe's supported
-// country list — so this is the real integration, not a placeholder.
+// Bank of Georgia Online Payment API: https://api.bog.ge/docs/en/payments/introduction
 
 const AUTH_URL = "https://account.bog.ge/auth/realms/bog/protocol/openid-connect/token";
 const API_BASE = "https://api.bog.ge/payments/v1";
@@ -92,12 +89,7 @@ function getPublicKey(): string {
   return raw.includes("\\n") ? raw.replace(/\\n/g, "\n") : raw;
 }
 
-// NOTE: BOG's docs confirm SHA256withRSA over the raw request body, signed
-// with their private key and checked here against their public key — but
-// don't spell out the signature's text encoding. base64 is assumed (the
-// common convention for this kind of header); confirm against a real
-// callback once sandbox/live credentials are available, and adjust if BOG
-// actually sends hex instead.
+// TODO: signature encoding assumed base64; confirm against a real BOG callback.
 export function verifyBogCallbackSignature(rawBody: string, signatureHeader: string | null): boolean {
   if (!signatureHeader) return false;
   const publicKey = getPublicKey();
@@ -113,10 +105,7 @@ export function verifyBogCallbackSignature(rawBody: string, signatureHeader: str
   }
 }
 
-// The callback body only confirms *that something happened* for an
-// order_id, not the actual payment outcome — so the callback is treated as
-// "go check", not as the source of truth. This re-fetches the order's
-// authoritative status directly from BOG before confirming anything.
+// The callback isn't trusted; this fetches the real status from BOG.
 export async function getBogOrderStatus(orderId: string): Promise<string> {
   const token = await getAccessToken();
   const res = await fetch(`${API_BASE}/receipt/${orderId}`, {

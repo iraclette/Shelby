@@ -8,10 +8,7 @@
 class QComboBox;
 class QTableWidget;
 
-// Activity trail: product/inventory/staff edits from audit_log (see
-// 0018_audit_log.sql — actions that don't already have their own ledger),
-// merged with stock_transfers (which already has its own table) into one
-// "what happened" view, newest first.
+// audit_log entries merged with stock_transfers, newest first.
 class AuditLogPage : public QWidget {
     Q_OBJECT
 

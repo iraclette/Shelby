@@ -14,13 +14,7 @@ declare global {
   }
 }
 
-// App-level CAPTCHA gate for the storefront's own login/signup forms (not
-// Supabase's project-wide CAPTCHA-required setting — see the security plan
-// notes: that setting is all-or-nothing and would also require the Shop
-// Console's native login to solve a challenge, which needs Qt WebEngine
-// (MSVC-only, this project builds with MinGW)). Renders nothing if no site
-// key is configured yet, so login keeps working before Cloudflare is set up
-// — see api/verify-captcha's matching fail-open behavior.
+// CAPTCHA for the storefront's own login forms. Renders nothing until a site key is set.
 export default function Turnstile({ onToken }: { onToken: (token: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;

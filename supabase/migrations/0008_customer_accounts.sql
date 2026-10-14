@@ -1,7 +1,4 @@
--- Public customer accounts for the storefront (sign up / sign in), kept
--- separate from `profiles` (internal shop staff only) so a customer signup
--- can never end up with a staff role. This is intentionally minimal — just
--- enough for an account to exist; it's not a loyalty program.
+-- Storefront customer accounts, separate from staff profiles.
 
 create table customers (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -21,13 +18,7 @@ create policy "customers update own row" on customers for update to authenticate
 create policy "admins read customers" on customers for select to authenticated
   using (is_admin());
 
--- handle_new_user() (0001_init.sql) previously inserted every new
--- auth.users row into `profiles`, assuming every signup was staff. Now that
--- the storefront lets anyone sign up, that assumption no longer holds — the
--- storefront's sign-up call tags itself with account_type: 'customer' in
--- the auth metadata, and this routes those into `customers` instead. Any
--- signup that doesn't set that (i.e. the existing staff-creation path)
--- keeps landing in `profiles`, unchanged.
+-- Signups tagged account_type 'customer' go to customers, everything else to profiles.
 create or replace function handle_new_user() returns trigger
   language plpgsql security definer set search_path = public as $$
 begin

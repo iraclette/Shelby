@@ -5,9 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import Turnstile from "@/components/Turnstile";
 
-// Staff accounts sign in with a short username (see the Shop Console's
-// LoginWindow), not a full email — mirrored here so an admin can sign in
-// from this page too and have the header's admin link pick them up.
+// Same username login as the Shop Console, so admins can sign in here too.
 function toSignInEmail(identifier: string) {
   const trimmed = identifier.trim();
   return trimmed.includes("@") ? trimmed : `${trimmed}@shop.local`;

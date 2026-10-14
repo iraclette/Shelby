@@ -18,13 +18,7 @@ class QPushButton;
 class QSpinBox;
 class QVBoxLayout;
 
-// "New product" form: name/category/supplier/prices, a low-stock alert
-// threshold, an internal-code generator for items with no real barcode,
-// per-shop stock quantities, optional color/size variants, and photo
-// attachments. Saving creates the product row, upserts inventory_levels for
-// every shop (or, if variants were added, creates the variants and seeds
-// their own 0-stock rows instead), then kicks off image uploads (those
-// continue in the background — the dialog doesn't block on them finishing).
+// "New product" form. Image uploads finish in the background after it closes.
 class ProductDialog : public QDialog {
     Q_OBJECT
 
@@ -63,9 +57,7 @@ private:
     QVector<Shop> m_shops;
     QMap<QString, QSpinBox *> m_shopSpinBoxes;
     QStringList m_pendingImagePaths;
-    // Bridges productCreated -> variantsCreated (two separate async round
-    // trips triggered from the same save()) so seedVariantStock knows which
-    // product the just-created variants belong to.
+    // Links productCreated -> variantsCreated for seedVariantStock.
     QString m_pendingProductId;
 
     // One entry per variant row currently in the form: the row widget (for

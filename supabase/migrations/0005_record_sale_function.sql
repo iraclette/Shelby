@@ -1,8 +1,4 @@
--- Replaces the client-orchestrated sale+items+decrement sequence with one
--- atomic call, so a sale is either fully recorded or not recorded at all.
--- Also makes offline retries safe: client_generated_id is unique, so
--- resubmitting the same locally-queued sale after a successful-but-
--- unconfirmed sync just returns the existing sale instead of duplicating it.
+-- Atomic sale record. client_generated_id makes offline retries idempotent.
 create or replace function record_sale(
   p_shop_id uuid,
   p_client_generated_id uuid,

@@ -10,9 +10,7 @@ class QComboBox;
 class QLabel;
 class QTableWidget;
 
-// "Counter for the day" — what sold, for how much, and who sold it. Same
-// shell pattern as SalaryPage: a day nav (defaults to today) + shop filter,
-// a small stat row, and a table of the day's sales.
+// What sold on a given day, for how much, and by whom.
 class DailySummaryPage : public QWidget {
     Q_OBJECT
 

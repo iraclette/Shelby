@@ -9,10 +9,7 @@ class QLineEdit;
 class QPushButton;
 class SupabaseClient;
 
-// Records one payout in the salary_payments ledger for an employee's pay
-// period (see SalaryPage). Prefills the amount with the outstanding
-// balance SalaryPage computed, but leaves it editable for a partial
-// payment. Opened from SalaryPage's "Pay" button, one dialog per employee.
+// Records one salary payout; amount is prefilled with the outstanding balance.
 class PaySalaryDialog : public QDialog {
     Q_OBJECT
 

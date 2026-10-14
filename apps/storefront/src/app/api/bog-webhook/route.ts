@@ -4,9 +4,7 @@ import { verifyBogCallbackSignature, getBogOrderStatus } from "@/lib/bog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
-  // Signature verification below is the real gate; this is just cheap flood
-  // insurance, generous enough that legitimate BOG callback traffic never
-  // hits it.
+  // Flood protection only; the signature check is the real gate.
   if (!checkRateLimit(`bog-webhook:${getClientIp(request)}`, 30, 60 * 1000)) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }
@@ -25,9 +23,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing order_id." }, { status: 400 });
   }
 
-  // The callback only says "something happened for this order" — it's not
-  // trusted as the payment outcome itself. Re-fetch the authoritative
-  // status directly from BOG before confirming anything.
+  // Don't trust the callback; fetch the real status from BOG.
   const status = await getBogOrderStatus(bogOrderId);
 
   if (status === "completed") {

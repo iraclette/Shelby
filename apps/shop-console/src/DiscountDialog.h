@@ -7,10 +7,7 @@ class QDoubleSpinBox;
 class QLabel;
 class QRadioButton;
 
-// Applies a discount to a single cart line: cashier picks "% off" or
-// "GEL off" and a value, sees the resulting price live, and confirms.
-// Purely local — no server round trip, PosWindow just reads
-// resultUnitPrice() after exec() and updates the CartLine itself.
+// Local only: PosWindow reads resultUnitPrice() after exec().
 class DiscountDialog : public QDialog {
     Q_OBJECT
 

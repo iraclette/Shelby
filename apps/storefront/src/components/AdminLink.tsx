@@ -4,12 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase";
 
-// Shows the staff-only nav links (Photos, Inventory), but only once the
-// signed-in session belongs to a staff profile with role owner/admin — a
-// customer session (or no session at all) renders nothing. Same Supabase
-// Auth session as /account and /staff/photos; which table it resolves to
-// (customers vs profiles) is what decides which of those a person actually
-// is, not which login form they used.
+// Staff nav links, only rendered for owner/admin profiles.
 export default function AdminLink({
   linkClassName = "transition-colors hover:text-brass",
   onNavigate,

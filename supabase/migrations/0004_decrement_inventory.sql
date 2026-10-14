@@ -1,7 +1,4 @@
--- Called by the POS at checkout. A plain UPDATE is atomic on its own, so no
--- read-then-write race between two simultaneous sales; runs as the calling
--- role (no SECURITY DEFINER), so the existing "write own shop inventory" RLS
--- policy on inventory_levels still applies.
+-- Plain UPDATE is atomic; no SECURITY DEFINER so RLS still applies.
 create function decrement_inventory(p_product_id uuid, p_shop_id uuid, p_quantity int)
 returns void
 language sql

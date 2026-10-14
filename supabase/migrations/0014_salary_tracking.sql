@@ -1,9 +1,5 @@
--- Daily-wage salary tracking. There's no clock-in system, so a "day worked"
--- is inferred from sales.staff_id: any calendar day an employee has at
--- least one recorded sale counts as a paid day. Pay config is per employee
--- (not every employee earns the same), and actual payouts are logged in an
--- append-only ledger — same philosophy as sales/returns, a payment is never
--- edited or deleted, just recorded.
+-- Daily-wage salaries. A day worked = any day with at least one sale.
+-- Payouts are an append-only ledger.
 
 alter table profiles add column daily_rate numeric(12, 2);
 alter table profiles add column bonus_threshold numeric(12, 2);

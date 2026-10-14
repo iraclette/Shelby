@@ -13,9 +13,7 @@ class QSpinBox;
 class QStackedWidget;
 class QVBoxLayout;
 
-// Two-stage flow, one dialog (same single-class approach EmployeeDialog/
-// ProductDialog already use for their own multi-part forms): pick a recent
-// sale for this shop, then pick how many of each line item to return.
+// Pick a recent sale, then how many of each item to return.
 class ReturnDialog : public QDialog {
     Q_OBJECT
 

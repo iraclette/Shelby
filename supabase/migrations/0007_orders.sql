@@ -1,6 +1,4 @@
--- Online orders from the storefront (separate from the Shop Console's
--- in-person `sales`/`sale_items`, which are staff-recorded tills).
--- Pickup-only for now: no shipping address, just a shop to collect from.
+-- Online storefront orders (pickup only for now).
 
 create type order_status as enum ('pending', 'paid', 'failed', 'fulfilled', 'cancelled');
 
@@ -27,16 +25,10 @@ create table order_items (
 
 create index on order_items (order_id);
 
--- The storefront's checkout form needs to list shops for pickup selection —
--- another table the public-storefront migration missed since it wasn't
--- needed until now.
+-- Checkout needs the shop list for pickup.
 create policy "public read shops" on shops for select to anon using (true);
 
--- RLS is enabled with NO policies at all, on purpose: customers are
--- anonymous (no login on the storefront), so nothing here should ever be
--- reachable with the public anon key. All reads/writes go through the
--- storefront's server-side API routes using the Supabase service role key,
--- which bypasses RLS entirely regardless of policies.
+-- RLS on with no policies: only the service role (API routes) can touch orders.
 alter table orders enable row level security;
 alter table order_items enable row level security;
 

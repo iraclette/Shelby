@@ -92,10 +92,7 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     auto *stockGroup = new QGroupBox("Stock per shop", this);
     m_shopStockLayout = new QFormLayout(stockGroup);
 
-    // Variants: name+sku row pairs, no per-shop stock here — initial stock
-    // is 0 everywhere, filled in via the Inventory page afterward, exactly
-    // like base-product stock already works. Leave empty for a product with
-    // no variants (the common case — knives/leather goods).
+    // Variants start at 0 stock everywhere; set it from the Inventory page.
     auto *variantsGroup = new QGroupBox("Variants (e.g. shades/sizes)", this);
     m_variantRowsLayout = new QVBoxLayout;
     auto *addVariantButton = new QPushButton("+ Add variant", this);
@@ -185,9 +182,6 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
         m_statusLabel->setText(message);
     });
 
-    // Bonus fix: previously this dialog never checked whether the
-    // post-creation stock upsert actually succeeded, so a failure here
-    // silently left every shop's stock at 0 with no error shown anywhere.
     connect(m_client, &SupabaseClient::inventoryLevelsUpsertFailed, this, [this](const QString &message) {
         m_statusLabel->setStyleSheet("color: #f59e0b;");
         m_statusLabel->setText("Product saved, but stock wasn't set: " + message);
@@ -218,11 +212,7 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
                 m_client->upsertInventoryLevels(productId, levels);
             }
         } else {
-            // Deliberately no base-bucket row seeded for this product —
-            // every sale for it now goes through a variant, so a "no
-            // variant" row would sit at 0 forever. seedVariantStock (fired
-            // on variantsCreated, once the created rows' ids come back)
-            // seeds a 0-stock row per (variant, shop) instead.
+            // No base stock row for variant products; seedVariantStock adds one per variant instead.
             m_client->createVariants(productId, variantInputs);
         }
 
@@ -230,9 +220,6 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
             m_client->uploadProductImage(productId, m_pendingImagePaths.at(i), /*isPrimary=*/i == 0);
         }
 
-        // Photos, stock levels, and variants finish saving in the
-        // background; the product record itself already exists, so the
-        // dialog can close now.
         accept();
     });
 }

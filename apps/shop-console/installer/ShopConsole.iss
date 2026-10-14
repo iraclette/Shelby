@@ -1,13 +1,5 @@
-; Inno Setup script for the single-file Shop Console installer
-; (ShopConsole-Setup.exe) — what gets handed to a shop on a USB stick.
-; Built by .github/workflows/release.yml from the same dist\ShopConsole
-; folder that goes into the self-update zip:
-;
-;   ISCC /DAppVersion=1.4.1 /DSourceDir=<dist\ShopConsole> /O<outdir> ShopConsole.iss
-;
-; Installs per-user (no admin prompt) into %LOCALAPPDATA%\Programs — the
-; self-updater (scripts/update.ps1) overwrites files in place, which would
-; need admin rights under Program Files.
+; Builds ShopConsole-Setup.exe from dist\ShopConsole (see release.yml).
+; Per-user install so the self-updater can overwrite files without admin.
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"

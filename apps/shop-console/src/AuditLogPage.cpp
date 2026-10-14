@@ -12,9 +12,6 @@
 #include <algorithm>
 
 namespace {
-// entity_type -> filter category. Kept separate from the raw action string
-// so "product_updated" and any future product-flavored action both land
-// under the same "Product" filter without needing to enumerate actions.
 QString categoryForEntityType(const QString &entityType) {
     if (entityType == "product") return "Product";
     if (entityType == "profile") return "Staff";

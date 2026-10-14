@@ -1,7 +1,4 @@
--- Mirrors 0008_customer_accounts.sql's reasoning: PostgREST only exposes the
--- public schema, so profiles can't read auth.users.email directly. The
--- Employees admin page needs to show who's who, so this denormalizes it
--- the same way customers.email already does.
+-- auth.users isn't exposed via PostgREST, so copy the email into profiles.
 
 alter table profiles add column email text;
 

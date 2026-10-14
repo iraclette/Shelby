@@ -1,6 +1,4 @@
--- Per-shade/size stock tracking (cosmetics need this; knives/leather goods
--- generally won't have variants at all, so every change here is additive
--- and defaults to today's exact behavior when no variant is involved).
+-- Per-shade/size stock. Products without variants behave exactly as before.
 
 create table product_variants (
   id uuid primary key default gen_random_uuid(),
@@ -18,17 +16,9 @@ alter table product_variants enable row level security;
 create policy "read product_variants" on product_variants for select to authenticated using (true);
 create policy "write product_variants" on product_variants for all to authenticated using (is_admin()) with check (is_admin());
 
--- inventory_levels needs to track stock per (product, variant, shop) instead
--- of just (product, shop) once a product has variants, while staying exactly
--- as it is today for the majority of products that never will.
 alter table inventory_levels add column variant_id uuid references product_variants(id) on delete cascade;
 
--- Null-safe uniqueness key: Postgres treats NULL <> NULL, so a naive
--- unique(product_id, variant_id, shop_id) would silently stop enforcing
--- one-row-per-product-per-shop for every non-variant product. Coalescing to
--- a fixed nil UUID makes two "no variant" rows for the same product+shop
--- collide exactly like today, while two different variants' rows stay
--- distinct. Generated so it can't drift from variant_id or be set directly.
+-- Null-safe unique key: rows with a NULL variant_id would otherwise never collide.
 alter table inventory_levels add column variant_key uuid
   generated always as (coalesce(variant_id, '00000000-0000-0000-0000-000000000000'::uuid)) stored;
 
@@ -38,18 +28,12 @@ alter table inventory_levels add constraint inventory_levels_product_variant_sho
 
 create index if not exists idx_inventory_levels_variant on inventory_levels (variant_id) where variant_id is not null;
 
--- sale_items / return_items / stock_transfers: nullable, no cascade — these
--- are append-only ledgers (see 0011_returns.sql's comment), a variant
--- should never be deletable out from under sales/return/transfer history.
+-- No cascade: variants can't be deleted out from under sales history.
 alter table sale_items add column variant_id uuid references product_variants(id);
 alter table return_items add column variant_id uuid references product_variants(id);
 alter table stock_transfers add column variant_id uuid references product_variants(id);
 
--- record_sale: same signature, p_items gains an optional variant_id key.
--- An old (pre-update) client's payload never has the key at all, which
--- nullif(...,'') treats identically to "key present but null" — a lagging
--- shop machine keeps selling unmodified until it self-updates. Same
--- technique 0013_sale_item_discounts.sql already used for list_price.
+-- variant_id is optional in p_items, so older clients keep working.
 create or replace function record_sale(
   p_shop_id uuid,
   p_client_generated_id uuid,
@@ -99,9 +83,7 @@ begin
 end;
 $$;
 
--- record_return: variant is resolved server-side from the original
--- sale_items row (same trust model already used for unit_price) — p_items
--- shape ({sale_item_id, quantity}) is completely unchanged.
+-- Variant comes from the original sale_items row.
 create or replace function record_return(
   p_shop_id uuid,
   p_client_generated_id uuid,
@@ -171,10 +153,7 @@ begin
 end;
 $$;
 
--- transfer_stock: new trailing, defaulted parameter — create or replace
--- allows appending a defaulted parameter to an existing function's argument
--- list without creating an ambiguous overload, so old and new clients both
--- keep working against the same function.
+-- New defaulted parameter, so older clients keep working.
 create or replace function transfer_stock(
   p_client_generated_id uuid,
   p_product_id uuid,
@@ -225,13 +204,3 @@ end;
 $$;
 
 grant execute on function transfer_stock(uuid, uuid, uuid, uuid, int, uuid) to authenticated;
-
--- IMPORTANT DEPLOY NOTE: upsertInventoryLevels (SupabaseClient.cpp) is a
--- direct PostgREST table upsert against inventory_levels using
--- on_conflict=product_id,shop_id. That target no longer matches any
--- constraint once this migration lands (see variant_key above) — every
--- product's stock edit from InventoryPage/ProductDialog will 400 on an
--- un-updated client, not just variant ones. That call site is exclusively
--- admin tooling (never the POS), so apply this migration and rebuild/
--- redeploy the admin machine's Shop Console together rather than relying on
--- the self-updater's normal lagged timing.

@@ -95,9 +95,7 @@ void ProductPhotosDialog::loadThumbnail(QListWidgetItem *item, const QString &ur
     QNetworkReply *reply = m_thumbnailNetwork->get(QNetworkRequest(QUrl(url)));
     connect(reply, &QNetworkReply::finished, this, [this, reply, item, generation]() {
         reply->deleteLater();
-        // The list may have been rebuilt (refresh()) since this request
-        // started, in which case `item` no longer exists — bail out rather
-        // than touch freed memory.
+        // The list may have been rebuilt since this request started.
         if (generation != m_generation) return;
 
         const QByteArray data = reply->readAll();

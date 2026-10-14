@@ -1,7 +1,4 @@
--- Handmade Leather custom order requests + a Contact Us inbox, both surfaced
--- only in the Shop Console admin — no email dependency for leather orders
--- (a lost custom-order spec is a lost sale), best-effort email on top of the
--- DB write for contact messages (see apps/storefront/src/lib/email.ts).
+-- Custom leather orders + Contact Us inbox, shown in the Shop Console admin.
 
 -- General mechanism, not hardcoded to leather: lets admin hide any category
 -- (and its storefront surface) before it's ready.
@@ -36,9 +33,7 @@ create table contact_messages (
 alter table custom_leather_orders enable row level security;
 alter table contact_messages enable row level security;
 
--- Mirrors salary_payments (0014): admin-only, no anon/authenticated-staff
--- policy — inserts happen exclusively through the storefront's service-role
--- API routes, same pattern as `orders` (0007).
+-- Admin read only; inserts come from the storefront's service-role API routes.
 create policy "admins read custom_leather_orders" on custom_leather_orders for select to authenticated using (is_admin());
 create policy "admins update custom_leather_orders" on custom_leather_orders for update to authenticated using (is_admin()) with check (is_admin());
 

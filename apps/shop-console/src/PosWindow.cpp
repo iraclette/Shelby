@@ -312,19 +312,13 @@ bool PosWindow::productHasStockAtShop(const Product &product) const {
 }
 
 void PosWindow::addToCart(const Product &product) {
-    // A product that HAS variants but wasn't scanned/picked via a specific
-    // variant has no sellable "no variant" stock bucket — ProductDialog
-    // deliberately never seeds one (see 0015_product_variants.sql notes).
-    // Ask which variant instead of silently recording a sale against a
-    // bucket that doesn't exist.
+    // Variant products have no "no variant" stock, so make the cashier pick one.
     if (product.selectedVariantId.isEmpty() && !product.variants.isEmpty()) {
         promptForVariant(product, m_barcodeInput);
         return;
     }
 
-    // Stock check happens here (not just by hiding out-of-stock tiles from
-    // the grid) so a barcode scan can't add something with nothing left at
-    // this shop either — hiding the tile alone doesn't cover that path.
+    // Checked here too so a barcode scan can't add out-of-stock items.
     int availableStock = 0;
     if (product.selectedVariantId.isEmpty()) {
         availableStock = product.stockByShop.value(m_shopId, 0);
@@ -436,10 +430,6 @@ void PosWindow::updateHeldButton() {
 }
 
 void PosWindow::openHeldSalesDialog() {
-    // Passed by reference — both Resume and Discard mutate m_heldSales
-    // directly inside the dialog, so there's nothing to reconcile here
-    // afterward beyond refreshing the button/count and, on a resume,
-    // loading the returned cart.
     HeldSalesDialog dialog(m_heldSales, !m_cart.isEmpty(), this);
     dialog.exec();
     updateHeldButton();

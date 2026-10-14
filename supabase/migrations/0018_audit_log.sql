@@ -1,7 +1,4 @@
--- Scoped to actions that don't already have their own ledger (sales,
--- returns, and stock_transfers already record who/when/what) — product
--- field edits, manual inventory adjustments made directly in the Inventory
--- page, and staff account create/delete/role changes.
+-- For actions without their own ledger: product edits, manual stock changes, staff changes.
 
 create table audit_log (
   id uuid primary key default gen_random_uuid(),
@@ -17,8 +14,6 @@ create index on audit_log (created_at desc);
 
 alter table audit_log enable row level security;
 
--- Same trust model as sales/returns: the acting user's own RLS-permitted
--- write inserts their own row (no security definer needed); only
--- admins/owners can read the trail back.
+-- Users insert their own rows; only admins can read.
 create policy "insert own audit_log" on audit_log for insert to authenticated with check (actor_id = auth.uid());
 create policy "admins read audit_log" on audit_log for select to authenticated using (is_admin());

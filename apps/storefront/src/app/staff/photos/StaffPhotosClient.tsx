@@ -8,10 +8,7 @@ import StaffAuthGate from "@/components/StaffAuthGate";
 type Product = { id: string; name: string; sku: string };
 type ProductImage = { id: string; storage_path: string; is_primary: boolean };
 
-// crypto.randomUUID() needs a secure context (HTTPS, or localhost) — but
-// testing this from a phone against `next dev` usually means hitting the
-// dev machine's plain-http LAN address, where it's undefined. This works
-// everywhere.
+// crypto.randomUUID() is undefined over plain http (e.g. testing from a phone on LAN).
 function randomId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;

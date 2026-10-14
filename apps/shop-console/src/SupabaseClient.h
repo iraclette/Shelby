@@ -44,9 +44,7 @@ struct Product {
     QMap<QString, int> stockByShop; // this product's own "no variant" bucket; shop id -> quantity
     QVector<ProductVariant> variants; // empty for a product with no variants
 
-    // Set only by lookupProductBySku when the scanned barcode matched a
-    // variant's own sku (not the product's) — lets PosWindow::addToCart
-    // bypass the variant picker for a direct scan.
+    // Set when the scanned barcode was a variant's own sku.
     QString selectedVariantId;
     QString selectedVariantName;
 };
@@ -57,9 +55,6 @@ struct Category {
     bool visibleOnStorefront = true;
 };
 
-// A handmade-leather custom order request submitted from the storefront's
-// /handmade-leather form (see 0019_handmade_leather_and_contact.sql) — a
-// free-text description, not a priced product line item.
 struct CustomLeatherOrder {
     QString id;
     QString customerName;
@@ -147,10 +142,7 @@ struct SaleSummary {
     QVector<SaleItemSummary> items;
 };
 
-// One audit_log row (see 0018_audit_log.sql) — product/staff/inventory
-// edits that don't already have their own ledger (sales/returns/transfers
-// do). actorName isn't stored on the row; pages resolve it against an
-// already-fetched profiles list, same as SalaryPage resolves staff names.
+// actorName isn't stored; pages resolve it from the profiles list.
 struct AuditLogEntry {
     QString id;
     QString actorId;
@@ -179,9 +171,7 @@ struct ReturnItemInput {
     int quantity = 0;
 };
 
-// One sale, stripped to just what SalaryPage needs to compute daily-wage
-// earnings — who made it, when, and for how much. Unlike SaleSummary (used
-// by ReturnDialog) this carries no line items.
+// Just what SalaryPage needs: who, when, how much.
 struct SaleAttribution {
     QString staffId;
     QString soldAt;
@@ -197,10 +187,7 @@ struct SalaryPayment {
     QString paidAt;
 };
 
-// A sale that couldn't reach the server (offline) and is waiting to sync.
-// clientGeneratedId is assigned up front and reused on every retry, so a
-// retry that actually landed server-side but whose response got lost can't
-// create a duplicate sale (see the record_sale DB function).
+// clientGeneratedId is reused on retries so a sale can't be recorded twice.
 struct QueuedSale {
     QString clientGeneratedId;
     QString shopId;
@@ -208,9 +195,7 @@ struct QueuedSale {
     double total = 0;
 };
 
-// Talks to Supabase's Auth and PostgREST HTTP APIs directly (no official
-// C++ SDK exists for Supabase). Row Level Security on the database is what
-// keeps this safe despite the client holding only the public anon key.
+// Talks to Supabase's REST APIs directly; RLS is what keeps the anon key safe.
 class SupabaseClient : public QObject {
     Q_OBJECT
 
@@ -222,9 +207,7 @@ public:
 
     void fetchProducts();
     void createProduct(const ProductInput &input);
-    // field must be one of the products table's own column names
-    // (name/sku/sell_price/cost_price) — always a fixed string from our own
-    // code, never user-supplied, so there's no injection concern.
+    // field is always a fixed column name from our own code, never user input.
     void updateProductField(const QString &productId, const QString &field, const QJsonValue &value);
 
     void fetchCategories();
@@ -247,10 +230,6 @@ public:
     void fetchSuppliers();
     void createSupplier(const QString &name);
 
-    // Creates one or more variants for a product in a single insert,
-    // mirroring how upsertInventoryLevels batches per-shop rows. Returns
-    // the created rows (with ids) so the caller can seed a 0-stock
-    // inventory row per (variant, shop) right after.
     void createVariants(const QString &productId, const QVector<ProductVariantInput> &variants);
     // field must be one of product_variants' own column names (name/sku).
     void updateVariantField(const QString &variantId, const QString &field, const QJsonValue &value);
@@ -261,10 +240,7 @@ public:
     void upsertInventoryLevels(const QString &productId, const QVector<InventoryLevelInput> &levels,
                                 const QString &variantId = QString());
 
-    // Moves stock between two shops via the atomic transfer_stock DB
-    // function — admin-only (see 0012_stock_transfers.sql's RLS policy),
-    // rejected server-side if the source shop doesn't have enough.
-    // variantId empty = the product's own bucket, same convention as above.
+    // Admin only; fails server-side if the source shop doesn't have enough.
     void transferStock(const QString &productId, const QString &fromShopId, const QString &toShopId, int quantity,
                         const QString &variantId = QString());
     // Recent transfers for the Audit Log page's merged view — admin-only
@@ -272,14 +248,10 @@ public:
     void fetchStockTransfers();
 
     void fetchProfiles();
-    // field must be one of profiles' own column names (full_name/role/shop_id/
-    // daily_rate/bonus_threshold/bonus_amount) — always a fixed string from
-    // our own code, same guarantee as updateProductField.
+    // Same rule as updateProductField: field is a fixed column name.
     void updateProfileField(const QString &profileId, const QString &field, const QJsonValue &value);
 
-    // Sales in [startDateIso, endDateIsoExclusive), stripped to staff_id/sold_at/
-    // total for SalaryPage's earnings calculation. shopId empty = every shop
-    // (only meaningful for an admin — RLS still scopes a non-admin to their own).
+    // shopId empty = every shop (admin only).
     void fetchSalesForPeriod(const QString &shopId, const QString &startDateIso, const QString &endDateIsoExclusive);
 
     // Payouts already logged for exactly this period (see recordSalaryPayment).
@@ -289,22 +261,15 @@ public:
     void recordSalaryPayment(const QString &staffId, const QString &shopId, const QString &periodStartIso,
                               const QString &periodEndIso, double amount, const QString &note);
 
-    // Full sales (with line items) in [dayStartIso, dayEndIsoExclusive) for
-    // DailySummaryPage. shopId empty = every shop (admin-only meaningful,
-    // same convention as fetchSalesForPeriod).
+    // shopId empty = every shop (admin only).
     void fetchSalesForDay(const QString &shopId, const QString &dayStartIso, const QString &dayEndIsoExclusive);
 
-    // Best-effort activity trail entry (see 0018_audit_log.sql) — fire and
-    // forget by design: a logging failure shouldn't block or complain about
-    // the primary action that triggered it.
+    // Fire and forget: a logging failure never blocks the action.
     void logAuditEvent(const QString &action, const QString &entityType, const QString &entityId,
                         const QString &detail);
     void fetchAuditLog();
 
-    // Both go through the staff-admin Edge Function, not a direct table write —
-    // creating/deleting a Supabase Auth user needs the service-role key, which
-    // this app (shipped with only the public anon key) never holds. The function
-    // re-checks the caller is an admin server-side before doing anything.
+    // Via the staff-admin Edge Function, which holds the service-role key.
     void createStaffAccount(const QString &username, const QString &password, const QString &fullName,
                              const QString &role, const QString &shopId);
     void deleteStaffAccount(const QString &profileId);
@@ -319,27 +284,15 @@ public:
 
     void lookupProductBySku(const QString &sku);
 
-    // Records the sale via the atomic record_sale DB function. If the
-    // request can't reach the server at all, the sale is queued to local
-    // disk instead of failing outright, and synced automatically the next
-    // time flushPendingSales() succeeds (see saleQueuedOffline).
+    // Queued locally if the server can't be reached; synced by flushPendingSales().
     void recordSale(const QString &shopId, const QVector<SaleItemInput> &items, double total);
 
-    // Recent sales for a shop, with nested line items — the picker list for
-    // ReturnDialog. Not queued/retried offline like recordSale() — a return
-    // is a deliberate, much less frequent action than a sale.
     void fetchRecentSales(const QString &shopId);
-    // Records the return via the atomic record_return DB function (mirrors
-    // recordSale/record_sale). saleId must be one of the shop's own sales;
-    // unit prices come from the original sale_items server-side, never
-    // trusted from here.
+    // Unit prices come from the original sale, server-side.
     void submitReturn(const QString &shopId, const QString &saleId, const QString &reason,
                        const QVector<ReturnItemInput> &items);
 
-    // Attempts to resync queued offline sales, oldest first, stopping at
-    // the first one that still can't reach the server. Safe to call
-    // repeatedly (e.g. from a timer) — a no-op while empty or already
-    // in-flight.
+    // Stops at the first sale that still fails. Safe to call repeatedly.
     void flushPendingSales();
 
     int pendingSalesCount() const { return m_pendingSales.size(); }

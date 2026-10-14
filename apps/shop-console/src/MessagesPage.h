@@ -8,9 +8,7 @@
 class QTableWidget;
 class QTableWidgetItem;
 
-// Contact Us submissions from the storefront's /contact form — the admin's
-// "Help" inbox. Best-effort emailed too (see contact_messages.email_sent),
-// but this page is the reliable copy.
+// Contact Us submissions from the storefront's /contact form.
 class MessagesPage : public QWidget {
     Q_OBJECT
 

@@ -25,10 +25,7 @@ SupabaseClient::SupabaseClient(QString baseUrl, QString anonKey, QObject *parent
 }
 
 static bool isNetworkLayerError(QNetworkReply::NetworkError error) {
-    // Qt groups "can't reach the server at all" errors into 1-99
-    // (ConnectionRefusedError..UnknownNetworkError); everything above that
-    // is a real response from the server (auth, validation, RLS, etc.) and
-    // should surface as an error rather than be queued as "offline".
+    // 1-99 are connection errors; anything else is a real server response.
     return error >= QNetworkReply::ConnectionRefusedError && error <= QNetworkReply::UnknownNetworkError;
 }
 
@@ -41,13 +38,7 @@ static QString extractErrorMessage(const QByteArray &body, const QString &fallba
     return fallback;
 }
 
-// Splits a product's inventory_levels rows into its own "no variant"
-// bucket vs its variants' buckets, by variant_id — shared by fetchProducts
-// and lookupProductBySku so every Product built anywhere has the same
-// per-shop stock data available (PosWindow relies on this to hide/refuse
-// items with no stock at the current shop). Expects product.variants to
-// already be populated, so a variant_id here always has a match to fold
-// into.
+// Splits inventory_levels rows into the product's own stock vs each variant's.
 static void applyInventoryLevels(Product &product, const QJsonArray &levels) {
     for (const QJsonValue &levelValue : levels) {
         const QJsonObject level = levelValue.toObject();
@@ -68,9 +59,6 @@ static void applyInventoryLevels(Product &product, const QJsonArray &levels) {
     }
 }
 
-// Shared parser for the sales?...&select=id,sold_at,total,shop_id,staff_id,
-// sale_items(...) shape — used by both fetchRecentSales (ReturnDialog's
-// picker) and fetchSalesForDay (DailySummaryPage).
 static QVector<SaleSummary> parseSaleSummaries(const QByteArray &data) {
     QVector<SaleSummary> sales;
     for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
@@ -289,10 +277,6 @@ void SupabaseClient::deleteStaffAccount(const QString &profileId) {
 
 void SupabaseClient::fetchProducts() {
     QUrlQuery query;
-    // Embeds each product's per-shop stock rows (one inventory_levels row
-    // per shop, plus one per (variant, shop) once a product has variants —
-    // split by variant_id below) and its variants, so both are available in
-    // one round trip.
     query.addQueryItem("select",
                         "id,name,sku,category_id,supplier_id,sell_price,cost_price,low_stock_threshold,"
                         "inventory_levels(shop_id,quantity,variant_id),product_variants(id,name,sku)");
@@ -595,10 +579,7 @@ void SupabaseClient::upsertInventoryLevels(const QString &productId, const QVect
     }
 
     QUrlQuery query;
-    // Targets the generated variant_key column's constraint (see
-    // 0015_product_variants.sql) — a null-safe replacement for the old
-    // product_id,shop_id constraint, needed for both variant and
-    // non-variant rows now that that constraint no longer exists.
+    // variant_key is the null-safe unique key (0015_product_variants.sql).
     query.addQueryItem("on_conflict", "product_id,variant_key,shop_id");
 
     const QMap<QByteArray, QByteArray> headers{
@@ -769,11 +750,7 @@ QString SupabaseClient::publicImageUrl(const QString &storagePath) const {
 }
 
 void SupabaseClient::lookupProductBySku(const QString &sku) {
-    // Step 1: a variant's own barcode, if this one matches — lets a direct
-    // scan bypass PosWindow's variant picker entirely. inventory_levels is
-    // embedded directly under product_variants (resolves via variant_id,
-    // the only relationship from that context) so PosWindow can still
-    // check this variant's stock at the current shop before adding it.
+    // Step 1: a variant's own barcode, which skips the variant picker.
     QUrlQuery variantQuery;
     variantQuery.addQueryItem("sku", "eq." + sku);
     variantQuery.addQueryItem("select",
@@ -811,13 +788,7 @@ void SupabaseClient::lookupProductBySku(const QString &sku) {
             }
         }
 
-        // Step 2: fall back to the product's own barcode. Same shape
-        // fetchProducts uses (own + every variant's stock, via
-        // applyInventoryLevels) so PosWindow can check stock and, if this
-        // product DOES have variants but was scanned via its own top-level
-        // sku, show the picker rather than silently adding a "no variant"
-        // line that has no matching inventory bucket (variant products
-        // never get one — see 0015_product_variants.sql).
+        // Step 2: the product's own barcode.
         QUrlQuery productQuery;
         productQuery.addQueryItem("sku", "eq." + sku);
         productQuery.addQueryItem(

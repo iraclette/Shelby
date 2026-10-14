@@ -1,9 +1,6 @@
 import "server-only";
 
-// Resend's HTTP API — plain fetch, no SDK, same convention as bog.ts.
-// Best-effort only: the caller (api/contact/route.ts) writes the message to
-// contact_messages *before* calling this, so a Resend outage or a missing
-// API key never loses the message — it just skips the extra notification.
+// Best-effort: the message is already saved to contact_messages before this runs.
 const RESEND_API_URL = "https://api.resend.com/emails";
 
 export async function sendContactNotification(params: { name: string; email: string; message: string }): Promise<void> {
@@ -20,9 +17,7 @@ export async function sendContactNotification(params: { name: string; email: str
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      // onboarding@resend.dev only delivers to the email the Resend account
-      // itself was signed up with, until a real sending domain is verified —
-      // fine for the current placeholder CONTACT_EMAIL, swap both together.
+      // onboarding@resend.dev only delivers to the Resend account's own email until a domain is verified.
       from: "Shelby Storefront <onboarding@resend.dev>",
       to: [to],
       reply_to: params.email,

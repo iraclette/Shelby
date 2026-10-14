@@ -26,10 +26,7 @@ static QMap<QString, QString> parseDotEnv(const QString &path) {
     return values;
 }
 
-// Common on-disk locations a phone's photo sync client downloads into,
-// checked only when PHOTOS_SYNC_DIR isn't set explicitly. First one that
-// actually exists wins; if none do, the photo picker just opens wherever
-// the OS remembers last.
+// Common phone photo sync folders, used when PHOTOS_SYNC_DIR isn't set.
 static QString guessPhotosSyncDir() {
     const QString home = QDir::homePath();
     const QStringList candidates{

@@ -16,10 +16,7 @@
 
 namespace {
 
-// Parses "1.2.3" (or "v1.2.3") into {1, 2, 3}, padding missing trailing
-// components with 0. Returns false, leaving parts untouched, if the string
-// doesn't look like a dotted version number — callers treat that as "no
-// update" rather than guessing at a malformed tag.
+// "1.2.3" or "v1.2.3" -> {1, 2, 3}. False for anything else.
 bool parseVersion(QString text, QVector<int> &parts) {
     if (text.startsWith('v') || text.startsWith('V')) text.remove(0, 1);
     if (text.isEmpty()) return false;
@@ -45,11 +42,7 @@ bool isNewer(const QVector<int> &candidate, const QVector<int> &current) {
     return false;
 }
 
-// GitHub's own error responses (rate limits, auth failures, ...) are
-// {"message": "..."}. Prefer that verbatim over Qt's generic transport
-// error string when it's present, since it's the actually-useful part —
-// e.g. "API rate limit exceeded for 1.2.3.4." beats "Error transferring
-// https://... - server replied: Forbidden".
+// Prefer GitHub's own {"message"} (e.g. rate limit) over Qt's generic error.
 QString describeError(const QByteArray &body, const QString &fallback) {
     const QString message = QJsonDocument::fromJson(body).object().value("message").toString();
     return message.isEmpty() ? fallback : message;

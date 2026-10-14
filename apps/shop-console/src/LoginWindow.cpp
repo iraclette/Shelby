@@ -14,9 +14,6 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     resize(760, 460);
     setMinimumSize(560, 380);
 
-    // Left: brand panel. A warm gradient standing in for photography (no
-    // product photos exist yet — see the storefront's .hero-atmosphere for
-    // the same idea in CSS) so the login screen isn't just a bare form.
     auto *brandPanel = new QWidget(this);
     brandPanel->setObjectName("loginBrandPanel");
     auto *brandLayout = new QVBoxLayout(brandPanel);
@@ -88,11 +85,7 @@ void LoginWindow::handleSignIn() {
     m_errorLabel->clear();
     m_signInButton->setEnabled(false);
 
-    // Staff log in with a short username (e.g. "shelby") rather than a real
-    // email address — Supabase Auth still needs an email-shaped identity
-    // under the hood, so anything without an "@" gets a fixed fake domain
-    // appended. Accounts must be created in the dashboard using that same
-    // form, e.g. "shelby@shop.local".
+    // Usernames without an "@" get a fixed fake domain, e.g. shelby@shop.local.
     QString identifier = m_email->text().trimmed();
     if (!identifier.contains('@')) {
         identifier += "@shop.local";

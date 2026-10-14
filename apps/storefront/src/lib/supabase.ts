@@ -1,14 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-// Public storefront: read-only, anonymous. No auth session to manage, so a
-// single plain client (no cookies/SSR helper needed) is enough here —
-// unlike the Shop Console, this app never signs anyone in.
-//
-// Lazily constructed rather than a top-level `createClient(...)` call:
-// `next build` imports this module just to inspect page exports, and a
-// top-level call would crash the *entire* build if the env vars aren't set
-// yet (e.g. before they've been added on Render) instead of just failing
-// the pages that actually need it.
+// Read-only anon client. Created lazily so `next build` doesn't crash without env vars.
 let cached: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient {

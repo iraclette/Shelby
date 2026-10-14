@@ -1,8 +1,6 @@
 name: Release Shop Console
 
-# Push a version tag (vX.Y.Z) to build the Shop Console and publish it as a
-# GitHub Release. The app checks this same Releases API on launch — see
-# apps/shop-console/src/UpdateChecker.cpp — so this is what feeds it.
+# Push a vX.Y.Z tag to build and publish a release; the app's self-updater reads these.
 on:
   push:
     tags:
@@ -20,16 +18,7 @@ jobs:
         uses: seanmiddleditch/gha-setup-ninja@master
 
       - name: Install Qt
-        # win64_mingw's own automatic dependency install only pulls in a
-        # small MinGW *runtime* (a few DLLs) — not the actual compiler.
-        # The full ~112MB compiler toolchain is a separate package, verified
-        # directly against Qt's real package index (not guessed):
-        # https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_mingw1310/Updates.xml
-        # lists it as tool category "tools_mingw1310", variant
-        # "qt.tools.win64_mingw1310" — note the category is version-suffixed
-        # ("tools_mingw1310"), not the generic "tools_mingw" a previous
-        # attempt used (which only goes up to MinGW 8.1.0 and doesn't
-        # contain this variant at all — why that attempt failed outright).
+        # tools_mingw1310 is the actual compiler; win64_mingw alone only pulls runtime DLLs.
         uses: jurplel/install-qt-action@v4
         with:
           version: "6.8.1"
@@ -37,19 +26,7 @@ jobs:
           tools: "tools_mingw1310,qt.tools.win64_mingw1310"
 
       - name: Locate MinGW toolchain
-        # windows-latest also has MSVC installed, so finding MinGW's g++
-        # matters for correctness, not just convenience — without it on
-        # PATH first, CMake can pick up cl.exe instead and fail to link
-        # against MinGW-built Qt.
-        #
-        # This has taken multiple guesses to get right (IQTA_TOOLS per the
-        # action's own source; a GITHUB_WORKSPACE-relative path before
-        # that) and both came up empty against the real runner, for reasons
-        # that aren't visible without a log download this environment can't
-        # authenticate for. Rather than guess a third location, this
-        # searches every plausible root AND — if none of them work — dumps
-        # enough of the actual runner filesystem into the log to fix this
-        # for real on the next attempt instead of guessing again.
+        # Put MinGW's g++ first on PATH so CMake doesn't pick up MSVC.
         shell: pwsh
         run: |
           Write-Host "IQTA_TOOLS = $env:IQTA_TOOLS"
@@ -90,10 +67,7 @@ jobs:
           Add-Content $env:GITHUB_ENV "MINGW_BIN=$($gxx.DirectoryName)"
 
       - name: Configure
-        # Bakes the Supabase connection into the exe so the installer needs
-        # no .env (see Config.h). Set both as repository variables under
-        # Settings → Secrets and variables → Actions → Variables. Publishable
-        # key only — CMakeLists.txt refuses an sb_secret_ key.
+        # Bakes the Supabase URL + publishable key (repo variables) into the exe.
         shell: pwsh
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
@@ -110,17 +84,7 @@ jobs:
         run: cmake --build build
 
       - name: Deploy Qt dependencies
-        # --dir deploys ALL detected dependencies — every DLL and every
-        # plugin subfolder windeployqt decides the app actually needs
-        # (platforms, styles, imageformats, tls, ...) — straight into the
-        # release folder. Previously this ran in-place next to build\ and a
-        # separate step hand-copied only platforms/styles/imageformats into
-        # dist\, which silently missed tls\ (the actual TLS backend
-        # plugins) — every release before this one shipped with no working
-        # HTTPS at all, caught only when self-update swapped a real user
-        # onto a CI-built exe for the first time and login failed outright
-        # ("TLS init failed"). windeployqt does NOT copy the exe itself
-        # (per its own docs) — that's the explicit Copy-Item below.
+        # windeployqt doesn't copy the exe itself. Missing tls\ = broken HTTPS.
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist\ShopConsole | Out-Null
@@ -142,9 +106,7 @@ jobs:
           Compress-Archive -Path dist\ShopConsole\* -DestinationPath ShopConsole-windows.zip
 
       - name: Build installer
-        # Single ShopConsole-Setup.exe for fresh installs (e.g. off a USB
-        # stick). The self-updater keeps using the zip — it only picks up
-        # .zip assets (UpdateChecker.cpp), so this doesn't interfere.
+        # Single-file installer; the self-updater only uses the zip.
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
@@ -159,9 +121,7 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          # Tags with a suffix (v1.4.1-rc1) publish as pre-releases, which
-          # GitHub's /releases/latest skips — so the shops' self-updater
-          # never sees them. Use one to test a build before the real tag.
+          # Tags like v1.4.1-rc1 become pre-releases, which the self-updater ignores.
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             ShopConsole-windows.zip

@@ -25,23 +25,13 @@ struct CartLine {
     double unitCost = 0;
 };
 
-// A cart paused mid-sale (see PosWindow::holdCart) so a cashier can serve
-// someone else and come back to it. In-memory only — lost on app close or
-// crash, same as a till's "suspend" button; not persisted to Supabase.
+// In-memory only, lost on app close.
 struct HeldSale {
     QDateTime heldAt;
     QVector<CartLine> cart;
 };
 
-// Checkout view: a product tile grid (grouped by category, like the
-// Aronium-style POS the shops already use) for click-to-add, plus a
-// barcode field for scanning — either adds a line to the cart. A product
-// with variants (see 0015_product_variants.sql) shows a small picker
-// before adding; scanning a variant's own barcode adds it directly. A cart
-// can be held (paused) to serve another customer and resumed later.
-// "Complete sale" records the sale + line items and decrements stock for
-// this shop. If the server can't be reached, the sale is queued locally
-// instead of failing, and a timer periodically retries syncing the queue.
+// Checkout: product grid + barcode scan. Sales made offline are queued and synced later.
 class PosWindow : public QMainWindow {
     Q_OBJECT
 
@@ -59,9 +49,7 @@ private:
     void handleBarcodeEntered();
     void addToCart(const Product &product);
     void promptForVariant(const Product &product, QWidget *anchor);
-    // Whether the product has any sellable stock at m_shopId — for a
-    // variant product, true if at least one variant does (the picker
-    // itself filters down to just the in-stock ones).
+    // For variant products: true if any variant has stock.
     bool productHasStockAtShop(const Product &product) const;
     void removeSelectedLine();
     void openDiscountDialog(int row);

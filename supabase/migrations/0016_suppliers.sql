@@ -1,6 +1,4 @@
--- Mirrors the categories table/RLS/pattern exactly (0001_init.sql) — same
--- shape, new name. Lets the Inventory page track who a product is sourced
--- from, editable the same low-friction "just type it" way categories are.
+-- Same shape and RLS as categories.
 
 create table suppliers (
   id uuid primary key default gen_random_uuid(),

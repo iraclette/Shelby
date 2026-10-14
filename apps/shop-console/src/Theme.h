@@ -1,9 +1,6 @@
 #pragma once
 
-// Dark theme with a blue accent, applied app-wide via qApp->setStyleSheet().
-// Widgets opt into the accented "primary" look by setting
-// setObjectName("primaryButton"); product/category buttons in the POS use
-// "productTile" / "categoryChip" for their card/pill styling.
+// setObjectName("primaryButton" / "productTile" / "categoryChip") for the styled variants.
 inline const char *kAppStyleSheet = R"(
 QWidget {
     background-color: #14151a;

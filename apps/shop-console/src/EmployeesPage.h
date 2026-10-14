@@ -7,11 +7,7 @@
 
 class QTableWidget;
 
-// Staff account management: list, inline-edit role/shop, create, remove.
-// Create/remove go through the staff-admin Edge Function (see
-// SupabaseClient::createStaffAccount/deleteStaffAccount) since those need
-// the service-role key this app never holds; role/shop/name edits are
-// plain anon-key + RLS writes, same as InventoryPage's cell edits.
+// Create/remove go through the staff-admin Edge Function (needs the service-role key).
 class EmployeesPage : public QWidget {
     Q_OBJECT
 

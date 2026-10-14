@@ -5,9 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import Turnstile from "@/components/Turnstile";
 
-// Mirrors the Shop Console's login convention: staff sign in with a short
-// username, not a full email — anything without "@" gets this fixed fake
-// domain appended.
+// Same username login as the Shop Console.
 function toEmail(identifier: string) {
   const trimmed = identifier.trim();
   return trimmed.includes("@") ? trimmed : `${trimmed}@shop.local`;
@@ -21,10 +19,7 @@ export function CenteredMessage({ children }: { children: ReactNode }) {
   );
 }
 
-// Shared by every staff-only storefront page (/staff/photos, /staff/inventory,
-// ...): shows a login form until a session exists, then checks the signed-in
-// profile's role and only renders `children` for owner/admin. Everything here
-// is a UX convenience — the real enforcement is is_admin() RLS server-side.
+// Login form, then renders children only for owner/admin. Real enforcement is RLS.
 type StaffContext = { session: Session; signOut: () => Promise<void> };
 
 export default function StaffAuthGate({ children }: { children: (ctx: StaffContext) => ReactNode }) {

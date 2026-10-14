@@ -7,10 +7,7 @@
 
 class QTableWidget;
 
-// Lists carts paused via PosWindow::holdCart. Operates on heldSales by
-// reference — both Resume and Discard mutate the caller's list directly,
-// so PosWindow just needs to check didResume()/resumedCart() afterward and
-// refresh its "Held (N)" button.
+// Mutates the caller's heldSales list directly.
 class HeldSalesDialog : public QDialog {
     Q_OBJECT
 

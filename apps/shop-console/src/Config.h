@@ -2,18 +2,10 @@
 
 #include <QString>
 
-// Loads SUPABASE_URL / SUPABASE_ANON_KEY from a ".env" file next to the
-// executable (see .env.example), falling back to process environment
-// variables, then to the values baked in at build time (BUILTIN_SUPABASE_*
-// in CMakeLists.txt). Release builds bake them in so the installer is the
-// only thing a shop needs — the anon key is the same publishable key the
-// storefront already ships to every browser, so it's safe to embed.
+// Reads .env next to the exe, then env vars, then values baked in at build time.
 struct Config {
     QString supabaseUrl;
     QString supabaseAnonKey;
-    // Folder to default photo pickers to (e.g. wherever a phone's cloud
-    // photo sync downloads new photos). Optional — falls back to the OS's
-    // own remembered/default directory when empty or nonexistent.
     QString photosSyncDir;
 
     bool isValid() const { return !supabaseUrl.isEmpty() && !supabaseAnonKey.isEmpty(); }

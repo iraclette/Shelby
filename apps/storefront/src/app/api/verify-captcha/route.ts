@@ -6,9 +6,7 @@ const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 export async function POST(request: NextRequest) {
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
 
-  // Fails open until Cloudflare is set up (see Turnstile.tsx's matching
-  // behavior) — must be configured before real launch, this isn't a
-  // long-term stance.
+  // Fails open until Turnstile is configured. Set it before launch.
   if (!secretKey) {
     console.warn("TURNSTILE_SECRET_KEY not configured — CAPTCHA check skipped.");
     return NextResponse.json({ ok: true });

@@ -1,9 +1,4 @@
-# Runs detached from ShopConsole.exe (see UpdateChecker::downloadAndInstall)
-# after it has already quit — Windows locks a running .exe, so the swap has
-# to happen from outside the process being replaced.
-#
-# Ships inside the release zip itself (next to the exe), so every update
-# also refreshes this script for the next one.
+# Run by the app after it quits (Windows locks a running exe), then relaunches it.
 
 param(
     [Parameter(Mandatory = $true)][string]$ZipPath,

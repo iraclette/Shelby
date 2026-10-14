@@ -1,11 +1,5 @@
-// Creates/deletes Shop Console staff logins. Called by the desktop app
-// (SupabaseClient::createStaffAccount / deleteStaffAccount) with the
-// signed-in admin's own access token in the Authorization header — this
-// function re-verifies that caller is actually an owner/admin before
-// touching anything, then uses the service-role key (only ever available
-// here, never shipped to the app) to do the privileged Auth Admin API call
-// that a plain anon-key + RLS request can't do (creating/deleting an
-// auth.users row).
+// Creates/deletes Shop Console staff logins. Verifies the caller is an admin,
+// then uses the service-role key (only available here).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -48,10 +42,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Best-effort activity trail (see 0018_audit_log.sql) — this function
-    // already runs server-side with the caller's verified identity, the
-    // cleanest place to log staff create/delete from. A logging failure is
-    // swallowed, never fails the actual account operation.
+    // Best-effort; never fails the account operation.
     async function logAudit(action: string, entityId: string, detail: string) {
       try {
         await admin.from("audit_log").insert({
@@ -86,10 +77,7 @@ Deno.serve(async (req) => {
         return json({ error: createError?.message ?? "Could not create the account." }, 400);
       }
 
-      // handle_new_user() (supabase/migrations/0001_init.sql, extended in
-      // 0008/0010) already inserted a profiles row — full_name and email
-      // set, role defaulted to 'staff', shop_id null. This sets what was
-      // actually requested.
+      // handle_new_user() already created the profile; set the requested fields.
       const { error: updateError } = await admin
         .from("profiles")
         .update({ role, shop_id: shop_id || null })

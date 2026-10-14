@@ -1,8 +1,4 @@
--- Moving stock between shops. Admin-only (unlike returns, which any staff
--- member can process for their own shop) — a transfer reaches into a
--- second shop's inventory that the acting person doesn't necessarily work
--- at, so it needs the same oversight level as editing prices/stock
--- directly in the Inventory Admin table already does.
+-- Moving stock between shops (admin only).
 
 create table stock_transfers (
   id uuid primary key default gen_random_uuid(),
@@ -25,13 +21,7 @@ alter table stock_transfers enable row level security;
 create policy "admins manage stock_transfers" on stock_transfers for all to authenticated
   using (is_admin()) with check (is_admin());
 
--- No SECURITY DEFINER, same as record_sale/record_return — runs as the
--- calling admin. The "admins manage stock_transfers" policy above already
--- gates who can even insert the transfer row, and admins already have
--- blanket write access to inventory_levels for every shop (existing
--- "write own shop inventory" policy: is_admin() or own shop) — so no
--- separate permission re-check is needed in the function body, same
--- reasoning as record_return.
+-- No SECURITY DEFINER; RLS already limits this to admins.
 create or replace function transfer_stock(
   p_client_generated_id uuid,
   p_product_id uuid,
@@ -70,9 +60,6 @@ begin
     raise exception 'Not enough stock at the source shop to transfer % unit(s).', p_quantity;
   end if;
 
-  -- inventory_levels has unique(product_id, shop_id) (0001_init.sql), so
-  -- this upserts cleanly whether or not the destination shop already had
-  -- a row for this product.
   insert into inventory_levels (product_id, shop_id, quantity)
   values (p_product_id, p_to_shop_id, p_quantity)
   on conflict (product_id, shop_id)

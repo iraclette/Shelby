@@ -14,9 +14,7 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setStyleSheet(kAppStyleSheet);
 
-    // Kicked off now so the network round-trip overlaps with someone typing
-    // their login credentials — by the time a window exists to show the
-    // notice on, the answer is usually already back.
+    // Started early so it overlaps with typing the login.
     auto *updateChecker = new UpdateChecker(&app);
     updateChecker->checkForUpdate();
 
@@ -35,12 +33,7 @@ int main(int argc, char *argv[]) {
     auto *login = new LoginWindow(client);
     QMainWindow *activeWindow = nullptr;
 
-    // The GitHub check usually finishes in well under a second — much
-    // faster than someone can type a username and password — so in
-    // practice checkFinished() almost always fires before activeWindow
-    // exists. Buffered here and applied as soon as a window shows up,
-    // rather than only in the (rare) case the window already exists when
-    // it fires.
+    // The check usually finishes before any window exists, so buffer the result.
     bool haveUpdateResult = false;
     bool pendingOk = false;
     bool pendingIsNewer = false;
@@ -72,11 +65,6 @@ int main(int argc, char *argv[]) {
         applyUpdateBanner();
     });
 
-    // "Update now" (AdminWindow toolbar, or the Software page) only ever
-    // fires downloadAndInstall() from an explicit click — never on its own.
-    // Once the new build is downloaded and the relaunch script is handed
-    // off, quitting right away is what lets that script's "wait for the
-    // old process to exit" step actually proceed instead of stalling.
     QObject::connect(updateChecker, &UpdateChecker::installStarting, &app, [&]() { app.quit(); });
     QObject::connect(updateChecker, &UpdateChecker::installFailed, &app, [&](const QString &message) {
         QMessageBox::warning(activeWindow, "Update failed", message);

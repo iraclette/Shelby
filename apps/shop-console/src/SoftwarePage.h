@@ -6,12 +6,7 @@ class QLabel;
 class QPushButton;
 class UpdateChecker;
 
-// Version + update-check diagnostics, plus the "Update now" action. Exists
-// specifically because the update check used to fail completely invisibly
-// (a rate-limit 403 with no visible symptom anywhere) — this is always
-// driven by the same UpdateChecker::checkFinished result AdminWindow's
-// toolbar button uses, so whatever happened is visible here even when
-// there's nothing to announce (up to date) or the check failed outright.
+// Version info, update-check result, and "Update now".
 class SoftwarePage : public QWidget {
     Q_OBJECT
 

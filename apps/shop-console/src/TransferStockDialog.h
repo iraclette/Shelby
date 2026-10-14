@@ -10,9 +10,7 @@ class QLabel;
 class QPushButton;
 class QSpinBox;
 
-// Admin-only (see 0012_stock_transfers.sql) move of stock from one shop to
-// another for a single product (or, if it has variants, a specific
-// variant — see 0015_product_variants.sql). Opened from InventoryPage.
+// Admin-only stock move between shops, optionally for one variant.
 class TransferStockDialog : public QDialog {
     Q_OBJECT
 

@@ -10,10 +10,7 @@ class QListWidgetItem;
 class QLabel;
 class QNetworkAccessManager;
 
-// Manage the photos of a single, already-existing product: view thumbnails,
-// add more (uploads straight to Storage via SupabaseClient), remove any.
-// This is the only place photos can be touched after a product is first
-// created — ProductDialog only handles photos at creation time.
+// Add/remove photos of an existing product.
 class ProductPhotosDialog : public QDialog {
     Q_OBJECT
 
