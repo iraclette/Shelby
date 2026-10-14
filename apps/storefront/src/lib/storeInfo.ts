@@ -5,7 +5,7 @@ export const TOWN = "Gori";
 
 export const SHOP_BLURBS: Record<string, string> = {
   "Black Eye Beauty": "Cosmetics, skincare, nail and hair care, and perfume.",
-  Shelby: "Leather goods, hunting knives, decorative katanas, hookahs, oil perfumes, gift boxes and souvenirs.",
+  Shelby: "Knives (hunting, folding, butterfly, karambit), decorative katanas, leather goods, hookahs, lighters and snus, oil perfumes, gift boxes and souvenirs.",
   End: "A little of both: beauty from Black Eye and the pick of Shelby, under one roof.",
 };
 

@@ -6,6 +6,7 @@ import { fetchCategories, fetchProducts, fetchShops } from "@/lib/supabase";
 import { PROMISES, SHOP_BLURBS, TOWN } from "@/lib/storeInfo";
 import ProductCard from "@/components/ProductCard";
 import CategoryIcon from "@/components/CategoryIcon";
+import { MapPin } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -40,8 +41,8 @@ export default async function Home() {
             &amp; Everyday Beauty
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-paper-dim">
-            Hunting knives and katanas, leather goods and gift boxes, cosmetics, skincare and
-            perfume. Browse online, pick up in any of our three shops.
+            Knives of every kind, katanas, leather goods and gift boxes, cosmetics, skincare
+            and perfume. Browse online, pick up in any of our three shops.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Link
@@ -148,10 +149,7 @@ export default async function Home() {
                       rel="noopener noreferrer"
                       className="mt-6 inline-flex items-center gap-2 text-sm tracking-[0.12em] text-brass uppercase transition-colors hover:text-brass-soft"
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4" aria-hidden="true">
-                        <path d="M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z" />
-                        <circle cx="12" cy="9" r="2.5" />
-                      </svg>
+                      <MapPin className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                       Directions
                     </a>
                   )}

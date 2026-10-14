@@ -20,7 +20,7 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: "Shelby",
-  description: "Hunting knives, katanas, leather goods, gift boxes, cosmetics, skincare and perfume. Three shops in Gori.",
+  description: "Knives, katanas, leather goods, gift boxes, cosmetics, skincare and perfume. Three shops in Gori.",
 };
 
 // Layout-level fetch runs on every request otherwise; revalidate on the same
