@@ -90,7 +90,21 @@ jobs:
           Add-Content $env:GITHUB_ENV "MINGW_BIN=$($gxx.DirectoryName)"
 
       - name: Configure
-        run: cmake -S apps/shop-console -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        # Bakes the Supabase connection into the exe so the installer needs
+        # no .env (see Config.h). Set both as repository variables under
+        # Settings → Secrets and variables → Actions → Variables. Publishable
+        # key only — CMakeLists.txt refuses an sb_secret_ key.
+        shell: pwsh
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          if (-not $env:SUPABASE_URL -or -not $env:SUPABASE_ANON_KEY) {
+            throw "Repository variables SUPABASE_URL and SUPABASE_ANON_KEY must be set."
+          }
+          cmake -S apps/shop-console -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
+            "-DBUILTIN_SUPABASE_URL=$env:SUPABASE_URL" `
+            "-DBUILTIN_SUPABASE_ANON_KEY=$env:SUPABASE_ANON_KEY"
 
       - name: Build
         run: cmake --build build
@@ -127,7 +141,28 @@ jobs:
           Copy-Item apps\shop-console\scripts\update.ps1 dist\ShopConsole\
           Compress-Archive -Path dist\ShopConsole\* -DestinationPath ShopConsole-windows.zip
 
+      - name: Build installer
+        # Single ShopConsole-Setup.exe for fresh installs (e.g. off a USB
+        # stick). The self-updater keeps using the zip — it only picks up
+        # .zip assets (UpdateChecker.cpp), so this doesn't interfere.
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=$version" `
+            "/DSourceDir=$PWD\dist\ShopConsole" `
+            "/O$PWD" `
+            apps\shop-console\installer\ShopConsole.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: ShopConsole-windows.zip
+          # Tags with a suffix (v1.4.1-rc1) publish as pre-releases, which
+          # GitHub's /releases/latest skips — so the shops' self-updater
+          # never sees them. Use one to test a build before the real tag.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            ShopConsole-windows.zip
+            ShopConsole-Setup.exe

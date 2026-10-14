@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 1.4.0 LANGUAGES CXX)
+project(ShopConsole VERSION 1.4.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -73,7 +73,21 @@ qt_add_resources(ShopConsole "icons"
 )
 
 target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network Qt6::Svg)
-target_compile_definitions(ShopConsole PRIVATE APP_VERSION="${PROJECT_VERSION}")
+# Baked-in Supabase connection, used when there's no .env next to the exe.
+# Must be the publishable/anon key only — never the secret key, which would
+# bypass RLS for anyone who has the installer. Left empty for local dev
+# builds, which keep reading .env as before.
+set(BUILTIN_SUPABASE_URL "" CACHE STRING "Supabase URL compiled into the app")
+set(BUILTIN_SUPABASE_ANON_KEY "" CACHE STRING "Supabase publishable (anon) key compiled into the app")
+if(BUILTIN_SUPABASE_ANON_KEY MATCHES "^sb_secret_")
+    message(FATAL_ERROR "BUILTIN_SUPABASE_ANON_KEY is a secret key — use the publishable key.")
+endif()
+
+target_compile_definitions(ShopConsole PRIVATE
+    APP_VERSION="${PROJECT_VERSION}"
+    BUILTIN_SUPABASE_URL="${BUILTIN_SUPABASE_URL}"
+    BUILTIN_SUPABASE_ANON_KEY="${BUILTIN_SUPABASE_ANON_KEY}"
+)
 
 # UpdateChecker::downloadAndInstall() looks for this next to the exe — kept
 # next to the build output locally too so the two never drift apart, even

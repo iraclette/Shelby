@@ -49,8 +49,9 @@ Config Config::load() {
     const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
     Config config;
-    config.supabaseUrl = fileValues.value("SUPABASE_URL", env.value("SUPABASE_URL"));
-    config.supabaseAnonKey = fileValues.value("SUPABASE_ANON_KEY", env.value("SUPABASE_ANON_KEY"));
+    config.supabaseUrl = fileValues.value("SUPABASE_URL", env.value("SUPABASE_URL", BUILTIN_SUPABASE_URL));
+    config.supabaseAnonKey =
+        fileValues.value("SUPABASE_ANON_KEY", env.value("SUPABASE_ANON_KEY", BUILTIN_SUPABASE_ANON_KEY));
     config.photosSyncDir = fileValues.value("PHOTOS_SYNC_DIR", env.value("PHOTOS_SYNC_DIR"));
     if (config.photosSyncDir.isEmpty()) config.photosSyncDir = guessPhotosSyncDir();
     return config;

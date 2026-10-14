@@ -4,8 +4,10 @@
 
 // Loads SUPABASE_URL / SUPABASE_ANON_KEY from a ".env" file next to the
 // executable (see .env.example), falling back to process environment
-// variables. Mirrors the .env.example convention used by the other apps
-// in this repo.
+// variables, then to the values baked in at build time (BUILTIN_SUPABASE_*
+// in CMakeLists.txt). Release builds bake them in so the installer is the
+// only thing a shop needs — the anon key is the same publishable key the
+// storefront already ships to every browser, so it's safe to embed.
 struct Config {
     QString supabaseUrl;
     QString supabaseAnonKey;
