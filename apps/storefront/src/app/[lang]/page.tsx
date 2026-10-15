@@ -8,6 +8,7 @@ import CategoryIcon from "@/components/CategoryIcon";
 import { MapPin } from "lucide-react";
 import { getDictionary } from "@/i18n/server";
 import { categoryName } from "@/i18n/format";
+import { groupCategories } from "@/lib/categoryGroups";
 
 export const revalidate = 60;
 
@@ -76,22 +77,37 @@ export default async function Home() {
       {categories.length > 0 && (
         <section className="mx-auto max-w-6xl px-6 py-20">
           <h2 className={sectionHeading}>{dict.home.byCategory}</h2>
-          <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {categories.map((category) => (
-              <Link
-                key={category.id}
-                href={`/products?category=${category.id}`}
-                className="group relative flex flex-col items-center gap-3 overflow-hidden border border-line px-3 py-6 text-center transition-colors hover:border-brass"
-              >
-                <div className="atmosphere-subtle transition-opacity group-hover:opacity-80" />
-                <CategoryIcon
-                  name={category.name}
-                  className="relative h-9 w-9 text-brass transition-colors group-hover:text-brass-soft"
-                />
-                <span className="relative text-xs tracking-[0.12em] text-paper uppercase">
-                  {categoryName(dict, category.name)}
-                </span>
-              </Link>
+          <div className="mt-8 space-y-10">
+            {groupCategories(categories).map((group) => (
+              <div key={group.key}>
+                <h3 className={eyebrow}>{dict.categoryGroups[group.key]}</h3>
+                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
+                  {group.categories.map((category) => (
+                    <Link
+                      key={category.id}
+                      href={`/products?category=${category.id}`}
+                      className="group relative flex min-h-32 flex-col items-center justify-center gap-3 overflow-hidden border border-line px-3 py-6 text-center transition-colors hover:border-brass"
+                    >
+                      <div className="atmosphere-subtle transition-opacity group-hover:opacity-80" />
+                      {group.key === "brands" ? (
+                        <span className="relative font-display text-xl text-paper transition-colors group-hover:text-brass-soft">
+                          {category.name}
+                        </span>
+                      ) : (
+                        <>
+                          <CategoryIcon
+                            name={category.name}
+                            className="relative h-9 w-9 text-brass transition-colors group-hover:text-brass-soft"
+                          />
+                          <span className="relative text-xs tracking-[0.12em] text-paper uppercase">
+                            {categoryName(dict, category.name)}
+                          </span>
+                        </>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </section>

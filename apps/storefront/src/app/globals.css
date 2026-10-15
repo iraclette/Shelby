@@ -78,3 +78,8 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Georgian has no case; browsers would render `uppercase` as Mtavruli capitals. */
+html:lang(ka) .uppercase {
+  text-transform: none;
+}

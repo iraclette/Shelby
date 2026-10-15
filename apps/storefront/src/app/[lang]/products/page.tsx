@@ -3,6 +3,7 @@ import { fetchCategories, fetchProducts } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import { getDictionary } from "@/i18n/server";
 import { categoryName } from "@/i18n/format";
+import { sortCategories } from "@/lib/categoryGroups";
 
 export const revalidate = 60;
 
@@ -32,7 +33,7 @@ export default async function ProductsPage({
         >
           {dict.products.all}
         </Link>
-        {categories.map((c) => (
+        {sortCategories(categories).map((c) => (
           <Link
             key={c.id}
             href={`/products?category=${c.id}`}
