@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { productImageUrl, type ProductImage } from "@/lib/supabase";
+import { useI18n } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 const SWIPE_THRESHOLD_PX = 40;
 
@@ -10,6 +12,7 @@ const SWIPE_THRESHOLD_PX = 40;
 export default function ProductGallery({ images, alt }: { images: ProductImage[]; alt: string }) {
   const [index, setIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
+  const { dict } = useI18n();
 
   if (images.length === 0) {
     return (
@@ -64,7 +67,7 @@ export default function ProductGallery({ images, alt }: { images: ProductImage[]
               key={image.storage_path}
               type="button"
               onClick={() => setIndex(i)}
-              aria-label={`Show photo ${i + 1} of ${images.length}`}
+              aria-label={fmt(dict.product.showPhoto, { n: i + 1, total: images.length })}
               aria-current={i === index}
               className={`relative aspect-square cursor-pointer overflow-hidden border bg-ink-elevated transition-colors ${
                 i === index ? "border-brass" : "border-line hover:border-paper-dim"

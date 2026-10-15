@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   // Hits the live BOG payment API twice per call, so this is the most
   // expensive route to spam — keep the window tight.
   if (!checkRateLimit(`checkout:${getClientIp(request)}`, 5, 10 * 60 * 1000)) {
-    return NextResponse.json({ error: "Too many requests, try again later." }, { status: 429 });
+    return NextResponse.json({ code: "rate_limited", error: "Too many requests, try again later." }, { status: 429 });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       (item) => isUuid(item.productId) && Number.isInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100,
     )
   ) {
-    return NextResponse.json({ error: "Missing or invalid fields." }, { status: 400 });
+    return NextResponse.json({ code: "invalid_fields", error: "Missing or invalid fields." }, { status: 400 });
   }
 
   // Never trust prices from the client — look up each product's current
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     .in("id", productIds);
 
   if (productsError || !products || products.length !== productIds.length) {
-    return NextResponse.json({ error: "One or more products could not be found." }, { status: 400 });
+    return NextResponse.json({ code: "product_not_found", error: "One or more products could not be found." }, { status: 400 });
   }
 
   const priceById = new Map(products.map((p) => [p.id as string, p.sell_price as number]));
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (orderError || !order) {
-    return NextResponse.json({ error: "Could not create the order." }, { status: 500 });
+    return NextResponse.json({ code: "order_failed", error: "Could not create the order." }, { status: 500 });
   }
 
   const { error: itemsError } = await supabaseAdmin.from("order_items").insert(
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
   if (itemsError) {
     await supabaseAdmin.from("orders").update({ status: "failed" }).eq("id", order.id);
-    return NextResponse.json({ error: "Could not create the order." }, { status: 500 });
+    return NextResponse.json({ code: "order_failed", error: "Could not create the order." }, { status: 500 });
   }
 
   const origin = request.nextUrl.origin;
@@ -103,6 +103,6 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     await supabaseAdmin.from("orders").update({ status: "failed" }).eq("id", order.id);
     const message = err instanceof Error ? err.message : "Payment provider error.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ code: "payment_failed", error: message }, { status: 502 });
   }
 }

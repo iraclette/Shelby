@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { fetchShops } from "@/lib/supabase";
+import { getDictionary } from "@/i18n/server";
+import { fmt } from "@/i18n/format";
 
 export default async function Footer() {
-  const shops = await fetchShops();
+  const [shops, dict] = await Promise.all([fetchShops(), getDictionary()]);
 
   return (
     <footer className="border-t border-line bg-ink-soft">
@@ -11,12 +13,11 @@ export default async function Footer() {
           <div>
             <p className="font-display text-xl text-paper">Shelby</p>
             <p className="mt-2 max-w-xs text-sm text-paper-dim">
-              Blades, leather, gifts and beauty from three shops in Gori. Browse
-              online, pick up in store or get it delivered.
+              {dict.footer.tagline}
             </p>
           </div>
           <div>
-            <p className="text-xs tracking-[0.2em] text-brass uppercase">Visit us</p>
+            <p className="text-xs tracking-[0.2em] text-brass uppercase">{dict.footer.visitUs}</p>
             <ul className="mt-3 space-y-1 text-sm text-paper-dim">
               {shops.map((shop) =>
                 shop.maps_url ? (
@@ -37,18 +38,18 @@ export default async function Footer() {
             </ul>
           </div>
           <div>
-            <p className="text-xs tracking-[0.2em] text-brass uppercase">Get in touch</p>
+            <p className="text-xs tracking-[0.2em] text-brass uppercase">{dict.footer.getInTouch}</p>
             <ul className="mt-3 space-y-1 text-sm text-paper-dim">
               <li>
                 <Link href="/contact" className="transition-colors hover:text-brass">
-                  Contact us
+                  {dict.footer.contactUs}
                 </Link>
               </li>
             </ul>
           </div>
         </div>
         <p className="mt-10 border-t border-line pt-6 text-xs text-paper-dim">
-          © {new Date().getFullYear()} Shelby. All rights reserved.
+          {fmt(dict.footer.rights, { year: new Date().getFullYear() })}
         </p>
       </div>
     </footer>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase";
+import { useI18n } from "@/i18n/client";
 
 // Staff nav links, only rendered for owner/admin profiles.
 export default function AdminLink({
@@ -14,6 +15,7 @@ export default function AdminLink({
 }) {
   const supabase = getSupabaseClient();
   const [isAdmin, setIsAdmin] = useState(false);
+  const { dict } = useI18n();
 
   useEffect(() => {
     async function checkRole(userId: string | undefined) {
@@ -37,13 +39,13 @@ export default function AdminLink({
   return (
     <>
       <Link href="/staff/new-product" className={linkClassName} onClick={onNavigate}>
-        Add Product
+        {dict.nav.addProduct}
       </Link>
       <Link href="/staff/photos" className={linkClassName} onClick={onNavigate}>
-        Photos
+        {dict.nav.photos}
       </Link>
       <Link href="/staff/inventory" className={linkClassName} onClick={onNavigate}>
-        Inventory
+        {dict.nav.inventory}
       </Link>
     </>
   );

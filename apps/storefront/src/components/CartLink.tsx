@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
+import { useI18n } from "@/i18n/client";
 
 export default function CartLink({
   className = "transition-colors hover:text-brass",
@@ -11,10 +12,11 @@ export default function CartLink({
   onNavigate?: () => void;
 }) {
   const { itemCount } = useCart();
+  const { dict } = useI18n();
 
   return (
     <Link href="/cart" className={className} onClick={onNavigate}>
-      Cart{itemCount > 0 && <span className="text-brass"> ({itemCount})</span>}
+      {dict.nav.cart}{itemCount > 0 && <span className="text-brass"> ({itemCount})</span>}
     </Link>
   );
 }

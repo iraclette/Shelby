@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import Turnstile from "@/components/Turnstile";
+import { useI18n } from "@/i18n/client";
 
 // Same username login as the Shop Console.
 function toEmail(identifier: string) {
@@ -24,6 +25,7 @@ type StaffContext = { session: Session; signOut: () => Promise<void> };
 
 export default function StaffAuthGate({ children }: { children: (ctx: StaffContext) => ReactNode }) {
   const supabase = getSupabaseClient();
+  const { dict } = useI18n();
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
@@ -41,7 +43,7 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
   async function verifyCaptcha(): Promise<boolean> {
     if (!captchaEnabled) return true;
     if (!captchaToken) {
-      setLoginError("Please complete the CAPTCHA challenge.");
+      setLoginError(dict.errors.captchaRequired);
       return false;
     }
     const res = await fetch("/api/verify-captcha", {
@@ -51,7 +53,7 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
     });
     const data = await res.json();
     if (!data.ok) {
-      setLoginError(data.error ?? "CAPTCHA verification failed.");
+      setLoginError(dict.errors.captchaFailed);
       setCaptchaToken(null);
       setCaptchaKey((k) => k + 1);
       return false;
@@ -98,7 +100,7 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
       password,
     });
     setSigningIn(false);
-    if (error) setLoginError(error.message);
+    if (error) setLoginError((error.code && dict.account.authErrors[error.code]) || error.message);
   }
 
   async function handleSignOut() {
@@ -106,19 +108,19 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
   }
 
   if (checkingSession) {
-    return <CenteredMessage>Loading…</CenteredMessage>;
+    return <CenteredMessage>{dict.common.loading}</CenteredMessage>;
   }
 
   if (!session) {
     return (
       <CenteredMessage>
         <form onSubmit={handleSignIn} className="w-full max-w-sm space-y-4">
-          <h1 className="font-display text-2xl text-paper">Shelby Staff</h1>
+          <h1 className="font-display text-2xl text-paper">{dict.staff.title}</h1>
           {loginError && <p className="text-sm text-red-400">{loginError}</p>}
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
+            placeholder={dict.staff.username}
             autoCapitalize="none"
             autoCorrect="off"
             className="w-full rounded-md border border-line bg-ink-soft px-4 py-3 text-base text-paper outline-none focus:border-brass"
@@ -127,7 +129,7 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="password"
-            placeholder="Password"
+            placeholder={dict.account.password}
             className="w-full rounded-md border border-line bg-ink-soft px-4 py-3 text-base text-paper outline-none focus:border-brass"
           />
           <Turnstile key={captchaKey} onToken={setCaptchaToken} />
@@ -136,7 +138,7 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
             disabled={signingIn || (captchaEnabled && !captchaToken)}
             className="w-full rounded-md bg-brass px-4 py-3 text-base font-medium text-ink disabled:opacity-60"
           >
-            {signingIn ? "Signing in…" : "Sign in"}
+            {signingIn ? dict.staff.signingIn : dict.staff.signIn}
           </button>
         </form>
       </CenteredMessage>
@@ -144,15 +146,15 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
   }
 
   if (isAdmin === null) {
-    return <CenteredMessage>Loading…</CenteredMessage>;
+    return <CenteredMessage>{dict.common.loading}</CenteredMessage>;
   }
 
   if (!isAdmin) {
     return (
       <CenteredMessage>
-        <p className="text-paper-dim">This account isn&apos;t an admin, so it can&apos;t access this page.</p>
+        <p className="text-paper-dim">{dict.staff.notAdmin}</p>
         <button onClick={handleSignOut} className="mt-4 text-sm text-brass underline">
-          Sign out
+          {dict.common.signOut}
         </button>
       </CenteredMessage>
     );

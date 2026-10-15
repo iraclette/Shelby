@@ -13,7 +13,7 @@ type CustomOrderRequest = {
 
 export async function POST(request: NextRequest) {
   if (!checkRateLimit(`custom-orders:${getClientIp(request)}`, 5, 10 * 60 * 1000)) {
-    return NextResponse.json({ error: "Too many requests, try again later." }, { status: 429 });
+    return NextResponse.json({ code: "rate_limited", error: "Too many requests, try again later." }, { status: 429 });
   }
 
   const body = (await request.json()) as CustomOrderRequest;
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     !isUuid(body.preferredShopId) ||
     !isNonEmptyString(body.itemDescription, 2000)
   ) {
-    return NextResponse.json({ error: "Missing or invalid fields." }, { status: 400 });
+    return NextResponse.json({ code: "invalid_fields", error: "Missing or invalid fields." }, { status: 400 });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
-    return NextResponse.json({ error: "Could not submit the request." }, { status: 500 });
+    return NextResponse.json({ code: "send_failed", error: "Could not submit the request." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

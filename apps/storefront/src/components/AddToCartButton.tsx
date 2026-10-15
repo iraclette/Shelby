@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCart } from "@/lib/cart";
+import { useI18n } from "@/i18n/client";
 
 export default function AddToCartButton({
   productId,
@@ -15,6 +16,7 @@ export default function AddToCartButton({
   imagePath: string | null;
 }) {
   const { addItem } = useCart();
+  const { dict } = useI18n();
   const [added, setAdded] = useState(false);
 
   return (
@@ -26,7 +28,7 @@ export default function AddToCartButton({
       }}
       className="mt-6 w-full border border-brass py-3 text-sm tracking-[0.15em] text-brass uppercase transition-colors hover:bg-brass hover:text-ink"
     >
-      {added ? "Added to cart" : "Add to cart"}
+      {added ? dict.product.added : dict.product.addToCart}
     </button>
   );
 }

@@ -1,8 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { primaryImage, productImageUrl, type Product } from "@/lib/supabase";
+import { getDictionary } from "@/i18n/server";
+import { categoryName, formatPrice } from "@/i18n/format";
 
-export default function ProductCard({ product }: { product: Product }) {
+export default async function ProductCard({ product }: { product: Product }) {
+  const dict = await getDictionary();
   const image = primaryImage(product);
 
   return (
@@ -28,11 +31,11 @@ export default function ProductCard({ product }: { product: Product }) {
       <div className="p-4">
         {product.categories && (
           <p className="text-xs tracking-[0.15em] text-brass uppercase">
-            {product.categories.name}
+            {categoryName(dict, product.categories.name)}
           </p>
         )}
         <h3 className="mt-1 font-display text-lg text-paper">{product.name}</h3>
-        <p className="mt-1 text-sm text-paper-dim">GEL {product.sell_price.toFixed(2)}</p>
+        <p className="mt-1 text-sm text-paper-dim">{formatPrice(dict, product.sell_price)}</p>
       </div>
     </Link>
   );

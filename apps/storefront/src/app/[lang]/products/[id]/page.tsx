@@ -1,0 +1,59 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { fetchProduct, primaryImage } from "@/lib/supabase";
+import AddToCartButton from "@/components/AddToCartButton";
+import ProductGallery from "@/components/ProductGallery";
+import { getDictionary } from "@/i18n/server";
+import { categoryName, formatPrice } from "@/i18n/format";
+
+export const revalidate = 60;
+
+export default async function ProductPage({
+  params,
+}: PageProps<"/[lang]/products/[id]">) {
+  const { id } = await params;
+  const [product, dict] = await Promise.all([fetchProduct(id), getDictionary()]);
+  if (!product) notFound();
+
+  const featured = primaryImage(product);
+  const galleryImages = featured
+    ? [featured, ...product.product_images.filter((image) => image !== featured)]
+    : [];
+
+  return (
+    <div className="mx-auto max-w-6xl px-6 py-16">
+      <div className="grid gap-12 md:grid-cols-2">
+        <ProductGallery images={galleryImages} alt={product.name} />
+
+        <div>
+          {product.categories && (
+            <p className="text-xs tracking-[0.2em] text-brass uppercase">
+              {categoryName(dict, product.categories.name)}
+            </p>
+          )}
+          <h1 className="mt-2 font-display text-4xl text-paper">{product.name}</h1>
+          <p className="mt-4 text-2xl text-paper">{formatPrice(dict, product.sell_price)}</p>
+
+          {product.description && (
+            <p className="mt-6 leading-relaxed text-paper-dim">{product.description}</p>
+          )}
+
+          <AddToCartButton
+            productId={product.id}
+            name={product.name}
+            unitPrice={product.sell_price}
+            imagePath={featured?.storage_path ?? null}
+          />
+
+          <div className="mt-4 border border-line px-6 py-4 text-sm text-paper-dim">
+            {dict.product.pickupBefore}
+            <Link href="/contact" className="text-brass underline-offset-4 hover:underline">
+              {dict.product.pickupLink}
+            </Link>
+            {dict.product.pickupAfter}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

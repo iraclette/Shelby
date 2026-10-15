@@ -14,13 +14,13 @@ export async function POST(request: NextRequest) {
   // Also protects the Resend send quota once a real sending domain replaces
   // the sandbox address (see src/lib/email.ts).
   if (!checkRateLimit(`contact:${getClientIp(request)}`, 5, 10 * 60 * 1000)) {
-    return NextResponse.json({ error: "Too many requests, try again later." }, { status: 429 });
+    return NextResponse.json({ code: "rate_limited", error: "Too many requests, try again later." }, { status: 429 });
   }
 
   const body = (await request.json()) as ContactRequest;
 
   if (!isNonEmptyString(body.name, 200) || !isValidEmail(body.email) || !isNonEmptyString(body.message, 5000)) {
-    return NextResponse.json({ error: "Missing or invalid fields." }, { status: 400 });
+    return NextResponse.json({ code: "invalid_fields", error: "Missing or invalid fields." }, { status: 400 });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error || !inserted) {
-    return NextResponse.json({ error: "Could not send your message." }, { status: 500 });
+    return NextResponse.json({ code: "send_failed", error: "Could not send your message." }, { status: 500 });
   }
 
   // Best-effort: the message is already safely in the admin's Help page

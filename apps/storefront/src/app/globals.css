@@ -10,8 +10,9 @@
   --color-brass: #c8963e;
   --color-brass-soft: #e3c98a;
 
-  --font-display: var(--font-fraunces);
-  --font-sans: var(--font-geist-sans);
+  /* Per-glyph fallback: Latin in Fraunces/Geist, Cyrillic in Lora/Geist, Georgian in Noto. */
+  --font-display: var(--font-fraunces), var(--font-lora), var(--font-noto-serif-georgian), serif;
+  --font-sans: var(--font-geist-sans), var(--font-noto-sans-georgian), sans-serif;
 }
 
 body {
