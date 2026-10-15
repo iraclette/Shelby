@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Fraunces, Geist, Lora, Noto_Sans_Georgian, Noto_Serif_Georgian } from "next/font/google";
 import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import Footer, { FooterShops } from "@/components/Footer";
+import Skeleton from "@/components/Skeleton";
 import { CartProvider } from "@/lib/cart";
 import { fetchCategories } from "@/lib/supabase";
 import { LOCALES } from "@/i18n/config";
@@ -61,8 +63,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export const revalidate = 60;
 
 export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
-  const [lang, dict, categories] = await Promise.all([getLocale(), getDictionary(), fetchCategories()]);
-  const showHandmadeLeather = categories.some((c) => c.name === "Handmade Leather");
+  const [lang, dict] = await Promise.all([getLocale(), getDictionary()]);
+  // Not awaited: the header renders straight away and the link appears once Supabase answers.
+  const showHandmadeLeather = fetchCategories().then((categories) =>
+    categories.some((c) => c.name === "Handmade Leather"),
+  );
 
   return (
     <html lang={lang} className={`${fontVariables} h-full antialiased`}>
@@ -71,7 +76,19 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
           <CartProvider>
             <Header showHandmadeLeather={showHandmadeLeather} />
             <main className="flex-1">{children}</main>
-            <Footer />
+            <Footer>
+              <Suspense
+                fallback={
+                  <div className="space-y-2 pt-1">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                }
+              >
+                <FooterShops />
+              </Suspense>
+            </Footer>
           </CartProvider>
         </I18nProvider>
       </body>

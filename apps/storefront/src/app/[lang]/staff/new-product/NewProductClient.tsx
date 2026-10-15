@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import StaffAuthGate from "@/components/StaffAuthGate";
+import Skeleton from "@/components/Skeleton";
 import { randomId } from "@/lib/randomId";
 import { useI18n } from "@/i18n/client";
 import { categoryName, fmt } from "@/i18n/format";
@@ -43,6 +44,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
 
   const [shops, setShops] = useState<Shop[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [listsLoaded, setListsLoaded] = useState(false);
 
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -66,6 +68,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
     ]).then(([shopsRes, categoriesRes]) => {
       setShops((shopsRes.data as Shop[]) ?? []);
       setCategories((categoriesRes.data as Category[]) ?? []);
+      setListsLoaded(true);
     });
   }, [supabase]);
 
@@ -323,6 +326,15 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
           className={`mt-1 ${inputClass}`}
         />
       </label>
+
+      {!listsLoaded && (
+        <div className="space-y-2" aria-busy="true">
+          <Skeleton className="h-4 w-44" />
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-12.5 w-full rounded-md" />
+          ))}
+        </div>
+      )}
 
       {shops.length > 0 && (
         <fieldset>

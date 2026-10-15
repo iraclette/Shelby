@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { getSupabaseClient } from "@/lib/supabase";
 import StaffAuthGate from "@/components/StaffAuthGate";
+import Skeleton from "@/components/Skeleton";
 import { randomId } from "@/lib/randomId";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
@@ -146,7 +147,9 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
         {statusMessage && <p className="mt-2 text-sm text-paper-dim">{statusMessage}</p>}
 
         <div className="mt-6 grid grid-cols-3 gap-2">
-          {imagesLoading && <p className="col-span-3 text-sm text-paper-dim">{dict.staff.loadingPhotos}</p>}
+          {imagesLoading &&
+            images.length === 0 &&
+            [0, 1, 2].map((i) => <Skeleton key={i} className="aspect-square rounded-md" />)}
           {!imagesLoading && images.length === 0 && (
             <p className="col-span-3 text-sm text-paper-dim">{dict.staff.noPhotos}</p>
           )}
@@ -185,7 +188,9 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
         className="mt-4 w-full rounded-md border border-line bg-ink-soft px-4 py-3 text-base text-paper outline-none focus:border-brass"
       />
       <div className="mt-4 space-y-2">
-        {searching && <p className="text-sm text-paper-dim">{dict.staff.searching}</p>}
+        {searching &&
+          results.length === 0 &&
+          [0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full rounded-md" />)}
         {!searching && query.trim().length >= 2 && results.length === 0 && (
           <p className="text-sm text-paper-dim">{fmt(dict.common.noMatch, { query })}</p>
         )}

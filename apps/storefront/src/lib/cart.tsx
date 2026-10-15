@@ -24,6 +24,8 @@ type CartContextValue = {
   clear: () => void;
   itemCount: number;
   subtotal: number;
+  // False until the saved cart has been read from localStorage.
+  hydrated: boolean;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -91,7 +93,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ lines, addItem, removeItem, setQuantity, clear, itemCount, subtotal }}
+      value={{ lines, addItem, removeItem, setQuantity, clear, itemCount, subtotal, hydrated }}
     >
       {children}
     </CartContext.Provider>

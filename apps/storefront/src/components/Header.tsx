@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, use, useState } from "react";
 import Link from "next/link";
 import AdminLink from "./AdminLink";
 import CartLink from "./CartLink";
@@ -9,7 +9,17 @@ import { useI18n } from "@/i18n/client";
 
 const navLinkClass = "block py-3 transition-colors hover:text-brass lg:inline lg:py-0";
 
-export default function Header({ showHandmadeLeather }: { showHandmadeLeather: boolean }) {
+function HandmadeLeatherLink({ show, onClick }: { show: Promise<boolean>; onClick?: () => void }) {
+  const { dict } = useI18n();
+  if (!use(show)) return null;
+  return (
+    <Link href="/handmade-leather" className={navLinkClass} onClick={onClick}>
+      {dict.nav.handmadeLeather}
+    </Link>
+  );
+}
+
+export default function Header({ showHandmadeLeather }: { showHandmadeLeather: Promise<boolean> }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { dict } = useI18n();
 
@@ -27,11 +37,9 @@ export default function Header({ showHandmadeLeather }: { showHandmadeLeather: b
           <Link href="/products" className={navLinkClass}>
             {dict.nav.shop}
           </Link>
-          {showHandmadeLeather && (
-            <Link href="/handmade-leather" className={navLinkClass}>
-              {dict.nav.handmadeLeather}
-            </Link>
-          )}
+          <Suspense fallback={null}>
+            <HandmadeLeatherLink show={showHandmadeLeather} />
+          </Suspense>
           <Link href="/account" className={navLinkClass}>
             {dict.nav.account}
           </Link>
@@ -67,11 +75,9 @@ export default function Header({ showHandmadeLeather }: { showHandmadeLeather: b
           <Link href="/products" className={navLinkClass} onClick={() => setMenuOpen(false)}>
             {dict.nav.shop}
           </Link>
-          {showHandmadeLeather && (
-            <Link href="/handmade-leather" className={navLinkClass} onClick={() => setMenuOpen(false)}>
-              {dict.nav.handmadeLeather}
-            </Link>
-          )}
+          <Suspense fallback={null}>
+            <HandmadeLeatherLink show={showHandmadeLeather} onClick={() => setMenuOpen(false)} />
+          </Suspense>
           <Link href="/account" className={navLinkClass} onClick={() => setMenuOpen(false)}>
             {dict.nav.account}
           </Link>

@@ -4,12 +4,33 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/lib/cart";
 import { productImageUrl } from "@/lib/supabase";
+import Skeleton from "@/components/Skeleton";
 import { useI18n } from "@/i18n/client";
 import { fmt, formatPrice } from "@/i18n/format";
 
 export default function CartPage() {
-  const { lines, setQuantity, removeItem, subtotal } = useCart();
+  const { lines, setQuantity, removeItem, subtotal, hydrated } = useCart();
   const { dict } = useI18n();
+
+  if (!hydrated) {
+    return (
+      <div className="mx-auto max-w-3xl px-6 py-16" aria-busy="true">
+        <Skeleton className="h-9 w-48" />
+        <div className="mt-8 divide-y divide-line border-y border-line">
+          {[0, 1].map((i) => (
+            <div key={i} className="flex gap-4 py-4">
+              <Skeleton className="h-20 w-20 flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-1/2" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-7 w-40" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (lines.length === 0) {
     return (

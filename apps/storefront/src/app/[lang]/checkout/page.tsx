@@ -3,11 +3,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useCart } from "@/lib/cart";
 import { fetchShops, type Shop } from "@/lib/supabase";
+import Skeleton, { FieldSkeleton } from "@/components/Skeleton";
 import { useI18n } from "@/i18n/client";
 import { fmt, formatPrice } from "@/i18n/format";
 
 export default function CheckoutPage() {
-  const { lines, subtotal, clear } = useCart();
+  const { lines, subtotal, clear, hydrated } = useCart();
   const { dict } = useI18n();
   const [shops, setShops] = useState<Shop[]>([]);
   const [name, setName] = useState("");
@@ -23,6 +24,20 @@ export default function CheckoutPage() {
       if (data.length > 0) setShopId(data[0].id);
     });
   }, []);
+
+  if (!hydrated) {
+    return (
+      <div className="mx-auto max-w-xl space-y-5 px-6 py-16" aria-busy="true">
+        <Skeleton className="h-9 w-48" />
+        <Skeleton className="h-5 w-40" />
+        <div className="space-y-5 pt-3">
+          {[0, 1, 2, 3].map((i) => (
+            <FieldSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (lines.length === 0) {
     return (
@@ -100,18 +115,22 @@ export default function CheckoutPage() {
         </div>
         <div>
           <label className="block text-sm text-paper-dim">{dict.checkout.pickupFrom}</label>
-          <select
-            required
-            value={shopId}
-            onChange={(e) => setShopId(e.target.value)}
-            className="mt-1 w-full border border-line bg-ink-soft px-3 py-2 text-paper"
-          >
-            {shops.map((shop) => (
-              <option key={shop.id} value={shop.id}>
-                {shop.name}
-              </option>
-            ))}
-          </select>
+          {shops.length === 0 ? (
+            <Skeleton className="mt-1 h-10.5 w-full" />
+          ) : (
+            <select
+              required
+              value={shopId}
+              onChange={(e) => setShopId(e.target.value)}
+              className="mt-1 w-full border border-line bg-ink-soft px-3 py-2 text-paper"
+            >
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}

@@ -1,10 +1,36 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { fetchShops } from "@/lib/supabase";
 import { getDictionary } from "@/i18n/server";
 import { fmt } from "@/i18n/format";
 
-export default async function Footer() {
-  const [shops, dict] = await Promise.all([fetchShops(), getDictionary()]);
+export async function FooterShops() {
+  const shops = await fetchShops();
+  return (
+    <ul className="mt-3 space-y-1 text-sm text-paper-dim">
+      {shops.map((shop) =>
+        shop.maps_url ? (
+          <li key={shop.id}>
+            <a
+              href={shop.maps_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-brass"
+            >
+              {shop.name}
+            </a>
+          </li>
+        ) : (
+          <li key={shop.id}>{shop.name}</li>
+        ),
+      )}
+    </ul>
+  );
+}
+
+// `children` is the shop list, wrapped in Suspense by the layout so the footer doesn't wait on it.
+export default async function Footer({ children }: { children: ReactNode }) {
+  const dict = await getDictionary();
 
   return (
     <footer className="border-t border-line bg-ink-soft">
@@ -18,24 +44,7 @@ export default async function Footer() {
           </div>
           <div>
             <p className="text-xs tracking-[0.2em] text-brass uppercase">{dict.footer.visitUs}</p>
-            <ul className="mt-3 space-y-1 text-sm text-paper-dim">
-              {shops.map((shop) =>
-                shop.maps_url ? (
-                  <li key={shop.id}>
-                    <a
-                      href={shop.maps_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="transition-colors hover:text-brass"
-                    >
-                      {shop.name}
-                    </a>
-                  </li>
-                ) : (
-                  <li key={shop.id}>{shop.name}</li>
-                ),
-              )}
-            </ul>
+            {children}
           </div>
           <div>
             <p className="text-xs tracking-[0.2em] text-brass uppercase">{dict.footer.getInTouch}</p>

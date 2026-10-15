@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import Turnstile from "@/components/Turnstile";
+import Skeleton, { FieldSkeleton } from "@/components/Skeleton";
 import { useI18n } from "@/i18n/client";
 
 // Same username login as the Shop Console, so admins can sign in here too.
@@ -129,7 +130,17 @@ export default function AccountClient() {
   }
 
   if (checkingSession) {
-    return null;
+    return (
+      <div className="mx-auto max-w-xl px-6 py-16" aria-busy="true">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="mt-4 h-5 w-56" />
+        <div className="mt-8 space-y-5">
+          <FieldSkeleton />
+          <FieldSkeleton />
+          <Skeleton className="h-11.5 w-full" />
+        </div>
+      </div>
+    );
   }
 
   if (session) {

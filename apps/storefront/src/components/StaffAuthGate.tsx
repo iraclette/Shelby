@@ -4,12 +4,25 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import Turnstile from "@/components/Turnstile";
+import Skeleton from "@/components/Skeleton";
 import { useI18n } from "@/i18n/client";
 
 // Same username login as the Shop Console.
 function toEmail(identifier: string) {
   const trimmed = identifier.trim();
   return trimmed.includes("@") ? trimmed : `${trimmed}@shop.local`;
+}
+
+function GateSkeleton() {
+  return (
+    <CenteredMessage>
+      <div className="w-full max-w-sm space-y-4" aria-busy="true">
+        <Skeleton className="mx-auto h-8 w-40" />
+        <Skeleton className="h-12.5 w-80 max-w-full rounded-md" />
+        <Skeleton className="h-12.5 w-80 max-w-full rounded-md" />
+      </div>
+    </CenteredMessage>
+  );
 }
 
 export function CenteredMessage({ children }: { children: ReactNode }) {
@@ -108,7 +121,7 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
   }
 
   if (checkingSession) {
-    return <CenteredMessage>{dict.common.loading}</CenteredMessage>;
+    return <GateSkeleton />;
   }
 
   if (!session) {
@@ -146,7 +159,7 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
   }
 
   if (isAdmin === null) {
-    return <CenteredMessage>{dict.common.loading}</CenteredMessage>;
+    return <GateSkeleton />;
   }
 
   if (!isAdmin) {

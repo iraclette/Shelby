@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import StaffAuthGate from "@/components/StaffAuthGate";
+import Skeleton from "@/components/Skeleton";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 
@@ -72,7 +73,13 @@ function Inventory({ onSignOut }: { onSignOut: () => void }) {
         className="mt-4 w-full rounded-md border border-line bg-ink-soft px-4 py-3 text-base text-paper outline-none focus:border-brass"
       />
 
-      {loading && <p className="mt-6 text-sm text-paper-dim">{dict.common.loading}</p>}
+      {loading && (
+        <div className="mt-6 space-y-3" aria-busy="true">
+          {Array.from({ length: 8 }, (_, i) => (
+            <Skeleton key={i} className="h-6 w-full" />
+          ))}
+        </div>
+      )}
 
       {!loading && (
         <div className="mt-6 overflow-x-auto">

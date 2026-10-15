@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { fetchShops, type Shop } from "@/lib/supabase";
+import Skeleton from "@/components/Skeleton";
 import { useI18n } from "@/i18n/client";
 
 export default function HandmadeLeatherPage() {
@@ -103,18 +104,22 @@ export default function HandmadeLeatherPage() {
         </div>
         <div>
           <label className="block text-sm text-paper-dim">{dict.leather.preferredShop}</label>
-          <select
-            required
-            value={shopId}
-            onChange={(e) => setShopId(e.target.value)}
-            className="mt-1 w-full border border-line bg-ink-soft px-3 py-2 text-paper"
-          >
-            {shops.map((shop) => (
-              <option key={shop.id} value={shop.id}>
-                {shop.name}
-              </option>
-            ))}
-          </select>
+          {shops.length === 0 ? (
+            <Skeleton className="mt-1 h-10.5 w-full" />
+          ) : (
+            <select
+              required
+              value={shopId}
+              onChange={(e) => setShopId(e.target.value)}
+              className="mt-1 w-full border border-line bg-ink-soft px-3 py-2 text-paper"
+            >
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div>
           <label className="block text-sm text-paper-dim">{dict.leather.whatMade}</label>
