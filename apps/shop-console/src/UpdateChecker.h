@@ -7,7 +7,8 @@ class QNetworkAccessManager;
 class QNetworkReply;
 
 // Checks GitHub Releases on launch. Installs only when someone clicks "Update now":
-// update.ps1 swaps the files after the app quits, then relaunches it.
+// the release's ShopConsole-Setup.exe runs silently, swaps the files after the
+// app quits, then relaunches it.
 class UpdateChecker : public QObject {
     Q_OBJECT
 
@@ -23,7 +24,7 @@ signals:
                         const QString &assetUrl, const QString &errorMessage);
 
     void downloadProgress(int percent);
-    // Caller should quit right away so update.ps1 can proceed.
+    // Caller should quit right away so the installer can replace the files.
     void installStarting();
     void installFailed(const QString &message);
 

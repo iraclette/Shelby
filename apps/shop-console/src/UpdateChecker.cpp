@@ -3,7 +3,6 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
-#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -82,7 +81,7 @@ void UpdateChecker::checkForUpdate() {
         QString assetUrl;
         for (const QJsonValue &value : obj.value("assets").toArray()) {
             const QJsonObject asset = value.toObject();
-            if (asset.value("name").toString().endsWith(".zip")) {
+            if (asset.value("name").toString().endsWith("-Setup.exe")) {
                 assetUrl = asset.value("browser_download_url").toString();
                 break;
             }
@@ -107,12 +106,6 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
         return;
     }
 
-    const QString scriptPath = QCoreApplication::applicationDirPath() + "/update.ps1";
-    if (!QFile::exists(scriptPath)) {
-        emit installFailed("update.ps1 is missing from the install folder — can't self-update.");
-        return;
-    }
-
     QNetworkRequest request((QUrl(assetUrl)));
     request.setRawHeader("User-Agent", "ShopConsole-UpdateChecker");
     // GitHub asset links redirect to a signed S3/object-storage URL; Qt
@@ -123,32 +116,33 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
     connect(reply, &QNetworkReply::downloadProgress, this, [this](qint64 received, qint64 total) {
         if (total > 0) emit downloadProgress(static_cast<int>(received * 100 / total));
     });
-    connect(reply, &QNetworkReply::finished, this, [this, reply, scriptPath]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             emit installFailed("Download failed: " + reply->errorString());
             return;
         }
 
-        const QString zipPath =
-            QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/ShopConsole-update.zip";
-        QFile zipFile(zipPath);
-        if (!zipFile.open(QIODevice::WriteOnly) || zipFile.write(reply->readAll()) < 0) {
+        const QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+        const QString setupPath = tempDir + "/ShopConsole-Setup.exe";
+        QFile setupFile(setupPath);
+        if (!setupFile.open(QIODevice::WriteOnly) || setupFile.write(reply->readAll()) < 0) {
             emit installFailed("Couldn't save the downloaded update to disk.");
             return;
         }
-        zipFile.close();
+        setupFile.close();
 
+        // The installer waits for/closes this app, swaps the files and relaunches
+        // it (see the silent-only [Run] entry in ShopConsole.iss). Its log is the
+        // place to look if an update ever doesn't stick.
         const QString installDir = QDir::toNativeSeparators(QCoreApplication::applicationDirPath());
-        const QString exeName = QFileInfo(QCoreApplication::applicationFilePath()).fileName();
-
         const bool started = QProcess::startDetached(
-            "powershell.exe",
-            {"-ExecutionPolicy", "Bypass", "-File", QDir::toNativeSeparators(scriptPath), "-ZipPath",
-             QDir::toNativeSeparators(zipPath), "-InstallDir", installDir, "-ExeName", exeName});
+            QDir::toNativeSeparators(setupPath),
+            {"/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS", "/DIR=" + installDir,
+             "/LOG=" + QDir::toNativeSeparators(tempDir + "/ShopConsole-update.log")});
 
         if (!started) {
-            emit installFailed("Couldn't start the update script.");
+            emit installFailed("Couldn't start the installer.");
             return;
         }
         emit installStarting();

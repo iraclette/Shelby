@@ -26,6 +26,8 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
+; The silent [Run] entry relaunches the app; letting Restart Manager do it too would open it twice.
+RestartApplications=no
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -41,3 +43,5 @@ Name: "{autodesktop}\Shop Console"; Filename: "{app}\ShopConsole.exe"; Tasks: de
 
 [Run]
 Filename: "{app}\ShopConsole.exe"; Description: "{cm:LaunchProgram,Shop Console}"; Flags: nowait postinstall skipifsilent
+; The in-app updater runs setup with /VERYSILENT — reopen the app once it's done.
+Filename: "{app}\ShopConsole.exe"; Flags: nowait skipifnotsilent

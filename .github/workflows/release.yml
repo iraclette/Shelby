@@ -106,7 +106,7 @@ jobs:
           Compress-Archive -Path dist\ShopConsole\* -DestinationPath ShopConsole-windows.zip
 
       - name: Build installer
-        # Single-file installer; the self-updater only uses the zip.
+        # Single-file installer; the self-updater (v1.5.0+) downloads and runs this silently.
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
