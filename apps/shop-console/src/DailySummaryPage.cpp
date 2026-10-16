@@ -14,12 +14,14 @@ DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client), m_day(QDate::currentDate()) {
     auto *toolbar = new QHBoxLayout;
     auto *prevButton = new QPushButton("<", this);
+    prevButton->setObjectName("compactButton");
     prevButton->setFixedWidth(32);
     toolbar->addWidget(prevButton);
     m_dayLabel = new QLabel(this);
     m_dayLabel->setStyleSheet("font-weight: 600; padding: 0 8px;");
     toolbar->addWidget(m_dayLabel);
     auto *nextButton = new QPushButton(">", this);
+    nextButton->setObjectName("compactButton");
     nextButton->setFixedWidth(32);
     toolbar->addWidget(nextButton);
     auto *todayButton = new QPushButton("Today", this);

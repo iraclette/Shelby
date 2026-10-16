@@ -7,6 +7,7 @@
 
 #include "SupabaseClient.h"
 
+class FlowLayout;
 class QButtonGroup;
 class QGridLayout;
 class QHBoxLayout;
@@ -75,7 +76,7 @@ private:
     QPushButton *m_holdButton;
     QPushButton *m_heldButton;
 
-    QHBoxLayout *m_categoryChipsLayout;
+    FlowLayout *m_categoryChipsLayout;
     QButtonGroup *m_categoryButtonGroup;
     QGridLayout *m_productGridLayout;
     QString m_selectedCategoryId; // empty = "All"

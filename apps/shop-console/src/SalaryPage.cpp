@@ -18,12 +18,14 @@ SalaryPage::SalaryPage(SupabaseClient *client, QWidget *parent)
 
     auto *toolbar = new QHBoxLayout;
     auto *prevButton = new QPushButton("<", this);
+    prevButton->setObjectName("compactButton");
     prevButton->setFixedWidth(32);
     toolbar->addWidget(prevButton);
     m_periodLabel = new QLabel(this);
     m_periodLabel->setStyleSheet("font-weight: 600; padding: 0 8px;");
     toolbar->addWidget(m_periodLabel);
     auto *nextButton = new QPushButton(">", this);
+    nextButton->setObjectName("compactButton");
     nextButton->setFixedWidth(32);
     toolbar->addWidget(nextButton);
 
@@ -159,6 +161,8 @@ void SalaryPage::rebuildTable() {
     const QString filterShopId = m_shopCombo->currentData().toString();
     m_visibleProfiles.clear();
     for (const Profile &profile : m_profiles) {
+        // Admins/owners aren't on the daily wage — only staff get paid here.
+        if (profile.role != "staff") continue;
         if (!filterShopId.isEmpty() && profile.shopId != filterShopId) continue;
         m_visibleProfiles.append(profile);
     }
@@ -202,6 +206,7 @@ void SalaryPage::rebuildTable() {
         addReadOnly(kColBalance, QString::number(balance, 'f', 2));
 
         auto *payButton = new QPushButton(balance > 0 ? "Pay" : "Record", this);
+        payButton->setObjectName("compactButton");
         connect(payButton, &QPushButton::clicked, this, [this, row]() { openPayDialog(row); });
         m_table->setCellWidget(row, kColPayButton, payButton);
     }

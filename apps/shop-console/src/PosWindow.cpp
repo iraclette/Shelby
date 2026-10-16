@@ -1,10 +1,13 @@
 #include "PosWindow.h"
 #include "DiscountDialog.h"
+#include "FlowLayout.h"
 #include "HeldSalesDialog.h"
 #include "ReturnDialog.h"
 
 #include <QAction>
 #include <QButtonGroup>
+#include <QFont>
+#include <QFontMetrics>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -81,15 +84,12 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
 
     m_categoryButtonGroup = new QButtonGroup(this);
     m_categoryButtonGroup->setExclusive(true);
+    // Chips wrap onto extra rows instead of a fixed-height strip, so every
+    // category stays reachable however many there are.
     auto *chipsWidget = new QWidget(this);
-    m_categoryChipsLayout = new QHBoxLayout(chipsWidget);
+    m_categoryChipsLayout = new FlowLayout(chipsWidget);
     m_categoryChipsLayout->setContentsMargins(0, 0, 0, 0);
-    auto *chipsScroll = new QScrollArea(this);
-    chipsScroll->setWidget(chipsWidget);
-    chipsScroll->setWidgetResizable(true);
-    chipsScroll->setFixedHeight(48);
-    chipsScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    browseLayout->addWidget(chipsScroll);
+    browseLayout->addWidget(chipsWidget);
 
     auto *gridContainer = new QWidget(this);
     m_productGridLayout = new QGridLayout(gridContainer);
@@ -235,6 +235,13 @@ void PosWindow::rebuildCategoryChips() {
         chip->setObjectName("categoryChip");
         chip->setCheckable(true);
         chip->setChecked(categoryId == m_selectedCategoryId);
+        // The checked style is bold, which is wider than the regular text the
+        // size hint was measured with — reserve room for it so it isn't clipped.
+        chip->ensurePolished(); // pick up the stylesheet's font size before measuring
+        QFont boldFont = chip->font();
+        boldFont.setWeight(QFont::DemiBold);
+        const int boldTextWidth = QFontMetrics(boldFont).horizontalAdvance(label);
+        chip->setMinimumWidth(qMax(chip->sizeHint().width(), boldTextWidth + 2 * 14 + 2 + 4));
         m_categoryButtonGroup->addButton(chip);
         connect(chip, &QPushButton::clicked, this, [this, categoryId]() {
             m_selectedCategoryId = categoryId;
@@ -247,7 +254,6 @@ void PosWindow::rebuildCategoryChips() {
     for (const Category &category : m_categories) {
         addChip(category.name, category.id);
     }
-    m_categoryChipsLayout->addStretch();
 }
 
 void PosWindow::rebuildProductGrid() {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 1.4.1 LANGUAGES CXX)
+project(ShopConsole VERSION 1.4.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,6 +17,8 @@ qt_add_executable(ShopConsole WIN32
     src/LoginWindow.cpp
     src/AdminWindow.h
     src/AdminWindow.cpp
+    src/FlowLayout.h
+    src/FlowLayout.cpp
     src/PosWindow.h
     src/PosWindow.cpp
     src/DiscountDialog.h

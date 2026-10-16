@@ -1,6 +1,6 @@
 #pragma once
 
-// setObjectName("primaryButton" / "productTile" / "categoryChip") for the styled variants.
+// setObjectName("primaryButton" / "productTile" / "categoryChip" / "compactButton") for the styled variants.
 inline const char *kAppStyleSheet = R"(
 QWidget {
     background-color: #14151a;
@@ -87,6 +87,12 @@ QPushButton#primaryButton:hover {
 
 QPushButton#primaryButton:pressed {
     background-color: #3670d6;
+}
+
+/* Fixed-width arrow/× buttons and buttons inside table cells: the default
+   8px 16px padding leaves no room for the label, so it renders blank. */
+QPushButton#compactButton {
+    padding: 2px 6px;
 }
 
 QPushButton#productTile {
@@ -218,7 +224,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     width: 0;
 }
 
-QCheckBox::indicator {
+QCheckBox::indicator, QTableView::indicator, QListView::indicator {
     width: 14px;
     height: 14px;
     border: 1px solid #2f323d;
@@ -226,7 +232,7 @@ QCheckBox::indicator {
     background-color: #1c1e26;
 }
 
-QCheckBox::indicator:checked {
+QCheckBox::indicator:checked, QTableView::indicator:checked, QListView::indicator:checked {
     background-color: #4f8cff;
     border: 1px solid #4f8cff;
 }

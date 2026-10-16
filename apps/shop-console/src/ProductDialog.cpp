@@ -248,6 +248,7 @@ void ProductDialog::addVariantRow() {
     auto *skuEdit = new QLineEdit(rowWidget);
     skuEdit->setPlaceholderText("Optional barcode");
     auto *removeButton = new QPushButton("×", rowWidget);
+    removeButton->setObjectName("compactButton");
     removeButton->setFixedWidth(28);
 
     rowLayout->addWidget(nameEdit, 1);
