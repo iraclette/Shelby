@@ -89,8 +89,6 @@ QPushButton#primaryButton:pressed {
     background-color: #3670d6;
 }
 
-/* Fixed-width arrow/× buttons and buttons inside table cells: the default
-   8px 16px padding leaves no room for the label, so it renders blank. */
 QPushButton#compactButton {
     padding: 2px 6px;
 }

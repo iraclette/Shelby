@@ -3,9 +3,6 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -41,12 +38,6 @@ bool isNewer(const QVector<int> &candidate, const QVector<int> &current) {
     return false;
 }
 
-// Prefer GitHub's own {"message"} (e.g. rate limit) over Qt's generic error.
-QString describeError(const QByteArray &body, const QString &fallback) {
-    const QString message = QJsonDocument::fromJson(body).object().value("message").toString();
-    return message.isEmpty() ? fallback : message;
-}
-
 } // namespace
 
 UpdateChecker::UpdateChecker(QObject *parent)
@@ -55,48 +46,51 @@ UpdateChecker::UpdateChecker(QObject *parent)
 }
 
 void UpdateChecker::checkForUpdate() {
-    QNetworkRequest request(QUrl("https://api.github.com/repos/iraclette/Shelby/releases/latest"));
-    // The GitHub API rejects requests with no User-Agent outright.
+    // Not the REST API: unauthenticated calls there are capped at 60/hour per IP,
+    // which a shop's registers sharing one connection burn through. The plain
+    // releases/latest page isn't limited and redirects to .../releases/tag/vX.Y.Z
+    // (skipping pre-releases), so the tag can be read straight off the redirect.
+    QNetworkRequest request(QUrl("https://github.com/iraclette/Shelby/releases/latest"));
     request.setRawHeader("User-Agent", "ShopConsole-UpdateChecker");
-    request.setRawHeader("Accept", "application/vnd.github+json");
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
 
-    QNetworkReply *reply = m_network->get(request);
+    QNetworkReply *reply = m_network->head(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
-        const QByteArray data = reply->readAll();
 
-        if (reply->error() != QNetworkReply::NoError) {
-            emit checkFinished(false, false, {}, {}, {}, describeError(data, reply->errorString()));
+        const QUrl target = reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl();
+        if (!target.isValid()) {
+            const QString message = reply->error() != QNetworkReply::NoError
+                                        ? reply->errorString()
+                                        : QString("GitHub didn't point to a latest release.");
+            emit checkFinished(false, false, {}, {}, {}, message);
             return;
         }
 
-        const QJsonObject obj = QJsonDocument::fromJson(data).object();
-        const QString tag = obj.value("tag_name").toString();
-        const QString releaseUrl = obj.value("html_url").toString();
-        if (tag.isEmpty() || releaseUrl.isEmpty()) {
+        const QUrl releaseUrl = reply->url().resolved(target);
+        const QString path = releaseUrl.path();
+        const QString tagMarker = "/releases/tag/";
+        const int markerIndex = path.indexOf(tagMarker);
+        if (markerIndex < 0) {
             emit checkFinished(false, false, {}, {}, {}, "GitHub's response didn't include a release tag.");
             return;
         }
+        const QString tag = path.mid(markerIndex + tagMarker.size());
 
-        QString assetUrl;
-        for (const QJsonValue &value : obj.value("assets").toArray()) {
-            const QJsonObject asset = value.toObject();
-            if (asset.value("name").toString().endsWith("-Setup.exe")) {
-                assetUrl = asset.value("browser_download_url").toString();
-                break;
-            }
-        }
+        // Every release attaches the installer under this fixed name (release.yml).
+        const QString assetUrl =
+            QString("https://github.com/iraclette/Shelby/releases/download/%1/ShopConsole-Setup.exe").arg(tag);
 
         const QString displayVersion = tag.startsWith('v') ? tag.mid(1) : tag;
 
         QVector<int> latest;
         QVector<int> current;
         if (!parseVersion(tag, latest) || !parseVersion(QStringLiteral(APP_VERSION), current)) {
-            emit checkFinished(true, false, displayVersion, releaseUrl, assetUrl, {});
+            emit checkFinished(true, false, displayVersion, releaseUrl.toString(), assetUrl, {});
             return;
         }
 
-        emit checkFinished(true, isNewer(latest, current), displayVersion, releaseUrl, assetUrl, {});
+        emit checkFinished(true, isNewer(latest, current), displayVersion, releaseUrl.toString(), assetUrl, {});
     });
 }
 
