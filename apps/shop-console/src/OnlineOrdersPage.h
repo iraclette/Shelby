@@ -10,8 +10,8 @@ class QLabel;
 class QPushButton;
 class QTableWidget;
 
-// Orders paid on the website, waiting to be picked up. The shop prepares
-// them and marks them collected once the customer has them.
+// Orders paid on the website. The shop prepares them, then marks them
+// collected (pickup) or shipped (handed to Inex).
 class OnlineOrdersPage : public QWidget {
     Q_OBJECT
 

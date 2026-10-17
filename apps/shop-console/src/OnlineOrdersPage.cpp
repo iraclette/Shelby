@@ -15,14 +15,25 @@
 #include <algorithm>
 
 namespace {
+bool isDelivery(const OnlineOrder &order) {
+    return order.deliveryMethod == "inex_branch" || order.deliveryMethod == "inex_home";
+}
+
 // Database status -> what the shop calls it.
-QString statusLabel(const QString &status) {
-    if (status == "paid") return "To prepare";
-    if (status == "fulfilled") return "Collected";
+QString statusLabel(const OnlineOrder &order) {
+    const QString &status = order.status;
+    if (status == "paid") return isDelivery(order) ? "To ship" : "To prepare";
+    if (status == "fulfilled") return isDelivery(order) ? "Shipped" : "Collected";
     if (status == "pending") return "Awaiting payment";
     if (status == "failed") return "Payment failed";
     if (status == "cancelled") return "Cancelled";
     return status;
+}
+
+QString methodLabel(const OnlineOrder &order) {
+    if (order.deliveryMethod == "inex_branch") return "Inex branch · " + order.deliveryCity;
+    if (order.deliveryMethod == "inex_home") return "Inex home · " + order.deliveryCity;
+    return {};
 }
 
 QColor statusColor(const QString &status) {
@@ -48,9 +59,9 @@ OnlineOrdersPage::OnlineOrdersPage(SupabaseClient *client, QWidget *parent)
     auto *refreshButton = new QPushButton("Refresh", this);
     toolbar->addWidget(refreshButton);
     m_filter = new QComboBox(this);
-    m_filter->addItem("To prepare", "paid");
+    m_filter->addItem("To prepare / ship", "paid");
     m_filter->addItem("All orders", "");
-    m_filter->addItem("Collected", "fulfilled");
+    m_filter->addItem("Collected / shipped", "fulfilled");
     m_filter->addItem("Unpaid / failed", "unpaid");
     toolbar->addWidget(m_filter);
     toolbar->addStretch();
@@ -61,7 +72,7 @@ OnlineOrdersPage::OnlineOrdersPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(6);
-    m_table->setHorizontalHeaderLabels({"Date", "Order", "Customer", "Pickup shop", "Total", "Status"});
+    m_table->setHorizontalHeaderLabels({"Date", "Order", "Customer", "Pickup / delivery", "Total", "Status"});
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -95,9 +106,11 @@ OnlineOrdersPage::OnlineOrdersPage(SupabaseClient *client, QWidget *parent)
     connect(m_collectedButton, &QPushButton::clicked, this, [this]() {
         const OnlineOrder *order = selectedOrder();
         if (!order || order->status != "paid") return;
+        const bool delivery = isDelivery(*order);
         const auto answer = QMessageBox::question(
-            this, "Mark collected",
-            QString("Has %1 picked up order #%2?").arg(order->customerName, shortId(order->id)));
+            this, delivery ? "Mark shipped" : "Mark collected",
+            delivery ? QString("Has order #%1 been handed to Inex?").arg(shortId(order->id))
+                     : QString("Has %1 picked up order #%2?").arg(order->customerName, shortId(order->id)));
         if (answer != QMessageBox::Yes) return;
         m_collectedButton->setEnabled(false);
         m_client->updateOnlineOrderStatus(order->id, "fulfilled");
@@ -117,7 +130,7 @@ OnlineOrdersPage::OnlineOrdersPage(SupabaseClient *client, QWidget *parent)
         emit statusMessage("Failed to load online orders: " + message);
     });
     connect(m_client, &SupabaseClient::onlineOrderUpdated, this, [this]() {
-        emit statusMessage("Order marked collected.");
+        emit statusMessage("Order updated.");
         m_client->fetchOnlineOrders();
     });
     connect(m_client, &SupabaseClient::onlineOrderUpdateFailed, this, [this](const QString &message) {
@@ -157,11 +170,11 @@ void OnlineOrdersPage::rebuildTable() {
         m_table->setItem(row, 0, new QTableWidgetItem(QString(order.createdAt).replace('T', ' ').left(16)));
         m_table->setItem(row, 1, new QTableWidgetItem("#" + shortId(order.id)));
         m_table->setItem(row, 2, new QTableWidgetItem(order.customerName));
-        m_table->setItem(row, 3, new QTableWidgetItem(shopName(order.pickupShopId)));
+        m_table->setItem(row, 3, new QTableWidgetItem(isDelivery(order) ? methodLabel(order) : shopName(order.pickupShopId)));
         auto *totalItem = new QTableWidgetItem(money(order.total));
         totalItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         m_table->setItem(row, 4, totalItem);
-        auto *statusItem = new QTableWidgetItem(statusLabel(order.status));
+        auto *statusItem = new QTableWidgetItem(statusLabel(order));
         statusItem->setForeground(statusColor(order.status));
         m_table->setItem(row, 5, statusItem);
     }
@@ -171,6 +184,7 @@ void OnlineOrdersPage::rebuildTable() {
 void OnlineOrdersPage::showDetails() {
     const OnlineOrder *order = selectedOrder();
     m_collectedButton->setEnabled(order && order->status == "paid");
+    m_collectedButton->setText(order && isDelivery(*order) ? "Mark shipped" : "Mark collected");
     if (!order) {
         m_details->setText(m_visible.isEmpty() ? "No orders here." : "Select an order to see what to prepare.");
         return;
@@ -178,16 +192,30 @@ void OnlineOrdersPage::showDetails() {
 
     QString html = QString("<p style='font-size:16px; font-weight:700; color:#f2f3f5;'>Order #%1</p>"
                            "<p style='color:%2; font-weight:600;'>%3</p>")
-                       .arg(shortId(order->id), statusColor(order->status).name(), statusLabel(order->status));
+                       .arg(shortId(order->id), statusColor(order->status).name(), statusLabel(*order));
     html += QString("<p><b style='color:#e8e9ec;'>%1</b><br>%2%3</p>")
                 .arg(order->customerName.toHtmlEscaped(), order->customerEmail.toHtmlEscaped(),
                      order->customerPhone.isEmpty() ? QString() : "<br>" + order->customerPhone.toHtmlEscaped());
-    html += QString("<p>Pick up at: <b style='color:#e8e9ec;'>%1</b></p>").arg(shopName(order->pickupShopId));
+    if (isDelivery(*order)) {
+        // Everything needed to fill in the Inex parcel form.
+        html += QString("<p>Ship with Inex to %1:<br><b style='color:#e8e9ec;'>%2</b>%3<br>Ship from: %4</p>")
+                    .arg(order->deliveryMethod == "inex_home" ? "the door" : "a branch",
+                         order->deliveryCity.toHtmlEscaped(),
+                         order->deliveryAddress.isEmpty()
+                             ? QString()
+                             : "<br><b style='color:#e8e9ec;'>" + order->deliveryAddress.toHtmlEscaped() + "</b>",
+                         shopName(order->pickupShopId));
+    } else {
+        html += QString("<p>Pick up at: <b style='color:#e8e9ec;'>%1</b></p>").arg(shopName(order->pickupShopId));
+    }
     html += "<table width='100%' cellspacing='0' cellpadding='4'>";
     for (const OnlineOrderItem &item : order->items) {
         html += QString("<tr><td style='color:#e8e9ec;'>%1 × %2</td><td align='right'>%3</td></tr>")
                     .arg(item.quantity)
                     .arg(item.productName.toHtmlEscaped(), money(item.quantity * item.unitPrice));
+    }
+    if (order->deliveryFee > 0) {
+        html += QString("<tr><td>Delivery</td><td align='right'>%1</td></tr>").arg(money(order->deliveryFee));
     }
     html += QString("<tr><td style='color:#e8e9ec; font-weight:700; padding-top:8px;'>Total</td>"
                     "<td align='right' style='color:#e8e9ec; font-weight:700; padding-top:8px;'>%1</td></tr></table>")

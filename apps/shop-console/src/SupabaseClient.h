@@ -67,7 +67,7 @@ struct CustomLeatherOrder {
     QString createdAt;
 };
 
-// A storefront order paid through BOG, picked up at pickupShopId.
+// A storefront order paid through BOG: picked up at pickupShopId, or shipped from it with Inex.
 struct OnlineOrderItem {
     QString productName;
     int quantity = 0;
@@ -81,6 +81,10 @@ struct OnlineOrder {
     QString customerPhone;
     QString pickupShopId;
     QString status; // pending/paid/failed/fulfilled/cancelled
+    QString deliveryMethod; // pickup/inex_branch/inex_home
+    double deliveryFee = 0; // included in total
+    QString deliveryCity;
+    QString deliveryAddress; // street (home) or preferred Inex branch (branch, optional)
     double total = 0;
     QString createdAt;
     QVector<OnlineOrderItem> items;

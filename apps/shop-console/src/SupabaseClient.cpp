@@ -1092,6 +1092,7 @@ void SupabaseClient::fetchCustomLeatherOrders() {
 void SupabaseClient::fetchOnlineOrders() {
     QUrlQuery query;
     query.addQueryItem("select", "id,customer_name,customer_email,customer_phone,pickup_shop_id,status,total,created_at,"
+                                 "delivery_method,delivery_fee,delivery_city,delivery_address,"
                                  "order_items(quantity,unit_price,products(name))");
     query.addQueryItem("order", "created_at.desc");
     query.addQueryItem("limit", "300");
@@ -1113,6 +1114,10 @@ void SupabaseClient::fetchOnlineOrders() {
             order.customerPhone = row.value("customer_phone").toString();
             order.pickupShopId = row.value("pickup_shop_id").toString();
             order.status = row.value("status").toString();
+            order.deliveryMethod = row.value("delivery_method").toString();
+            order.deliveryFee = row.value("delivery_fee").toDouble();
+            order.deliveryCity = row.value("delivery_city").toString();
+            order.deliveryAddress = row.value("delivery_address").toString();
             order.total = row.value("total").toDouble();
             order.createdAt = row.value("created_at").toString();
             for (const QJsonValue &itemValue : row.value("order_items").toArray()) {
