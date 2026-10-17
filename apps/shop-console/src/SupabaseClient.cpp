@@ -1150,6 +1150,58 @@ void SupabaseClient::updateOnlineOrderStatus(const QString &orderId, const QStri
     });
 }
 
+void SupabaseClient::fetchJobApplications() {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,name,phone,email,preferred_shop_id,availability,languages,about,status,created_at");
+    query.addQueryItem("order", "created_at.desc");
+    query.addQueryItem("limit", "300");
+
+    authorizedGet("/rest/v1/job_applications", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit jobApplicationsFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<JobApplication> applications;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            JobApplication application;
+            application.id = row.value("id").toString();
+            application.name = row.value("name").toString();
+            application.phone = row.value("phone").toString();
+            application.email = row.value("email").toString();
+            application.preferredShopId = row.value("preferred_shop_id").toString();
+            application.availability = row.value("availability").toString();
+            for (const QJsonValue &lang : row.value("languages").toArray()) application.languages.append(lang.toString());
+            application.about = row.value("about").toString();
+            application.status = row.value("status").toString();
+            application.createdAt = row.value("created_at").toString();
+            applications.append(application);
+        }
+        emit jobApplicationsFetched(applications);
+    });
+}
+
+void SupabaseClient::updateJobApplicationStatus(const QString &applicationId, const QString &status) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + applicationId);
+
+    const QJsonObject body{{"status", status},
+                           {"updated_at", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/job_applications", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit jobApplicationUpdateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit jobApplicationUpdated();
+    });
+}
+
 void SupabaseClient::updateCustomLeatherOrderField(const QString &orderId, const QString &field, const QJsonValue &value) {
     QUrlQuery query;
     query.addQueryItem("id", "eq." + orderId);

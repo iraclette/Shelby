@@ -101,6 +101,20 @@ struct ContactMessage {
     QString createdAt;
 };
 
+// A "Work with us" application from the storefront's /jobs page.
+struct JobApplication {
+    QString id;
+    QString name;
+    QString phone;
+    QString email;
+    QString preferredShopId; // empty = any shop
+    QString availability; // full_time/part_time/either
+    QStringList languages; // ka/ru/en
+    QString about;
+    QString status; // new/contacted/hired/rejected
+    QString createdAt;
+};
+
 struct Supplier {
     QString id;
     QString name;
@@ -251,6 +265,8 @@ public:
 
     // Admin-only per contact_messages' RLS policy.
     void fetchContactMessages();
+    void fetchJobApplications();
+    void updateJobApplicationStatus(const QString &applicationId, const QString &status);
     // field must be one of contact_messages' own column names (currently just status).
     void updateContactMessageField(const QString &messageId, const QString &field, const QJsonValue &value);
 
@@ -358,6 +374,10 @@ signals:
     void customLeatherOrderUpdateFailed(const QString &message);
 
     void contactMessagesFetched(const QVector<ContactMessage> &messages);
+    void jobApplicationsFetched(const QVector<JobApplication> &applications);
+    void jobApplicationsFetchFailed(const QString &message);
+    void jobApplicationUpdated();
+    void jobApplicationUpdateFailed(const QString &message);
     void contactMessagesFetchFailed(const QString &message);
     void contactMessageUpdated();
     void contactMessageUpdateFailed(const QString &message);
