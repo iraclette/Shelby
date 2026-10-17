@@ -1,4 +1,5 @@
 #include "CustomOrdersPage.h"
+#include "ShopTime.h"
 #include "SupabaseClient.h"
 
 #include <QHBoxLayout>
@@ -70,7 +71,7 @@ void CustomOrdersPage::rebuildTable() {
     for (int row = 0; row < m_orders.size(); ++row) {
         const CustomLeatherOrder &order = m_orders[row];
 
-        auto *createdItem = new QTableWidgetItem(QString(order.createdAt).replace('T', ' ').left(19));
+        auto *createdItem = new QTableWidgetItem(shoptime::format(order.createdAt, "yyyy-MM-dd HH:mm:ss"));
         createdItem->setData(Qt::UserRole, order.id);
         createdItem->setFlags(createdItem->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(row, kColCreated, createdItem);

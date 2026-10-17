@@ -1,4 +1,5 @@
 #include "MessagesPage.h"
+#include "ShopTime.h"
 #include "SupabaseClient.h"
 
 #include <QHBoxLayout>
@@ -67,7 +68,7 @@ void MessagesPage::rebuildTable() {
     for (int row = 0; row < m_messages.size(); ++row) {
         const ContactMessage &message = m_messages[row];
 
-        auto *createdItem = new QTableWidgetItem(QString(message.createdAt).replace('T', ' ').left(19));
+        auto *createdItem = new QTableWidgetItem(shoptime::format(message.createdAt, "yyyy-MM-dd HH:mm:ss"));
         createdItem->setFlags(createdItem->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(row, kColCreated, createdItem);
 

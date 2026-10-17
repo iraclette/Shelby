@@ -1,4 +1,5 @@
 #include "SalaryPage.h"
+#include "ShopTime.h"
 #include "PaySalaryDialog.h"
 #include "SupabaseClient.h"
 
@@ -13,7 +14,7 @@
 
 SalaryPage::SalaryPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
-    const QDate today = QDate::currentDate();
+    const QDate today = shoptime::today();
     m_periodStart = QDate(today.year(), today.month(), 1);
 
     auto *toolbar = new QHBoxLayout;
@@ -114,12 +115,12 @@ void SalaryPage::reload() {
     m_periodLabel->setText(m_periodStart.toString("MMMM yyyy"));
 
     const QString startIso = m_periodStart.toString(Qt::ISODate);
-    const QString endExclusiveIso = m_periodStart.addMonths(1).toString(Qt::ISODate);
     const QString endInclusiveIso = m_periodStart.addMonths(1).addDays(-1).toString(Qt::ISODate);
     const QString shopId = m_shopCombo->currentData().toString();
 
     m_client->fetchProfiles();
-    m_client->fetchSalesForPeriod(shopId, startIso, endExclusiveIso);
+    m_client->fetchSalesForPeriod(shopId, shoptime::dayStartUtc(m_periodStart),
+                                  shoptime::dayStartUtc(m_periodStart.addMonths(1)));
     m_client->fetchSalaryPayments(startIso, endInclusiveIso);
 }
 
@@ -129,7 +130,7 @@ void SalaryPage::recompute() {
     // staff_id -> (day string "yyyy-MM-dd" -> summed sales total that day)
     QMap<QString, QMap<QString, double>> dailyTotalsByStaff;
     for (const SaleAttribution &sale : m_sales) {
-        dailyTotalsByStaff[sale.staffId][sale.soldAt.left(10)] += sale.total;
+        dailyTotalsByStaff[sale.staffId][shoptime::dayOf(sale.soldAt).toString(Qt::ISODate)] += sale.total;
     }
 
     for (const Profile &profile : m_profiles) {

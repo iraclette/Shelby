@@ -1,4 +1,5 @@
 #include "ReturnDialog.h"
+#include "ShopTime.h"
 #include "SupabaseClient.h"
 
 #include <QDialogButtonBox>
@@ -41,7 +42,7 @@ ReturnDialog::ReturnDialog(SupabaseClient *client, QString shopId, QWidget *pare
         m_saleList->clear();
         for (const SaleSummary &sale : m_sales) {
             m_saleList->addItem(QString("%1 — GEL %2 (%3 item%4)")
-                                     .arg(sale.soldAt.left(16))
+                                     .arg(shoptime::format(sale.soldAt, "yyyy-MM-dd HH:mm"))
                                      .arg(sale.total, 0, 'f', 2)
                                      .arg(sale.items.size())
                                      .arg(sale.items.size() == 1 ? "" : "s"));

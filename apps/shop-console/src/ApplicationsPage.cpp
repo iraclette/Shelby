@@ -1,4 +1,5 @@
 #include "ApplicationsPage.h"
+#include "ShopTime.h"
 
 #include <QComboBox>
 #include <QFrame>
@@ -162,7 +163,7 @@ void ApplicationsPage::rebuildTable() {
     m_table->setRowCount(m_visible.size());
     for (int row = 0; row < m_visible.size(); ++row) {
         const JobApplication &application = m_applications[m_visible[row]];
-        m_table->setItem(row, 0, new QTableWidgetItem(QString(application.createdAt).replace('T', ' ').left(16)));
+        m_table->setItem(row, 0, new QTableWidgetItem(shoptime::format(application.createdAt, "yyyy-MM-dd HH:mm")));
         m_table->setItem(row, 1, new QTableWidgetItem(application.name));
         m_table->setItem(row, 2, new QTableWidgetItem(application.phone));
         auto *statusItem = new QTableWidgetItem(statusLabel(application.status));

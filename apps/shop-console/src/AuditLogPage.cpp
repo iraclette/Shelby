@@ -1,4 +1,5 @@
 #include "AuditLogPage.h"
+#include "ShopTime.h"
 #include "SupabaseClient.h"
 
 #include <QComboBox>
@@ -149,7 +150,7 @@ void AuditLogPage::rebuildTable() {
     m_table->setRowCount(filtered.size());
     for (int i = 0; i < filtered.size(); ++i) {
         const Row &row = filtered[i];
-        m_table->setItem(i, 0, new QTableWidgetItem(QString(row.timestamp).replace('T', ' ').left(19)));
+        m_table->setItem(i, 0, new QTableWidgetItem(shoptime::format(row.timestamp, "yyyy-MM-dd HH:mm:ss")));
         m_table->setItem(i, 1, new QTableWidgetItem(row.actorName));
         m_table->setItem(i, 2, new QTableWidgetItem(row.action));
         m_table->setItem(i, 3, new QTableWidgetItem(row.detail));

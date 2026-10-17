@@ -1,4 +1,5 @@
 #include "DailySummaryPage.h"
+#include "ShopTime.h"
 #include "SupabaseClient.h"
 
 #include <QComboBox>
@@ -11,7 +12,7 @@
 #include <QVBoxLayout>
 
 DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
-    : QWidget(parent), m_client(client), m_day(QDate::currentDate()) {
+    : QWidget(parent), m_client(client), m_day(shoptime::today()) {
     auto *toolbar = new QHBoxLayout;
     auto *prevButton = new QPushButton("<", this);
     prevButton->setObjectName("compactButton");
@@ -43,7 +44,7 @@ DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
     connect(prevButton, &QPushButton::clicked, this, [this]() { changeDay(-1); });
     connect(nextButton, &QPushButton::clicked, this, [this]() { changeDay(1); });
     connect(todayButton, &QPushButton::clicked, this, [this]() {
-        m_day = QDate::currentDate();
+        m_day = shoptime::today();
         reload();
     });
     connect(m_shopCombo, &QComboBox::currentIndexChanged, this, [this]() { reload(); });
@@ -100,8 +101,8 @@ void DailySummaryPage::changeDay(int deltaDays) {
 void DailySummaryPage::reload() {
     m_dayLabel->setText(m_day.toString("dddd, MMMM d yyyy"));
 
-    const QString startIso = m_day.toString(Qt::ISODate);
-    const QString endExclusiveIso = m_day.addDays(1).toString(Qt::ISODate);
+    const QString startIso = shoptime::dayStartUtc(m_day);
+    const QString endExclusiveIso = shoptime::dayStartUtc(m_day.addDays(1));
     const QString shopId = m_shopCombo->currentData().toString();
 
     m_client->fetchSalesForDay(shopId, startIso, endExclusiveIso);
@@ -133,7 +134,7 @@ void DailySummaryPage::rebuildTable() {
         int itemCount = 0;
         for (const SaleItemSummary &item : sale.items) itemCount += item.quantity;
 
-        m_table->setItem(row, 0, new QTableWidgetItem(sale.soldAt.mid(11, 8))); // HH:MM:SS out of an ISO timestamp
+        m_table->setItem(row, 0, new QTableWidgetItem(shoptime::format(sale.soldAt, "HH:mm:ss")));
         m_table->setItem(row, 1, new QTableWidgetItem(shopName));
         m_table->setItem(row, 2, new QTableWidgetItem(staffName));
         m_table->setItem(row, 3, new QTableWidgetItem(QString::number(itemCount)));

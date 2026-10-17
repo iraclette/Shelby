@@ -1,4 +1,5 @@
 #include "OverviewPage.h"
+#include "ShopTime.h"
 
 #include <QDate>
 #include <QFrame>
@@ -130,7 +131,7 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
     const QString partOfDay = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
     m_greeting = new QLabel(userName.isEmpty() ? partOfDay : QString("%1, %2").arg(partOfDay, userName), content);
     m_greeting->setObjectName("greeting");
-    auto *dateLabel = new QLabel(QDate::currentDate().toString("dddd, d MMMM yyyy"), content);
+    auto *dateLabel = new QLabel(shoptime::today().toString("dddd, d MMMM yyyy"), content);
     dateLabel->setObjectName("totalsKey");
     headerText->addWidget(m_greeting);
     headerText->addWidget(dateLabel);
@@ -252,8 +253,8 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
 
 void OverviewPage::reload() {
     // Same day boundaries as the Daily Summary page, so the numbers agree.
-    const QDate today = QDate::currentDate();
-    m_client->fetchSalesBetween(today.addDays(-6).toString(Qt::ISODate), today.addDays(1).toString(Qt::ISODate),
+    const QDate today = shoptime::today();
+    m_client->fetchSalesBetween(shoptime::dayStartUtc(today.addDays(-6)), shoptime::dayStartUtc(today.addDays(1)),
                                 [self = QPointer<OverviewPage>(this)](const QVector<SaleSummary> &sales,
                                                                      const QString &error) {
         if (!self) return; // signed out while the request was in flight
@@ -266,7 +267,7 @@ void OverviewPage::reload() {
 }
 
 void OverviewPage::applySales(const QVector<SaleSummary> &sales) {
-    const QDate today = QDate::currentDate();
+    const QDate today = shoptime::today();
     QMap<QDate, double> revenueByDay;
     double todayRevenue = 0;
     int todaySales = 0;
@@ -280,7 +281,7 @@ void OverviewPage::applySales(const QVector<SaleSummary> &sales) {
     QMap<QString, ProductTotals> byProduct;
 
     for (const SaleSummary &sale : sales) {
-        const QDate day = QDate::fromString(sale.soldAt.left(10), Qt::ISODate);
+        const QDate day = shoptime::dayOf(sale.soldAt);
         revenueByDay[day] += sale.total;
         weekRevenue += sale.total;
         const bool isToday = day == today;

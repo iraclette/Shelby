@@ -23,6 +23,7 @@ qt_add_executable(ShopConsole WIN32
     src/OverviewPage.cpp
     src/OnlineOrdersPage.h
     src/OnlineOrdersPage.cpp
+    src/ShopTime.h
     src/ApplicationsPage.h
     src/ApplicationsPage.cpp
     src/FlowLayout.h

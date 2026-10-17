@@ -1,4 +1,5 @@
 #include "OnlineOrdersPage.h"
+#include "ShopTime.h"
 
 #include <QComboBox>
 #include <QFrame>
@@ -167,7 +168,7 @@ void OnlineOrdersPage::rebuildTable() {
     m_table->setRowCount(m_visible.size());
     for (int row = 0; row < m_visible.size(); ++row) {
         const OnlineOrder &order = m_orders[m_visible[row]];
-        m_table->setItem(row, 0, new QTableWidgetItem(QString(order.createdAt).replace('T', ' ').left(16)));
+        m_table->setItem(row, 0, new QTableWidgetItem(shoptime::format(order.createdAt, "yyyy-MM-dd HH:mm")));
         m_table->setItem(row, 1, new QTableWidgetItem("#" + shortId(order.id)));
         m_table->setItem(row, 2, new QTableWidgetItem(order.customerName));
         m_table->setItem(row, 3, new QTableWidgetItem(isDelivery(order) ? methodLabel(order) : shopName(order.pickupShopId)));
