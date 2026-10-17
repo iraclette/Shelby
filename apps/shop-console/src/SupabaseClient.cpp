@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -1085,6 +1086,62 @@ void SupabaseClient::fetchCustomLeatherOrders() {
             orders.append(order);
         }
         emit customLeatherOrdersFetched(orders);
+    });
+}
+
+void SupabaseClient::fetchOnlineOrders() {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,customer_name,customer_email,customer_phone,pickup_shop_id,status,total,created_at,"
+                                 "order_items(quantity,unit_price,products(name))");
+    query.addQueryItem("order", "created_at.desc");
+    query.addQueryItem("limit", "300");
+
+    authorizedGet("/rest/v1/orders", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit onlineOrdersFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<OnlineOrder> orders;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            OnlineOrder order;
+            order.id = row.value("id").toString();
+            order.customerName = row.value("customer_name").toString();
+            order.customerEmail = row.value("customer_email").toString();
+            order.customerPhone = row.value("customer_phone").toString();
+            order.pickupShopId = row.value("pickup_shop_id").toString();
+            order.status = row.value("status").toString();
+            order.total = row.value("total").toDouble();
+            order.createdAt = row.value("created_at").toString();
+            for (const QJsonValue &itemValue : row.value("order_items").toArray()) {
+                const QJsonObject item = itemValue.toObject();
+                order.items.append({item.value("products").toObject().value("name").toString(),
+                                    item.value("quantity").toInt(), item.value("unit_price").toDouble()});
+            }
+            orders.append(order);
+        }
+        emit onlineOrdersFetched(orders);
+    });
+}
+
+void SupabaseClient::updateOnlineOrderStatus(const QString &orderId, const QString &status) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + orderId);
+
+    const QJsonObject body{{"status", status},
+                           {"updated_at", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/orders", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit onlineOrderUpdateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit onlineOrderUpdated();
     });
 }
 

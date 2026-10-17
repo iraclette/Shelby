@@ -41,6 +41,7 @@ private:
     QLabel *m_averageSale;
     QLabel *m_weekRevenue;
     QLabel *m_weekSalesCount;
+    QLabel *m_toPrepareCount;
     QLabel *m_unreadCount;
     QLabel *m_newOrdersCount;
     QLabel *m_lowStockCount;

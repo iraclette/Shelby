@@ -21,6 +21,8 @@ qt_add_executable(ShopConsole WIN32
     src/CheckoutPage.cpp
     src/OverviewPage.h
     src/OverviewPage.cpp
+    src/OnlineOrdersPage.h
+    src/OnlineOrdersPage.cpp
     src/FlowLayout.h
     src/FlowLayout.cpp
     src/PosWindow.h
@@ -80,6 +82,7 @@ qt_add_resources(ShopConsole "icons"
         resources/icons/help.svg
         resources/icons/checkout.svg
         resources/icons/overview.svg
+        resources/icons/online-orders.svg
 )
 
 target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network Qt6::Svg)

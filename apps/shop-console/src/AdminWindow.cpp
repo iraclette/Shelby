@@ -7,6 +7,7 @@
 #include "EmployeesPage.h"
 #include "InventoryPage.h"
 #include "MessagesPage.h"
+#include "OnlineOrdersPage.h"
 #include "OverviewPage.h"
 #include "SalaryPage.h"
 #include "SoftwarePage.h"
@@ -234,6 +235,8 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     auto *overviewPage = forwardStatus(new OverviewPage(client, firstName, this));
     QListWidgetItem *overviewItem = addSection("overview", "Overview", overviewPage);
     addGroup("Sales");
+    auto *onlineOrdersPage = forwardStatus(new OnlineOrdersPage(client, this));
+    QListWidgetItem *onlineOrdersItem = addSection("online-orders", "Online Orders", onlineOrdersPage);
     addSection("daily-summary", "Daily Summary", forwardStatus(new DailySummaryPage(client, this)));
     if (profile.isDev) addSection("checkout", "Checkout", new CheckoutPage(client, this));
     addGroup("Catalog");
@@ -268,6 +271,9 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     });
     connect(overviewPage, &OverviewPage::newOrdersChanged, this, [ordersItem](int count) {
         ordersItem->setData(kBadgeRole, count);
+    });
+    connect(onlineOrdersPage, &OnlineOrdersPage::toPrepareChanged, this, [onlineOrdersItem](int count) {
+        onlineOrdersItem->setData(kBadgeRole, count);
     });
 
     auto *central = new QWidget(this);

@@ -67,6 +67,25 @@ struct CustomLeatherOrder {
     QString createdAt;
 };
 
+// A storefront order paid through BOG, picked up at pickupShopId.
+struct OnlineOrderItem {
+    QString productName;
+    int quantity = 0;
+    double unitPrice = 0;
+};
+
+struct OnlineOrder {
+    QString id;
+    QString customerName;
+    QString customerEmail;
+    QString customerPhone;
+    QString pickupShopId;
+    QString status; // pending/paid/failed/fulfilled/cancelled
+    double total = 0;
+    QString createdAt;
+    QVector<OnlineOrderItem> items;
+};
+
 // A Contact Us submission from the storefront's /contact form.
 struct ContactMessage {
     QString id;
@@ -219,6 +238,9 @@ public:
 
     // Admin-only per custom_leather_orders' RLS policy (mirrors salary_payments).
     void fetchCustomLeatherOrders();
+
+    void fetchOnlineOrders();
+    void updateOnlineOrderStatus(const QString &orderId, const QString &status);
     // field must be one of custom_leather_orders' own column names
     // (currently just status).
     void updateCustomLeatherOrderField(const QString &orderId, const QString &field, const QJsonValue &value);
@@ -323,6 +345,10 @@ signals:
     void categoryUpdateFailed(const QString &message);
 
     void customLeatherOrdersFetched(const QVector<CustomLeatherOrder> &orders);
+    void onlineOrdersFetched(const QVector<OnlineOrder> &orders);
+    void onlineOrdersFetchFailed(const QString &message);
+    void onlineOrderUpdated();
+    void onlineOrderUpdateFailed(const QString &message);
     void customLeatherOrdersFetchFailed(const QString &message);
     void customLeatherOrderUpdated();
     void customLeatherOrderUpdateFailed(const QString &message);

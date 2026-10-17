@@ -184,6 +184,7 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
         attentionCard->addWidget(row);
         connect(row, &QPushButton::clicked, this, [this, section]() { emit openSection(section); });
     };
+    addAttention("Online orders", "Online Orders", m_toPrepareCount);
     addAttention("Messages", "Messages", m_unreadCount);
     addAttention("Custom orders", "Custom Orders", m_newOrdersCount);
     addAttention("Low stock", "Inventory", m_lowStockCount);
@@ -212,6 +213,7 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
         m_client->fetchProducts();
         m_client->fetchContactMessages();
         m_client->fetchCustomLeatherOrders();
+        m_client->fetchOnlineOrders();
     });
 
     // These lists are shared with their own pages, so whichever page loads
@@ -223,6 +225,11 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
     connect(m_client, &SupabaseClient::shopsFetched, this, [this](const QVector<Shop> &shops) {
         m_shops = shops;
         rebuildStock();
+    });
+    connect(m_client, &SupabaseClient::onlineOrdersFetched, this, [this](const QVector<OnlineOrder> &orders) {
+        setAttentionCount(m_toPrepareCount,
+                          std::count_if(orders.begin(), orders.end(),
+                                        [](const OnlineOrder &order) { return order.status == "paid"; }));
     });
     connect(m_client, &SupabaseClient::contactMessagesFetched, this, [this](const QVector<ContactMessage> &messages) {
         const int unread = std::count_if(messages.begin(), messages.end(),
