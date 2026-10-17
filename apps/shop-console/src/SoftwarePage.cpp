@@ -3,7 +3,9 @@
 
 #include <QGroupBox>
 #include <QPushButton>
+#include <QHBoxLayout>
 #include <QLabel>
+#include <QTime>
 #include <QVBoxLayout>
 
 SoftwarePage::SoftwarePage(UpdateChecker *updateChecker, QWidget *parent)
@@ -22,14 +24,28 @@ SoftwarePage::SoftwarePage(UpdateChecker *updateChecker, QWidget *parent)
     m_updateButton->setObjectName("primaryButton");
     m_updateButton->hide();
 
+    // The app checks at launch and sign-in only; this re-checks without relaunching.
+    m_checkButton = new QPushButton("Check for updates", group);
+
     groupLayout->addWidget(m_versionLabel);
     groupLayout->addWidget(m_statusLabel);
-    groupLayout->addWidget(m_updateButton);
+    auto *buttonsRow = new QHBoxLayout;
+    buttonsRow->addWidget(m_updateButton);
+    buttonsRow->addWidget(m_checkButton);
+    buttonsRow->addStretch();
+    groupLayout->addLayout(buttonsRow);
 
     auto *layout = new QVBoxLayout(this);
     layout->addWidget(group);
     layout->addStretch();
 
+    connect(m_checkButton, &QPushButton::clicked, this, [this]() {
+        m_checkButton->setEnabled(false);
+        m_checkButton->setText("Checking…");
+        m_statusLabel->setStyleSheet("color: #9aa0ac;");
+        m_statusLabel->setText("Checking for updates…");
+        m_updateChecker->checkForUpdate();
+    });
     connect(m_updateButton, &QPushButton::clicked, this, [this]() {
         m_updateButton->setEnabled(false);
         m_updateButton->setText("Updating…");
@@ -49,6 +65,9 @@ SoftwarePage::SoftwarePage(UpdateChecker *updateChecker, QWidget *parent)
 void SoftwarePage::reportUpdateCheckResult(bool ok, bool isNewer, const QString &version, const QString &releaseUrl,
                                             const QString &assetUrl, const QString &errorMessage) {
     m_pendingAssetUrl = assetUrl;
+    m_checkButton->setEnabled(true);
+    m_checkButton->setText("Check for updates");
+    const QString checkedAt = QTime::currentTime().toString("HH:mm");
     m_versionLabel->setText(m_updateChecker->includesPrereleases()
                                 ? QString("Version %1  ·  dev channel (pre-releases)").arg(QStringLiteral(APP_VERSION))
                                 : QString("Version %1").arg(QStringLiteral(APP_VERSION)));
@@ -73,7 +92,7 @@ void SoftwarePage::reportUpdateCheckResult(bool ok, bool isNewer, const QString 
         }
     } else {
         m_statusLabel->setStyleSheet("color: #737373;");
-        m_statusLabel->setText(QString("Up to date (v%1).").arg(version));
+        m_statusLabel->setText(QString("Up to date (v%1) · checked at %2.").arg(version, checkedAt));
         m_updateButton->hide();
     }
 }

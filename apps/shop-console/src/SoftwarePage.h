@@ -23,4 +23,5 @@ private:
     QLabel *m_versionLabel;
     QLabel *m_statusLabel;
     QPushButton *m_updateButton;
+    QPushButton *m_checkButton;
 };

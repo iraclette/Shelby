@@ -16,6 +16,7 @@ class UpdateChecker : public QObject {
 public:
     explicit UpdateChecker(QObject *parent = nullptr);
 
+    // No-op while an update is downloading, so a re-check can't reset the "Updating…" button.
     void checkForUpdate();
 
     // Dev accounts (profiles.is_dev) also get offered pre-releases (vX.Y.Z-rcN tags).
@@ -44,6 +45,7 @@ private:
 
     QNetworkAccessManager *m_network;
     bool m_includePrereleases = false;
+    bool m_installing = false;
     // Bumped per check, so a slower earlier reply can't overwrite a newer one's result.
     int m_checkGeneration = 0;
 };

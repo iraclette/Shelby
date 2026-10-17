@@ -79,6 +79,7 @@ UpdateChecker::UpdateChecker(QObject *parent)
 }
 
 void UpdateChecker::checkForUpdate() {
+    if (m_installing) return;
     ++m_checkGeneration;
     if (m_includePrereleases) {
         checkLatestIncludingPrereleases();
@@ -207,7 +208,9 @@ void UpdateChecker::reportTag(const QString &tag) {
 }
 
 void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
+    m_installing = true;
     if (assetUrl.isEmpty()) {
+        m_installing = false;
         emit installFailed("This release has no downloadable build attached.");
         return;
     }
@@ -235,6 +238,7 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
             } else if (status > 0) {
                 message = QString("GitHub returned HTTP %1").arg(status);
             }
+            m_installing = false;
             emit installFailed("Download failed: " + message);
             return;
         }
@@ -243,6 +247,7 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
         const QString setupPath = tempDir + "/ShopConsole-Setup.exe";
         QFile setupFile(setupPath);
         if (!setupFile.open(QIODevice::WriteOnly) || setupFile.write(reply->readAll()) < 0) {
+            m_installing = false;
             emit installFailed("Couldn't save the downloaded update to disk.");
             return;
         }
@@ -258,6 +263,7 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
              "/LOG=" + QDir::toNativeSeparators(tempDir + "/ShopConsole-update.log")});
 
         if (!started) {
+            m_installing = false;
             emit installFailed("Couldn't start the installer.");
             return;
         }
