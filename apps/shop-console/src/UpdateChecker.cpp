@@ -9,6 +9,7 @@
 #include <QProcess>
 #include <QStandardPaths>
 #include <QVector>
+#include <algorithm>
 #include <QXmlStreamReader>
 
 namespace {
@@ -135,9 +136,8 @@ void UpdateChecker::checkLatestIncludingPrereleases() {
             return;
         }
 
-        // Each <entry> has <link href=".../releases/tag/vX.Y.Z[-rcN]"/>; take the highest.
-        QString bestTag;
-        Version best;
+        // Each <entry> has <link href=".../releases/tag/vX.Y.Z[-rcN]"/>.
+        QVector<QPair<Version, QString>> tags;
         QXmlStreamReader xml(reply->readAll());
         while (!xml.atEnd()) {
             if (xml.readNext() == QXmlStreamReader::StartElement && xml.name() == QLatin1String("link")) {
@@ -145,18 +145,48 @@ void UpdateChecker::checkLatestIncludingPrereleases() {
                 const int markerIndex = href.indexOf(kTagMarker);
                 Version version;
                 const QString tag = markerIndex < 0 ? QString() : href.mid(markerIndex + kTagMarker.size());
-                if (!tag.isEmpty() && parseVersion(tag, version) && (bestTag.isEmpty() || isNewer(version, best))) {
-                    bestTag = tag;
-                    best = version;
-                }
+                if (!tag.isEmpty() && parseVersion(tag, version)) tags.append({version, tag});
             }
         }
 
-        if (bestTag.isEmpty()) {
+        if (tags.isEmpty()) {
             emit checkFinished(false, false, {}, {}, {}, "GitHub's releases feed didn't list any releases.");
             return;
         }
-        reportTag(bestTag);
+        std::sort(tags.begin(), tags.end(), [](const auto &a, const auto &b) { return isNewer(a.first, b.first); });
+        QStringList newestFirst;
+        for (const auto &entry : tags) newestFirst.append(entry.second);
+        reportFirstPublished(newestFirst, generation);
+    });
+}
+
+void UpdateChecker::reportFirstPublished(const QStringList &tags, int generation) {
+    const QString tag = tags.first();
+    Version candidate;
+    Version current;
+    // Nothing newer than what's running: no need to probe, it's "up to date".
+    if (tags.size() == 1 || !parseVersion(tag, candidate) || !parseVersion(QStringLiteral(APP_VERSION), current)
+        || !isNewer(candidate, current)) {
+        reportTag(tag);
+        return;
+    }
+
+    // The download link redirects to storage once the build has attached the
+    // installer, and is a 404 until then.
+    QNetworkRequest request(
+        QUrl(QString("https://github.com/iraclette/Shelby/releases/download/%1/ShopConsole-Setup.exe").arg(tag)));
+    request.setRawHeader("User-Agent", "ShopConsole-UpdateChecker");
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    QNetworkReply *reply = m_network->head(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, tags, generation]() {
+        reply->deleteLater();
+        if (generation != m_checkGeneration) return;
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status == 404) {
+            reportFirstPublished(tags.mid(1), generation); // still building — try the next one down
+        } else {
+            reportTag(tags.first()); // published, or the probe itself failed: let the download say why
+        }
     });
 }
 
@@ -195,7 +225,17 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
-            emit installFailed("Download failed: " + reply->errorString());
+            // Over HTTP/2 GitHub sends no reason phrase, which leaves Qt's
+            // message as a bare "server replied:" — so name the status ourselves.
+            const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            QString message = reply->errorString();
+            if (status == 404) {
+                message = "the installer isn't on GitHub yet (HTTP 404) — the release may still be building, "
+                          "try again in a few minutes";
+            } else if (status > 0) {
+                message = QString("GitHub returned HTTP %1").arg(status);
+            }
+            emit installFailed("Download failed: " + message);
             return;
         }
 

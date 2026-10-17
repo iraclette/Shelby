@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -35,6 +36,9 @@ signals:
 private:
     void checkLatestStable();
     void checkLatestIncludingPrereleases();
+    // tags sorted newest first: offers the newest one whose installer is
+    // already downloadable (a tag shows up in the feed before its build finishes).
+    void reportFirstPublished(const QStringList &tags, int generation);
     // Shared tail of both checks: tag "v1.2.3" (or "v1.2.3-rc1") -> checkFinished.
     void reportTag(const QString &tag);
 
