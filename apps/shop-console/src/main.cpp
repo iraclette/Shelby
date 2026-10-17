@@ -2,6 +2,7 @@
 #include "Config.h"
 #include "LoginWindow.h"
 #include "PosWindow.h"
+#include "SessionStore.h"
 #include "SupabaseClient.h"
 #include "Theme.h"
 #include "UpdateChecker.h"
@@ -65,7 +66,34 @@ int main(int argc, char *argv[]) {
         applyUpdateBanner();
     });
 
-    QObject::connect(updateChecker, &UpdateChecker::installStarting, &app, [&]() { app.quit(); });
+    QObject::connect(updateChecker, &UpdateChecker::installStarting, &app, [&]() {
+        // The installer relaunches the app; hand it the session so nobody re-types the password.
+        if (!client->refreshToken().isEmpty()) {
+            sessionstore::setRefreshToken(client->refreshToken());
+            sessionstore::setResumeAfterUpdate(true);
+        }
+        app.quit();
+    });
+
+    // Refresh tokens are single-use, so keep the saved one current.
+    QObject::connect(client, &SupabaseClient::sessionChanged, &app, [](const QString &refreshToken) {
+        if (sessionstore::staySignedIn()) sessionstore::setRefreshToken(refreshToken);
+    });
+
+    auto backToLogin = [&](const QString &message) {
+        client->signOut();
+        sessionstore::clearSession();
+        if (activeWindow) {
+            activeWindow->close();
+            activeWindow->deleteLater();
+            activeWindow = nullptr;
+        }
+        login->reset(message);
+        login->show();
+    };
+    QObject::connect(client, &SupabaseClient::sessionExpired, &app, [&]() {
+        if (activeWindow) backToLogin("Your session ended. Please sign in again.");
+    });
     QObject::connect(updateChecker, &UpdateChecker::installFailed, &app, [&](const QString &message) {
         QMessageBox::warning(activeWindow, "Update failed", message);
     });
@@ -74,6 +102,8 @@ int main(int argc, char *argv[]) {
                       [&](const Profile &profile) {
         const bool isDev = profile.isDev;
         login->hide();
+        // A session resumed after an update is only kept if "stay signed in" is on.
+        if (!sessionstore::staySignedIn()) sessionstore::clearSession();
 
         // The launch check ran before anyone signed in, so it was stable-only.
         if (updateChecker->includesPrereleases() != isDev) {
@@ -86,22 +116,23 @@ int main(int argc, char *argv[]) {
         if (isAdmin) {
             activeWindow = new AdminWindow(client, updateChecker, profile);
             QObject::connect(static_cast<AdminWindow *>(activeWindow), &AdminWindow::signedOut,
-                              &app, [&]() {
-                activeWindow->close();
-                login->show();
-            });
+                              &app, [&]() { backToLogin({}); });
         } else {
             activeWindow = new PosWindow(client, profile.shopId);
             QObject::connect(static_cast<PosWindow *>(activeWindow), &PosWindow::signedOut,
-                              &app, [&]() {
-                activeWindow->close();
-                login->show();
-            });
+                              &app, [&]() { backToLogin({}); });
         }
         activeWindow->show();
         applyUpdateBanner();
     });
 
     login->show();
+    const QString savedSession = sessionstore::refreshToken();
+    if (!savedSession.isEmpty() && (sessionstore::staySignedIn() || sessionstore::resumeAfterUpdate())) {
+        sessionstore::setResumeAfterUpdate(false); // one go only, even if it fails
+        login->resumeSession(savedSession);
+    } else {
+        sessionstore::clearSession();
+    }
     return app.exec();
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDateTime>
 #include <QJsonValue>
 #include <QMap>
 #include <QObject>
@@ -241,6 +242,11 @@ public:
     SupabaseClient(QString baseUrl, QString anonKey, QObject *parent = nullptr);
 
     void signIn(const QString &email, const QString &password);
+    // Signs in with a saved refresh token instead of a password ("stay signed in", relaunch after an update).
+    void restoreSession(const QString &refreshToken);
+    // Revokes the session on the server and forgets it locally.
+    void signOut();
+    QString refreshToken() const { return m_refreshToken; }
     void fetchProfile(const QString &userId);
 
     void fetchProducts();
@@ -347,6 +353,10 @@ public:
 signals:
     void signInSucceeded(const QString &userId);
     void signInFailed(const QString &message);
+    // New tokens after sign-in or a refresh. Refresh tokens are single-use, so a saved one must be replaced.
+    void sessionChanged(const QString &refreshToken);
+    // The server rejected the refresh token (revoked, or the account was removed): sign in again.
+    void sessionExpired();
     void profileFetched(const Profile &profile);
     void profileFetchFailed(const QString &message);
 
@@ -458,7 +468,18 @@ private:
     QString m_baseUrl;
     QString m_anonKey;
     QString m_accessToken;
+    QString m_refreshToken;
+    QDateTime m_accessTokenExpiresAt;
     QString m_userId;
+
+    // Access tokens last about an hour, while a POS stays open all day. Every request
+    // waits here until the token is fresh, refreshing first when it's about to expire.
+    bool m_refreshing = false;
+    QVector<std::function<void()>> m_waitingForToken;
+    void withFreshToken(std::function<void()> send);
+    void refreshAccessToken();
+    void requestTokens(const QString &grantType, const QJsonObject &body);
+    bool storeTokens(const QByteArray &data);
 
     QVector<QueuedSale> m_pendingSales;
     bool m_flushingPendingSales = false;

@@ -1,6 +1,9 @@
 #include "LoginWindow.h"
+#include "SessionStore.h"
 #include "SupabaseClient.h"
 
+#include <QAction>
+#include <QCheckBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -32,10 +35,23 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     auto *formPanel = new QWidget(this);
     m_email = new QLineEdit(formPanel);
     m_email->setPlaceholderText("Username");
+    m_email->setText(sessionstore::lastUsername());
 
     m_password = new QLineEdit(formPanel);
     m_password->setPlaceholderText("Password");
     m_password->setEchoMode(QLineEdit::Password);
+    auto *showPassword = m_password->addAction(QIcon(":/icons/eye.svg"), QLineEdit::TrailingPosition);
+    showPassword->setToolTip("Show password");
+    connect(showPassword, &QAction::triggered, this, [this, showPassword]() {
+        const bool hidden = m_password->echoMode() == QLineEdit::Password;
+        m_password->setEchoMode(hidden ? QLineEdit::Normal : QLineEdit::Password);
+        showPassword->setIcon(QIcon(hidden ? ":/icons/eye-off.svg" : ":/icons/eye.svg"));
+        showPassword->setToolTip(hidden ? "Hide password" : "Show password");
+    });
+
+    // Off by default: on a shared till, the next person would otherwise ring up sales as you.
+    m_staySignedIn = new QCheckBox("Stay signed in on this computer", formPanel);
+    m_staySignedIn->setChecked(sessionstore::staySignedIn());
 
     m_signInButton = new QPushButton("Sign in", formPanel);
     m_signInButton->setObjectName("primaryButton");
@@ -50,6 +66,7 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     formLayout->addWidget(m_errorLabel);
     formLayout->addWidget(m_email);
     formLayout->addWidget(m_password);
+    formLayout->addWidget(m_staySignedIn);
     formLayout->addWidget(m_signInButton);
     formLayout->addStretch();
 
@@ -63,7 +80,14 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     connect(m_password, &QLineEdit::returnPressed, this, &LoginWindow::handleSignIn);
 
     connect(m_client, &SupabaseClient::signInFailed, this, [this](const QString &message) {
-        m_signInButton->setEnabled(true);
+        if (!isVisible()) return; // a background refresh, not this form
+        setBusy(false);
+        if (m_resuming) {
+            m_resuming = false;
+            sessionstore::clearSession();
+            m_errorLabel->setText("Please sign in again.");
+            return;
+        }
         m_errorLabel->setText(message);
     });
 
@@ -72,18 +96,52 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     });
 
     connect(m_client, &SupabaseClient::profileFetchFailed, this, [this](const QString &message) {
-        m_signInButton->setEnabled(true);
+        setBusy(false);
+        m_resuming = false;
         m_errorLabel->setText(message);
     });
 
     connect(m_client, &SupabaseClient::profileFetched, this, [this](const Profile &profile) {
+        m_resuming = false;
+        setBusy(false);
+        m_password->clear();
         emit authenticated(profile);
     });
+
+    // Username remembered: start on the password.
+    if (!m_email->text().isEmpty()) m_password->setFocus();
+}
+
+void LoginWindow::resumeSession(const QString &refreshToken) {
+    m_resuming = true;
+    setBusy(true);
+    m_errorLabel->setText("Signing you back in…");
+    m_client->restoreSession(refreshToken);
+}
+
+void LoginWindow::reset(const QString &message) {
+    m_resuming = false;
+    setBusy(false);
+    m_password->clear();
+    m_errorLabel->setText(message);
+    m_password->setFocus();
+}
+
+void LoginWindow::setBusy(bool busy) {
+    m_signInButton->setEnabled(!busy);
+    m_email->setEnabled(!busy);
+    m_password->setEnabled(!busy);
+    m_staySignedIn->setEnabled(!busy);
 }
 
 void LoginWindow::handleSignIn() {
+    if (!m_signInButton->isEnabled()) return; // already signing in
     m_errorLabel->clear();
-    m_signInButton->setEnabled(false);
+    setBusy(true);
+
+    sessionstore::setLastUsername(m_email->text().trimmed());
+    sessionstore::setStaySignedIn(m_staySignedIn->isChecked());
+    if (!m_staySignedIn->isChecked()) sessionstore::clearSession();
 
     // Usernames without an "@" get a fixed fake domain, e.g. shelby@shop.local.
     QString identifier = m_email->text().trimmed();

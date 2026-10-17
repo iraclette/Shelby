@@ -24,6 +24,8 @@ qt_add_executable(ShopConsole WIN32
     src/OnlineOrdersPage.h
     src/OnlineOrdersPage.cpp
     src/ShopTime.h
+    src/SessionStore.h
+    src/SessionStore.cpp
     src/ApplicationsPage.h
     src/ApplicationsPage.cpp
     src/FlowLayout.h
@@ -87,9 +89,14 @@ qt_add_resources(ShopConsole "icons"
         resources/icons/overview.svg
         resources/icons/online-orders.svg
         resources/icons/applications.svg
+        resources/icons/eye.svg
+        resources/icons/eye-off.svg
 )
 
 target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network Qt6::Svg)
+if(WIN32)
+    target_link_libraries(ShopConsole PRIVATE crypt32) # DPAPI for the saved session (SessionStore)
+endif()
 # Publishable key only, never the secret key (it bypasses RLS). Empty = read .env.
 set(BUILTIN_SUPABASE_URL "" CACHE STRING "Supabase URL compiled into the app")
 set(BUILTIN_SUPABASE_ANON_KEY "" CACHE STRING "Supabase publishable (anon) key compiled into the app")

@@ -16,6 +16,8 @@
 #include <QUrlQuery>
 #include <QUuid>
 
+#include <utility>
+
 SupabaseClient::SupabaseClient(QString baseUrl, QString anonKey, QObject *parent)
     : QObject(parent)
     , m_network(new QNetworkAccessManager(this))
@@ -87,55 +89,115 @@ static QVector<SaleSummary> parseSaleSummaries(const QByteArray &data) {
     return sales;
 }
 
+void SupabaseClient::withFreshToken(std::function<void()> send) {
+    const bool fresh = m_refreshToken.isEmpty()
+                       || QDateTime::currentDateTimeUtc().secsTo(m_accessTokenExpiresAt) > 60;
+    if (fresh) {
+        send();
+        return;
+    }
+    m_waitingForToken.append(std::move(send));
+    refreshAccessToken();
+}
+
+void SupabaseClient::refreshAccessToken() {
+    if (m_refreshing) return;
+    m_refreshing = true;
+
+    QUrl url(m_baseUrl + "/auth/v1/token");
+    url.setQuery(QUrlQuery{{"grant_type", "refresh_token"}});
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("apikey", m_anonKey.toUtf8());
+
+    QNetworkReply *reply = m_network->post(request, QJsonDocument(QJsonObject{{"refresh_token", m_refreshToken}}).toJson());
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        const QByteArray data = reply->readAll();
+        m_refreshing = false;
+
+        if (reply->error() == QNetworkReply::NoError && storeTokens(data)) {
+            emit sessionChanged(m_refreshToken);
+        } else if (!isNetworkLayerError(reply->error())) {
+            emit sessionExpired();
+        }
+        // Offline: send anyway with the old token; sales fail as network errors and go to the offline queue.
+        const auto waiting = std::exchange(m_waitingForToken, {});
+        for (const auto &send : waiting) send();
+    });
+}
+
+bool SupabaseClient::storeTokens(const QByteArray &data) {
+    const QJsonObject obj = QJsonDocument::fromJson(data).object();
+    const QString accessToken = obj.value("access_token").toString();
+    const QString refreshToken = obj.value("refresh_token").toString();
+    const QString userId = obj.value("user").toObject().value("id").toString();
+    if (accessToken.isEmpty() || refreshToken.isEmpty() || userId.isEmpty()) return false;
+
+    m_accessToken = accessToken;
+    m_refreshToken = refreshToken;
+    m_userId = userId;
+    m_accessTokenExpiresAt = QDateTime::currentDateTimeUtc().addSecs(obj.value("expires_in").toInt(3600));
+    return true;
+}
+
 void SupabaseClient::authorizedGet(const QString &path, const QUrlQuery &query,
                                     const std::function<void(QNetworkReply *)> &onFinished) {
-    QUrl url(m_baseUrl + path);
-    url.setQuery(query);
+    withFreshToken([this, path, query, onFinished]() {
+        QUrl url(m_baseUrl + path);
+        url.setQuery(query);
 
-    QNetworkRequest request(url);
-    request.setRawHeader("apikey", m_anonKey.toUtf8());
-    request.setRawHeader("Authorization", ("Bearer " + m_accessToken).toUtf8());
+        QNetworkRequest request(url);
+        request.setRawHeader("apikey", m_anonKey.toUtf8());
+        request.setRawHeader("Authorization", ("Bearer " + m_accessToken).toUtf8());
 
-    QNetworkReply *reply = m_network->get(request);
-    connect(reply, &QNetworkReply::finished, this, [reply, onFinished]() {
-        reply->deleteLater();
-        onFinished(reply);
+        QNetworkReply *reply = m_network->get(request);
+        connect(reply, &QNetworkReply::finished, this, [reply, onFinished]() {
+            reply->deleteLater();
+            onFinished(reply);
+        });
     });
 }
 
 void SupabaseClient::authorizedWrite(const QByteArray &verb, const QString &path, const QUrlQuery &query,
                                       const QByteArray &body, const QMap<QByteArray, QByteArray> &extraHeaders,
                                       const std::function<void(QNetworkReply *)> &onFinished) {
-    QUrl url(m_baseUrl + path);
-    if (!query.isEmpty()) url.setQuery(query);
+    withFreshToken([this, verb, path, query, body, extraHeaders, onFinished]() {
+        QUrl url(m_baseUrl + path);
+        if (!query.isEmpty()) url.setQuery(query);
 
-    QNetworkRequest request(url);
-    request.setRawHeader("apikey", m_anonKey.toUtf8());
-    request.setRawHeader("Authorization", ("Bearer " + m_accessToken).toUtf8());
-    for (auto it = extraHeaders.constBegin(); it != extraHeaders.constEnd(); ++it) {
-        request.setRawHeader(it.key(), it.value());
-    }
+        QNetworkRequest request(url);
+        request.setRawHeader("apikey", m_anonKey.toUtf8());
+        request.setRawHeader("Authorization", ("Bearer " + m_accessToken).toUtf8());
+        for (auto it = extraHeaders.constBegin(); it != extraHeaders.constEnd(); ++it) {
+            request.setRawHeader(it.key(), it.value());
+        }
 
-    QNetworkReply *reply = m_network->sendCustomRequest(request, verb, body);
-    connect(reply, &QNetworkReply::finished, this, [reply, onFinished]() {
-        reply->deleteLater();
-        onFinished(reply);
+        QNetworkReply *reply = m_network->sendCustomRequest(request, verb, body);
+        connect(reply, &QNetworkReply::finished, this, [reply, onFinished]() {
+            reply->deleteLater();
+            onFinished(reply);
+        });
     });
 }
 
 void SupabaseClient::signIn(const QString &email, const QString &password) {
+    requestTokens("password", QJsonObject{{"email", email}, {"password", password}});
+}
+
+void SupabaseClient::restoreSession(const QString &refreshToken) {
+    requestTokens("refresh_token", QJsonObject{{"refresh_token", refreshToken}});
+}
+
+void SupabaseClient::requestTokens(const QString &grantType, const QJsonObject &body) {
     QUrl url(m_baseUrl + "/auth/v1/token");
-    QUrlQuery query;
-    query.addQueryItem("grant_type", "password");
-    url.setQuery(query);
+    url.setQuery(QUrlQuery{{"grant_type", grantType}});
 
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("apikey", m_anonKey.toUtf8());
 
-    const QJsonObject body{{"email", email}, {"password", password}};
     QNetworkReply *reply = m_network->post(request, QJsonDocument(body).toJson());
-
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
         const QByteArray data = reply->readAll();
@@ -144,18 +206,29 @@ void SupabaseClient::signIn(const QString &email, const QString &password) {
             emit signInFailed(extractErrorMessage(data, reply->errorString()));
             return;
         }
-
-        const QJsonObject obj = QJsonDocument::fromJson(data).object();
-        m_accessToken = obj.value("access_token").toString();
-        m_userId = obj.value("user").toObject().value("id").toString();
-
-        if (m_accessToken.isEmpty() || m_userId.isEmpty()) {
+        if (!storeTokens(data)) {
             emit signInFailed("Unexpected response from Supabase Auth.");
             return;
         }
 
+        emit sessionChanged(m_refreshToken);
         emit signInSucceeded(m_userId);
     });
+}
+
+void SupabaseClient::signOut() {
+    if (!m_accessToken.isEmpty()) {
+        // Best-effort revoke so a saved refresh token can't be reused; the local session goes either way.
+        QNetworkRequest request(QUrl(m_baseUrl + "/auth/v1/logout"));
+        request.setRawHeader("apikey", m_anonKey.toUtf8());
+        request.setRawHeader("Authorization", ("Bearer " + m_accessToken).toUtf8());
+        QNetworkReply *reply = m_network->post(request, QByteArray());
+        connect(reply, &QNetworkReply::finished, reply, &QObject::deleteLater);
+    }
+    m_accessToken.clear();
+    m_refreshToken.clear();
+    m_userId.clear();
+    m_accessTokenExpiresAt = {};
 }
 
 void SupabaseClient::fetchProfile(const QString &userId) {
