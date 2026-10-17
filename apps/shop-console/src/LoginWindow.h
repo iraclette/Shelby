@@ -15,7 +15,7 @@ public:
 
 signals:
     // Emitted once sign-in succeeds and the caller's role has been resolved.
-    void authenticated(const QString &role, const QString &shopId);
+    void authenticated(const QString &role, const QString &shopId, bool isDev);
 
 private:
     void handleSignIn();

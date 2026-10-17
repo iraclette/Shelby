@@ -2,20 +2,25 @@
 #include "DiscountDialog.h"
 #include "FlowLayout.h"
 #include "HeldSalesDialog.h"
+#include "PaymentDialog.h"
 #include "ReturnDialog.h"
 
 #include <QAction>
 #include <QButtonGroup>
 #include <QFont>
 #include <QFontMetrics>
+#include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QShortcut>
 #include <QStatusBar>
 #include <QTableWidget>
 #include <QTableWidgetItem>
@@ -27,6 +32,12 @@
 namespace {
 constexpr int kTileColumns = 4;
 
+// One accent per category, cycled — the tile's top stripe, so a cashier can
+// find a category's products by colour at a glance, like Aronium's coloured buttons.
+const char *const kCategoryColors[] = {
+    "#4f8cff", "#22c55e", "#f59e0b", "#ec4899", "#a855f7", "#14b8a6", "#ef4444", "#eab308",
+};
+
 // Removes and deletes every item (and its widget, if any) from a layout —
 // Qt has no one-line "clear" for this.
 void clearLayout(QLayout *layout) {
@@ -36,6 +47,18 @@ void clearLayout(QLayout *layout) {
         delete item;
     }
 }
+
+QString money(double amount) {
+    return QString("GEL %1").arg(amount, 0, 'f', 2);
+}
+
+// A label that lets clicks fall through to the tile button it sits on.
+QLabel *tileLabel(const QString &text, const char *objectName, QWidget *parent) {
+    auto *label = new QLabel(text, parent);
+    label->setObjectName(objectName);
+    label->setAttribute(Qt::WA_TransparentForMouseEvents);
+    return label;
+}
 } // namespace
 
 PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
@@ -43,7 +66,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     , m_client(client)
     , m_shopId(std::move(shopId)) {
     setWindowTitle("Shop Console — Checkout");
-    resize(1100, 700);
+    resize(1280, 760);
 
     auto *toolbar = addToolBar("main");
     toolbar->setMovable(false);
@@ -52,6 +75,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     toolbar->addWidget(title);
     auto *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    spacer->setStyleSheet("background: transparent;"); // the app-wide QWidget background would show as a box
     toolbar->addWidget(spacer);
     m_pendingBadge = new QLabel(this);
     m_pendingBadge->setStyleSheet("color: #f59e0b; font-weight: 600; padding: 0 8px;");
@@ -62,25 +86,131 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     m_updateBanner->setStyleSheet("padding: 0 8px;");
     m_updateBanner->hide();
     toolbar->addWidget(m_updateBanner);
-    m_heldButton = new QPushButton(this);
-    m_heldButton->hide();
-    toolbar->addWidget(m_heldButton);
-    connect(m_heldButton, &QPushButton::clicked, this, &PosWindow::openHeldSalesDialog);
-    auto *returnsButton = new QPushButton("Returns", this);
+    auto *returnsButton = new QPushButton("Returns  F7", this);
     toolbar->addWidget(returnsButton);
-    connect(returnsButton, &QPushButton::clicked, this, [this]() {
-        ReturnDialog dialog(m_client, m_shopId, this);
-        dialog.exec();
-    });
     auto *signOutButton = new QPushButton("Sign out", this);
     toolbar->addWidget(signOutButton);
     connect(signOutButton, &QPushButton::clicked, this, &PosWindow::signedOut);
 
     auto *central = new QWidget(this);
     auto *rootLayout = new QHBoxLayout(central);
+    rootLayout->setContentsMargins(12, 12, 12, 12);
+    rootLayout->setSpacing(12);
 
-    // --- Left: category chips + product tile grid, like the POS the shops already use ---
+    // --- Left: the receipt — search, lines, line tools, totals, pay ---
+    auto *receiptPanel = new QFrame(this);
+    receiptPanel->setObjectName("posPanel");
+    auto *receiptLayout = new QVBoxLayout(receiptPanel);
+    receiptLayout->setContentsMargins(12, 12, 12, 12);
+    receiptLayout->setSpacing(8);
+
+    // One field for both: a scanner types a barcode and hits Enter, a cashier
+    // types a name and the tiles on the right filter as they go.
+    m_barcodeInput = new QLineEdit(this);
+    m_barcodeInput->setObjectName("posSearch");
+    m_barcodeInput->setPlaceholderText("Scan barcode or search products…  (F3)");
+    m_barcodeInput->setClearButtonEnabled(true);
+    receiptLayout->addWidget(m_barcodeInput);
+
+    m_cartTable = new QTableWidget(this);
+    m_cartTable->setObjectName("receiptTable");
+    m_cartTable->setColumnCount(4);
+    m_cartTable->setHorizontalHeaderLabels({"Product", "Qty", "Price", "Total"});
+    m_cartTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    m_cartTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    m_cartTable->horizontalHeader()->setHighlightSections(false);
+    m_cartTable->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    m_cartTable->verticalHeader()->hide();
+    m_cartTable->verticalHeader()->setDefaultSectionSize(38);
+    m_cartTable->setShowGrid(false);
+    m_cartTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_cartTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_cartTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_cartTable->setAlternatingRowColors(true);
+    // Keyboard focus stays in the search field so a barcode scan always
+    // lands there, even right after the cashier clicked a line.
+    m_cartTable->setFocusPolicy(Qt::NoFocus);
+    receiptLayout->addWidget(m_cartTable, 1);
+
+    auto *lineToolsRow = new QHBoxLayout;
+    lineToolsRow->setSpacing(6);
+    m_minusButton = new QPushButton("−", this);
+    m_plusButton = new QPushButton("+", this);
+    for (QPushButton *button : {m_minusButton, m_plusButton}) {
+        button->setObjectName("stepButton");
+        button->setFixedWidth(44);
+    }
+    m_quantityButton = new QPushButton("Qty  F4", this);
+    m_discountButton = new QPushButton("Discount  F2", this);
+    m_removeButton = new QPushButton("Delete  Del", this);
+    lineToolsRow->addWidget(m_minusButton);
+    lineToolsRow->addWidget(m_plusButton);
+    lineToolsRow->addWidget(m_quantityButton, 1);
+    lineToolsRow->addWidget(m_discountButton, 1);
+    lineToolsRow->addWidget(m_removeButton, 1);
+    receiptLayout->addLayout(lineToolsRow);
+
+    auto *totalsFrame = new QFrame(this);
+    totalsFrame->setObjectName("totalsPanel");
+    auto *totalsLayout = new QVBoxLayout(totalsFrame);
+    totalsLayout->setContentsMargins(12, 10, 12, 10);
+    totalsLayout->setSpacing(4);
+    auto addTotalsRow = [&](const QString &key, QLabel *&valueLabel) {
+        auto *row = new QWidget(this);
+        auto *rowLayout = new QHBoxLayout(row);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        auto *keyLabel = new QLabel(key, this);
+        keyLabel->setObjectName("totalsKey");
+        valueLabel = new QLabel(this);
+        valueLabel->setObjectName("totalsValue");
+        valueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        rowLayout->addWidget(keyLabel);
+        rowLayout->addWidget(valueLabel, 1);
+        totalsLayout->addWidget(row);
+        return row;
+    };
+    addTotalsRow("Items", m_itemsCountLabel);
+    addTotalsRow("Subtotal", m_subtotalLabel);
+    m_savingsRow = addTotalsRow("Discount", m_savingsLabel);
+    m_savingsLabel->setStyleSheet("color: #22c55e;");
+
+    auto *totalRow = new QHBoxLayout;
+    auto *totalKey = new QLabel("TOTAL", this);
+    totalKey->setObjectName("totalKey");
+    m_totalLabel = new QLabel(this);
+    m_totalLabel->setObjectName("totalValue");
+    m_totalLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    totalRow->addWidget(totalKey, 0, Qt::AlignBottom);
+    totalRow->addWidget(m_totalLabel, 1);
+    totalsLayout->addLayout(totalRow);
+    receiptLayout->addWidget(totalsFrame);
+
+    m_statusLabel = new QLabel(this);
+    m_statusLabel->setWordWrap(true);
+    m_statusLabel->hide();
+    receiptLayout->addWidget(m_statusLabel);
+
+    auto *saleButtonsRow = new QHBoxLayout;
+    saleButtonsRow->setSpacing(6);
+    m_holdButton = new QPushButton("Hold  F9", this);
+    m_heldButton = new QPushButton(this);
+    m_voidButton = new QPushButton("Void  F8", this);
+    m_voidButton->setObjectName("dangerButton");
+    saleButtonsRow->addWidget(m_holdButton, 1);
+    saleButtonsRow->addWidget(m_heldButton, 1);
+    saleButtonsRow->addWidget(m_voidButton, 1);
+    receiptLayout->addLayout(saleButtonsRow);
+
+    m_completeSaleButton = new QPushButton("Pay  F12", this);
+    m_completeSaleButton->setObjectName("payButton");
+    m_completeSaleButton->setMinimumHeight(56);
+    receiptLayout->addWidget(m_completeSaleButton);
+
+    rootLayout->addWidget(receiptPanel, 2);
+
+    // --- Right: category chips + product tile grid ---
     auto *browseLayout = new QVBoxLayout;
+    browseLayout->setSpacing(10);
 
     m_categoryButtonGroup = new QButtonGroup(this);
     m_categoryButtonGroup->setExclusive(true);
@@ -93,74 +223,88 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
 
     auto *gridContainer = new QWidget(this);
     m_productGridLayout = new QGridLayout(gridContainer);
-    m_productGridLayout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    m_productGridLayout->setAlignment(Qt::AlignTop);
+    m_productGridLayout->setContentsMargins(0, 0, 4, 0);
+    m_productGridLayout->setSpacing(8);
+    // Equal columns even when a search leaves fewer tiles than a full row.
+    for (int column = 0; column < kTileColumns; ++column) m_productGridLayout->setColumnStretch(column, 1);
     auto *gridScroll = new QScrollArea(this);
     gridScroll->setWidget(gridContainer);
     gridScroll->setWidgetResizable(true);
     browseLayout->addWidget(gridScroll, 1);
 
-    rootLayout->addLayout(browseLayout, 2);
-
-    // --- Right: barcode fallback + cart + total ---
-    auto *cartLayout = new QVBoxLayout;
-
-    auto *barcodeRow = new QHBoxLayout;
-    barcodeRow->addWidget(new QLabel("Scan barcode:", this));
-    m_barcodeInput = new QLineEdit(this);
-    m_barcodeInput->setPlaceholderText("Barcode / SKU");
-    barcodeRow->addWidget(m_barcodeInput, 1);
-    cartLayout->addLayout(barcodeRow);
-
-    m_cartTable = new QTableWidget(this);
-    m_cartTable->setColumnCount(5);
-    m_cartTable->setHorizontalHeaderLabels({"Product", "Qty", "Unit price", "Line total", ""});
-    m_cartTable->horizontalHeader()->setStretchLastSection(true);
-    m_cartTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_cartTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_cartTable->setAlternatingRowColors(true);
-    cartLayout->addWidget(m_cartTable, 1);
-
-    auto *cartButtonsRow = new QHBoxLayout;
-    auto *removeButton = new QPushButton("Remove selected", this);
-    cartButtonsRow->addWidget(removeButton);
-    m_holdButton = new QPushButton("Hold", this);
-    m_holdButton->setEnabled(false);
-    cartButtonsRow->addWidget(m_holdButton);
-    cartButtonsRow->addStretch();
-    cartLayout->addLayout(cartButtonsRow);
-
-    m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet("color: #ef4444;");
-    m_statusLabel->setWordWrap(true);
-    cartLayout->addWidget(m_statusLabel);
-
-    m_totalLabel = new QLabel("Total: GEL 0.00", this);
-    m_totalLabel->setStyleSheet("font-size: 18px; font-weight: 600;");
-    cartLayout->addWidget(m_totalLabel);
-
-    m_completeSaleButton = new QPushButton("Complete sale", this);
-    m_completeSaleButton->setObjectName("primaryButton");
-    m_completeSaleButton->setMinimumHeight(40);
-    cartLayout->addWidget(m_completeSaleButton);
-
-    rootLayout->addLayout(cartLayout, 1);
+    rootLayout->addLayout(browseLayout, 3);
 
     setCentralWidget(central);
 
     connect(m_barcodeInput, &QLineEdit::returnPressed, this, &PosWindow::handleBarcodeEntered);
-    connect(removeButton, &QPushButton::clicked, this, &PosWindow::removeSelectedLine);
+    connect(m_barcodeInput, &QLineEdit::textChanged, this, &PosWindow::rebuildProductGrid);
+    connect(m_cartTable, &QTableWidget::itemSelectionChanged, this, &PosWindow::updateLineButtons);
+    connect(m_cartTable, &QTableWidget::cellDoubleClicked, this, &PosWindow::promptForQuantity);
+    connect(m_minusButton, &QPushButton::clicked, this, [this]() { changeSelectedQuantity(-1); });
+    connect(m_plusButton, &QPushButton::clicked, this, [this]() { changeSelectedQuantity(+1); });
+    connect(m_quantityButton, &QPushButton::clicked, this, &PosWindow::promptForQuantity);
+    connect(m_discountButton, &QPushButton::clicked, this, [this]() { openDiscountDialog(selectedRow()); });
+    connect(m_removeButton, &QPushButton::clicked, this, &PosWindow::removeSelectedLine);
     connect(m_holdButton, &QPushButton::clicked, this, &PosWindow::holdCart);
+    connect(m_heldButton, &QPushButton::clicked, this, &PosWindow::openHeldSalesDialog);
+    connect(m_voidButton, &QPushButton::clicked, this, &PosWindow::voidCart);
     connect(m_completeSaleButton, &QPushButton::clicked, this, &PosWindow::completeSale);
+    auto openReturns = [this]() {
+        ReturnDialog dialog(m_client, m_shopId, this);
+        dialog.exec();
+        m_barcodeInput->setFocus();
+    };
+    connect(returnsButton, &QPushButton::clicked, this, openReturns);
+
+    // Function keys, Aronium-style. Buttons carry their key in the label.
+    auto addShortcut = [this](const QKeySequence &key, auto handler) {
+        auto *shortcut = new QShortcut(key, this);
+        connect(shortcut, &QShortcut::activated, this, handler);
+    };
+    addShortcut(Qt::Key_F2, [this]() { m_discountButton->click(); });
+    addShortcut(Qt::Key_F3, [this]() {
+        m_barcodeInput->setFocus();
+        m_barcodeInput->selectAll();
+    });
+    addShortcut(Qt::Key_F4, [this]() { m_quantityButton->click(); });
+    addShortcut(Qt::Key_F7, openReturns);
+    addShortcut(Qt::Key_F8, [this]() { m_voidButton->click(); });
+    addShortcut(Qt::Key_F9, [this]() { m_holdButton->click(); });
+    addShortcut(Qt::Key_F10, [this]() { m_heldButton->click(); });
+    addShortcut(Qt::Key_F12, [this]() { m_completeSaleButton->click(); });
+    addShortcut(Qt::Key_Delete, [this]() {
+        // Focus lives in the search field, so Delete must still edit text there.
+        if (!m_barcodeInput->text().isEmpty()) {
+            m_barcodeInput->del();
+        } else {
+            m_removeButton->click();
+        }
+    });
+    addShortcut(Qt::Key_Escape, [this]() { m_barcodeInput->clear(); });
+    // Up/Down move through the receipt lines without leaving the search field.
+    addShortcut(Qt::Key_Up, [this]() {
+        if (m_cart.isEmpty()) return;
+        m_cartTable->selectRow(qMax(0, selectedRow() < 0 ? m_cart.size() - 1 : selectedRow() - 1));
+    });
+    addShortcut(Qt::Key_Down, [this]() {
+        if (m_cart.isEmpty()) return;
+        m_cartTable->selectRow(qMin(int(m_cart.size()) - 1, selectedRow() + 1));
+    });
+    addShortcut(QKeySequence(Qt::CTRL | Qt::Key_Plus), [this]() { changeSelectedQuantity(+1); });
+    addShortcut(QKeySequence(Qt::CTRL | Qt::Key_Equal), [this]() { changeSelectedQuantity(+1); });
+    addShortcut(QKeySequence(Qt::CTRL | Qt::Key_Minus), [this]() { changeSelectedQuantity(-1); });
 
     connect(m_client, &SupabaseClient::productLookedUp, this, &PosWindow::addToCart);
     connect(m_client, &SupabaseClient::productLookupFailed, this, [this](const QString &message) {
-        m_statusLabel->setText(message);
+        showStatus(message);
         m_barcodeInput->clear();
     });
 
     connect(m_client, &SupabaseClient::categoriesFetched, this, [this](const QVector<Category> &categories) {
         m_categories = categories;
         rebuildCategoryChips();
+        rebuildProductGrid(); // tile colours follow category order
     });
     m_client->fetchCategories();
 
@@ -169,7 +313,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
         rebuildProductGrid();
     });
     connect(m_client, &SupabaseClient::productsFetchFailed, this, [this](const QString &message) {
-        m_statusLabel->setText(message);
+        showStatus(message);
     });
     m_client->fetchProducts();
 
@@ -177,14 +321,12 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
         m_cart.clear();
         refreshCartTable();
         m_completeSaleButton->setEnabled(true);
-        m_statusLabel->setStyleSheet("color: #22c55e;");
-        m_statusLabel->setText("Sale recorded.");
+        showStatus("Sale recorded." + m_lastPaymentNote, "#22c55e");
         m_barcodeInput->setFocus();
     });
     connect(m_client, &SupabaseClient::saleRecordFailed, this, [this](const QString &message) {
         m_completeSaleButton->setEnabled(true);
-        m_statusLabel->setStyleSheet("color: #ef4444;");
-        m_statusLabel->setText(message);
+        showStatus(message);
     });
     connect(m_client, &SupabaseClient::saleQueuedOffline, this, [this](int pendingCount) {
         // Treated like a success from the cashier's point of view — the
@@ -192,10 +334,10 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
         m_cart.clear();
         refreshCartTable();
         m_completeSaleButton->setEnabled(true);
-        m_statusLabel->setStyleSheet("color: #f59e0b;");
-        m_statusLabel->setText(
-            QString("No connection — sale saved offline, will sync automatically (%1 pending).")
-                .arg(pendingCount));
+        showStatus(QString("No connection — sale saved offline, will sync automatically (%1 pending).%2")
+                       .arg(pendingCount)
+                       .arg(m_lastPaymentNote),
+                   "#f59e0b");
         m_barcodeInput->setFocus();
         updatePendingBadge(pendingCount);
     });
@@ -203,6 +345,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
 
     updatePendingBadge(m_client->pendingSalesCount());
     updateHeldButton();
+    refreshCartTable();
 
     auto *syncTimer = new QTimer(this);
     connect(syncTimer, &QTimer::timeout, this, [this]() { m_client->flushPendingSales(); });
@@ -216,6 +359,12 @@ void PosWindow::showUpdateBanner(const QString &version, const QString &releaseU
     m_updateBanner->setText(
         QString("<a href=\"%1\" style=\"color:#4f8cff;\">Update available — v%2</a>").arg(releaseUrl, version));
     m_updateBanner->show();
+}
+
+void PosWindow::showStatus(const QString &message, const QString &color) {
+    m_statusLabel->setStyleSheet(QString("color: %1;").arg(color));
+    m_statusLabel->setText(message);
+    m_statusLabel->setVisible(!message.isEmpty());
 }
 
 void PosWindow::updatePendingBadge(int count) {
@@ -246,6 +395,7 @@ void PosWindow::rebuildCategoryChips() {
         connect(chip, &QPushButton::clicked, this, [this, categoryId]() {
             m_selectedCategoryId = categoryId;
             rebuildProductGrid();
+            m_barcodeInput->setFocus();
         });
         m_categoryChipsLayout->addWidget(chip);
     };
@@ -256,19 +406,69 @@ void PosWindow::rebuildCategoryChips() {
     }
 }
 
+QString PosWindow::categoryColor(const QString &categoryId) const {
+    constexpr int colorCount = sizeof(kCategoryColors) / sizeof(kCategoryColors[0]);
+    for (int i = 0; i < m_categories.size(); ++i) {
+        if (m_categories[i].id == categoryId) return kCategoryColors[i % colorCount];
+    }
+    return "#2f323d"; // uncategorised: same as a plain border
+}
+
 void PosWindow::rebuildProductGrid() {
     clearLayout(m_productGridLayout);
+    m_visibleProducts.clear();
+
+    // A search looks through every category, not just the selected chip.
+    const QString search = m_barcodeInput->text().trimmed();
+    auto matchesSearch = [&search](const Product &product) {
+        if (search.isEmpty()) return true;
+        if (product.name.contains(search, Qt::CaseInsensitive)) return true;
+        if (product.sku.contains(search, Qt::CaseInsensitive)) return true;
+        for (const ProductVariant &variant : product.variants) {
+            if (variant.name.contains(search, Qt::CaseInsensitive)) return true;
+            if (variant.sku.contains(search, Qt::CaseInsensitive)) return true;
+        }
+        return false;
+    };
 
     int index = 0;
     for (const Product &product : m_allProducts) {
-        if (!m_selectedCategoryId.isEmpty() && product.categoryId != m_selectedCategoryId) continue;
+        if (search.isEmpty() && !m_selectedCategoryId.isEmpty() && product.categoryId != m_selectedCategoryId) {
+            continue;
+        }
+        if (!matchesSearch(product)) continue;
         if (!productHasStockAtShop(product)) continue;
+        m_visibleProducts.append(product);
 
-        auto *tile = new QPushButton(
-            QString("%1\nGEL %2").arg(product.name).arg(product.sellPrice, 0, 'f', 2), this);
+        auto *tile = new QPushButton(this);
         tile->setObjectName("productTile");
-        tile->setMinimumSize(140, 84);
+        tile->setMinimumSize(150, 96);
         tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        tile->setStyleSheet(
+            QString("QPushButton#productTile { border-top: 4px solid %1; }").arg(categoryColor(product.categoryId)));
+        tile->setToolTip(product.sku.isEmpty() ? product.name : QString("%1\nSKU %2").arg(product.name, product.sku));
+
+        auto *tileLayout = new QVBoxLayout(tile);
+        tileLayout->setContentsMargins(10, 8, 10, 8);
+        tileLayout->setSpacing(2);
+        auto *nameLabel = tileLabel(product.name, "tileName", tile);
+        nameLabel->setWordWrap(true);
+        nameLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+        tileLayout->addWidget(nameLabel, 1);
+
+        auto *footer = new QHBoxLayout;
+        footer->addWidget(tileLabel(money(product.sellPrice), "tilePrice", tile));
+        footer->addStretch();
+        const int stock = stockAtShop(product);
+        QString stockText = QString("%1 left").arg(stock);
+        if (!product.variants.isEmpty()) stockText = QString("%1 variants · %2").arg(product.variants.size()).arg(stockText);
+        auto *stockLabel = tileLabel(stockText, "tileStock", tile);
+        if (product.lowStockThreshold > 0 && stock <= product.lowStockThreshold) {
+            stockLabel->setStyleSheet("color: #f59e0b;");
+        }
+        footer->addWidget(stockLabel);
+        tileLayout->addLayout(footer);
+
         connect(tile, &QPushButton::clicked, this, [this, product, tile]() {
             if (product.variants.isEmpty()) {
                 addToCart(product);
@@ -280,21 +480,60 @@ void PosWindow::rebuildProductGrid() {
         m_productGridLayout->addWidget(tile, index / kTileColumns, index % kTileColumns);
         ++index;
     }
+
+    if (index == 0 && !m_allProducts.isEmpty()) {
+        auto *empty = new QLabel(search.isEmpty() ? "Nothing in stock in this category."
+                                                  : QString("No products match \"%1\".").arg(search),
+                                 this);
+        empty->setObjectName("totalsKey");
+        empty->setAlignment(Qt::AlignCenter);
+        m_productGridLayout->addWidget(empty, 0, 0, 1, kTileColumns);
+    }
 }
 
 void PosWindow::handleBarcodeEntered() {
-    const QString sku = m_barcodeInput->text().trimmed();
-    if (sku.isEmpty()) return;
+    const QString text = m_barcodeInput->text().trimmed();
+    if (text.isEmpty()) return;
+    showStatus({});
 
-    m_statusLabel->clear();
-    m_client->lookupProductBySku(sku);
+    // Exact barcode match in what's already loaded: no round trip, and it
+    // still works while offline.
+    for (const Product &product : m_allProducts) {
+        if (!product.sku.isEmpty() && product.sku.compare(text, Qt::CaseInsensitive) == 0) {
+            addToCart(product);
+            return;
+        }
+        for (const ProductVariant &variant : product.variants) {
+            if (!variant.sku.isEmpty() && variant.sku.compare(text, Qt::CaseInsensitive) == 0) {
+                Product selected = product;
+                selected.selectedVariantId = variant.id;
+                selected.selectedVariantName = variant.name;
+                addToCart(selected);
+                return;
+            }
+        }
+    }
+
+    // A name search narrowed down to one tile: Enter adds it.
+    if (m_visibleProducts.size() == 1) {
+        const Product product = m_visibleProducts.first();
+        if (product.variants.isEmpty()) {
+            addToCart(product);
+        } else {
+            promptForVariant(product, m_barcodeInput);
+        }
+        return;
+    }
+
+    m_client->lookupProductBySku(text);
 }
 
 void PosWindow::promptForVariant(const Product &product, QWidget *anchor) {
     QMenu menu(this);
     for (const ProductVariant &variant : product.variants) {
-        if (variant.stockByShop.value(m_shopId, 0) <= 0) continue; // out of stock at this shop
-        QAction *action = menu.addAction(variant.name);
+        const int stock = variant.stockByShop.value(m_shopId, 0);
+        if (stock <= 0) continue; // out of stock at this shop
+        QAction *action = menu.addAction(QString("%1   (%2 left)").arg(variant.name).arg(stock));
         connect(action, &QAction::triggered, this, [this, product, variant]() {
             Product selected = product;
             selected.selectedVariantId = variant.id;
@@ -303,10 +542,11 @@ void PosWindow::promptForVariant(const Product &product, QWidget *anchor) {
         });
     }
     if (menu.isEmpty()) {
-        m_statusLabel->setText(product.name + " has no variants in stock at this shop.");
+        showStatus(product.name + " has no variants in stock at this shop.");
         return;
     }
     menu.exec(anchor->mapToGlobal(QPoint(0, anchor->height())));
+    m_barcodeInput->setFocus();
 }
 
 bool PosWindow::productHasStockAtShop(const Product &product) const {
@@ -317,6 +557,26 @@ bool PosWindow::productHasStockAtShop(const Product &product) const {
     return false;
 }
 
+int PosWindow::stockAtShop(const Product &product) const {
+    if (product.variants.isEmpty()) return product.stockByShop.value(m_shopId, 0);
+    int total = 0;
+    for (const ProductVariant &variant : product.variants) {
+        total += qMax(0, variant.stockByShop.value(m_shopId, 0));
+    }
+    return total;
+}
+
+int PosWindow::availableStock(const QString &productId, const QString &variantId) const {
+    for (const Product &product : m_allProducts) {
+        if (product.id != productId) continue;
+        if (variantId.isEmpty()) return product.stockByShop.value(m_shopId, 0);
+        for (const ProductVariant &variant : product.variants) {
+            if (variant.id == variantId) return variant.stockByShop.value(m_shopId, 0);
+        }
+    }
+    return 0;
+}
+
 void PosWindow::addToCart(const Product &product) {
     // Variant products have no "no variant" stock, so make the cashier pick one.
     if (product.selectedVariantId.isEmpty() && !product.variants.isEmpty()) {
@@ -324,14 +584,15 @@ void PosWindow::addToCart(const Product &product) {
         return;
     }
 
-    // Checked here too so a barcode scan can't add out-of-stock items.
-    int availableStock = 0;
+    // Checked here too so a barcode scan can't add out-of-stock items. The
+    // product passed in is fresher than m_allProducts when it came from a server lookup.
+    int stock = 0;
     if (product.selectedVariantId.isEmpty()) {
-        availableStock = product.stockByShop.value(m_shopId, 0);
+        stock = product.stockByShop.value(m_shopId, 0);
     } else {
         for (const ProductVariant &variant : product.variants) {
             if (variant.id == product.selectedVariantId) {
-                availableStock = variant.stockByShop.value(m_shopId, 0);
+                stock = variant.stockByShop.value(m_shopId, 0);
                 break;
             }
         }
@@ -346,36 +607,80 @@ void PosWindow::addToCart(const Product &product) {
         }
     }
 
-    if (availableStock <= alreadyInCart) {
-        m_statusLabel->setText(product.name + " is out of stock at this shop.");
-        m_barcodeInput->clear();
-        return;
-    }
-
     m_barcodeInput->clear();
     m_barcodeInput->setFocus();
+
+    if (stock <= alreadyInCart) {
+        showStatus(product.name + " is out of stock at this shop.");
+        return;
+    }
+    showStatus({});
 
     const QString lineName = variantId.isEmpty()
         ? product.name
         : QString("%1 (%2)").arg(product.name, product.selectedVariantName);
 
-    for (CartLine &line : m_cart) {
+    for (int row = 0; row < m_cart.size(); ++row) {
+        CartLine &line = m_cart[row];
         if (line.productId == product.id && line.variantId == variantId) {
             line.quantity += 1;
-            refreshCartTable();
+            refreshCartTable(row);
             return;
         }
     }
 
     m_cart.append({product.id, variantId, lineName, 1, product.sellPrice, product.sellPrice, product.costPrice});
-    refreshCartTable();
+    refreshCartTable(m_cart.size() - 1);
+}
+
+int PosWindow::selectedRow() const {
+    const auto rows = m_cartTable->selectionModel()->selectedRows();
+    if (rows.isEmpty()) return -1;
+    const int row = rows.first().row();
+    return row < m_cart.size() ? row : -1;
 }
 
 void PosWindow::removeSelectedLine() {
-    const int row = m_cartTable->currentRow();
-    if (row < 0 || row >= m_cart.size()) return;
+    const int row = selectedRow();
+    if (row < 0) return;
     m_cart.remove(row);
-    refreshCartTable();
+    refreshCartTable(qMin(row, int(m_cart.size()) - 1));
+}
+
+void PosWindow::changeSelectedQuantity(int delta) {
+    const int row = selectedRow();
+    if (row < 0) return;
+    CartLine &line = m_cart[row];
+    const int newQuantity = line.quantity + delta;
+    if (newQuantity <= 0) {
+        removeSelectedLine();
+        return;
+    }
+    if (delta > 0 && newQuantity > availableStock(line.productId, line.variantId)) {
+        showStatus(QString("Only %1 of %2 in stock at this shop.")
+                       .arg(availableStock(line.productId, line.variantId))
+                       .arg(line.name));
+        return;
+    }
+    line.quantity = newQuantity;
+    refreshCartTable(row);
+}
+
+void PosWindow::promptForQuantity() {
+    const int row = selectedRow();
+    if (row < 0) return;
+    CartLine &line = m_cart[row];
+    // Never cap below what's already in the cart, in case stock was edited meanwhile.
+    const int maxQuantity = qMax(line.quantity, availableStock(line.productId, line.variantId));
+    bool ok = false;
+    const int quantity = QInputDialog::getInt(
+        this, "Quantity", QString("%1\n(%2 in stock)").arg(line.name).arg(maxQuantity), line.quantity, 1,
+        maxQuantity, 1, &ok);
+    if (ok) {
+        line.quantity = quantity;
+        refreshCartTable(row);
+    }
+    m_barcodeInput->setFocus();
 }
 
 void PosWindow::openDiscountDialog(int row) {
@@ -385,35 +690,84 @@ void PosWindow::openDiscountDialog(int row) {
     DiscountDialog dialog(line.name, line.listPrice, line.unitPrice, this);
     if (dialog.exec() == QDialog::Accepted) {
         line.unitPrice = dialog.resultUnitPrice();
-        refreshCartTable();
+        refreshCartTable(row);
     }
+    m_barcodeInput->setFocus();
 }
 
-void PosWindow::refreshCartTable() {
-    m_holdButton->setEnabled(!m_cart.isEmpty());
+void PosWindow::voidCart() {
+    if (m_cart.isEmpty()) return;
+    const auto answer = QMessageBox::question(this, "Void sale", "Remove every item from this sale?");
+    if (answer == QMessageBox::Yes) {
+        m_cart.clear();
+        refreshCartTable();
+        showStatus("Sale voided.", "#9aa0ac");
+    }
+    m_barcodeInput->setFocus();
+}
+
+void PosWindow::refreshCartTable(int selectRow) {
+    if (selectRow < 0) selectRow = selectedRow();
 
     m_cartTable->setRowCount(m_cart.size());
     double total = 0;
+    double savings = 0;
+    int itemCount = 0;
     for (int row = 0; row < m_cart.size(); ++row) {
         const CartLine &line = m_cart[row];
         const double lineTotal = line.quantity * line.unitPrice;
         total += lineTotal;
+        savings += line.quantity * (line.listPrice - line.unitPrice);
+        itemCount += line.quantity;
 
-        m_cartTable->setItem(row, 0, new QTableWidgetItem(line.name));
-        m_cartTable->setItem(row, 1, new QTableWidgetItem(QString::number(line.quantity)));
-        m_cartTable->setItem(row, 2, new QTableWidgetItem(QString::number(line.unitPrice, 'f', 2)));
-        m_cartTable->setItem(row, 3, new QTableWidgetItem(QString::number(lineTotal, 'f', 2)));
-
+        auto *nameItem = new QTableWidgetItem(line.name);
+        auto *quantityItem = new QTableWidgetItem(QString::number(line.quantity));
+        quantityItem->setTextAlignment(Qt::AlignCenter);
         const bool discounted = line.unitPrice < line.listPrice;
-        auto *discountButton = new QPushButton(
-            discounted ? QString("-%1%").arg(qRound((1.0 - line.unitPrice / line.listPrice) * 100.0))
-                       : "Discount",
-            this);
-        if (discounted) discountButton->setStyleSheet("color: #22c55e;");
-        connect(discountButton, &QPushButton::clicked, this, [this, row]() { openDiscountDialog(row); });
-        m_cartTable->setCellWidget(row, 4, discountButton);
+        auto *priceItem = new QTableWidgetItem(
+            discounted ? QString("%1  -%2%")
+                             .arg(line.unitPrice, 0, 'f', 2)
+                             .arg(qRound((1.0 - line.unitPrice / line.listPrice) * 100.0))
+                       : QString::number(line.unitPrice, 'f', 2));
+        priceItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        if (discounted) priceItem->setForeground(QColor("#22c55e"));
+        auto *totalItem = new QTableWidgetItem(QString::number(lineTotal, 'f', 2));
+        totalItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        QFont bold = totalItem->font();
+        bold.setWeight(QFont::DemiBold);
+        totalItem->setFont(bold);
+
+        m_cartTable->setItem(row, 0, nameItem);
+        m_cartTable->setItem(row, 1, quantityItem);
+        m_cartTable->setItem(row, 2, priceItem);
+        m_cartTable->setItem(row, 3, totalItem);
     }
-    m_totalLabel->setText(QString("Total: GEL %1").arg(total, 0, 'f', 2));
+
+    if (selectRow >= 0 && selectRow < m_cart.size()) {
+        m_cartTable->selectRow(selectRow);
+        m_cartTable->scrollToItem(m_cartTable->item(selectRow, 0));
+    } else {
+        m_cartTable->clearSelection();
+    }
+
+    m_itemsCountLabel->setText(QString::number(itemCount));
+    m_subtotalLabel->setText(money(total + savings));
+    m_savingsLabel->setText("−" + money(savings));
+    m_savingsRow->setVisible(savings > 0.004);
+    m_totalLabel->setText(money(total));
+
+    const bool hasItems = !m_cart.isEmpty();
+    m_holdButton->setEnabled(hasItems);
+    m_voidButton->setEnabled(hasItems);
+    m_completeSaleButton->setText(hasItems ? QString("Pay  %1   ·   F12").arg(money(total)) : "Pay  F12");
+    updateLineButtons();
+}
+
+void PosWindow::updateLineButtons() {
+    const bool lineSelected = selectedRow() >= 0;
+    for (QPushButton *button : {m_minusButton, m_plusButton, m_quantityButton, m_discountButton, m_removeButton}) {
+        button->setEnabled(lineSelected);
+    }
 }
 
 void PosWindow::holdCart() {
@@ -422,38 +776,36 @@ void PosWindow::holdCart() {
     m_cart.clear();
     refreshCartTable();
     updateHeldButton();
-    m_statusLabel->setStyleSheet("color: #9aa0ac;");
-    m_statusLabel->setText("Sale held.");
+    showStatus("Sale held.", "#9aa0ac");
+    m_barcodeInput->setFocus();
 }
 
 void PosWindow::updateHeldButton() {
-    if (m_heldSales.isEmpty()) {
-        m_heldButton->hide();
-        return;
-    }
-    m_heldButton->setText(QString("Held (%1)").arg(m_heldSales.size()));
-    m_heldButton->show();
+    m_heldButton->setText(QString("Held (%1)  F10").arg(m_heldSales.size()));
+    m_heldButton->setEnabled(!m_heldSales.isEmpty());
 }
 
 void PosWindow::openHeldSalesDialog() {
-    HeldSalesDialog dialog(m_heldSales, !m_cart.isEmpty(), this);
+    if (m_heldSales.isEmpty()) return;
+    HeldSalesDialog dialog(m_heldSales, m_cart.isEmpty(), this);
     dialog.exec();
     updateHeldButton();
     if (dialog.didResume()) {
         m_cart = dialog.resumedCart();
         refreshCartTable();
     }
+    m_barcodeInput->setFocus();
 }
 
 void PosWindow::completeSale() {
-    m_statusLabel->clear();
+    showStatus({});
 
     if (m_cart.isEmpty()) {
-        m_statusLabel->setText("Cart is empty.");
+        showStatus("Cart is empty.");
         return;
     }
     if (m_shopId.isEmpty()) {
-        m_statusLabel->setText("Your account isn't assigned to a shop yet — ask the owner to assign one.");
+        showStatus("Your account isn't assigned to a shop yet — ask the owner to assign one.");
         return;
     }
 
@@ -463,6 +815,14 @@ void PosWindow::completeSale() {
         items.append({line.productId, line.variantId, line.quantity, line.unitPrice, line.unitCost, line.listPrice});
         total += line.quantity * line.unitPrice;
     }
+
+    PaymentDialog payment(total, this);
+    const bool paid = payment.exec() == QDialog::Accepted;
+    m_barcodeInput->setFocus();
+    if (!paid) return;
+    m_lastPaymentNote = payment.paidByCard()   ? QString(" Paid by card.")
+                        : payment.change() > 0 ? QString(" Change: %1").arg(money(payment.change()))
+                                               : QString();
 
     m_completeSaleButton->setEnabled(false);
     m_client->recordSale(m_shopId, items, total);

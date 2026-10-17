@@ -160,7 +160,7 @@ void SupabaseClient::signIn(const QString &email, const QString &password) {
 void SupabaseClient::fetchProfile(const QString &userId) {
     QUrlQuery query;
     query.addQueryItem("id", "eq." + userId);
-    query.addQueryItem("select", "id,email,role,shop_id,full_name");
+    query.addQueryItem("select", "id,email,role,shop_id,full_name,is_dev");
 
     authorizedGet("/rest/v1/profiles", query, [this](QNetworkReply *reply) {
         const QByteArray data = reply->readAll();
@@ -182,6 +182,7 @@ void SupabaseClient::fetchProfile(const QString &userId) {
         profile.role = row.value("role").toString();
         profile.shopId = row.value("shop_id").toString();
         profile.fullName = row.value("full_name").toString();
+        profile.isDev = row.value("is_dev").toBool();
         emit profileFetched(profile);
     });
 }

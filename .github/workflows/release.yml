@@ -76,7 +76,9 @@ jobs:
           if (-not $env:SUPABASE_URL -or -not $env:SUPABASE_ANON_KEY) {
             throw "Repository variables SUPABASE_URL and SUPABASE_ANON_KEY must be set."
           }
+          $version = "${{ github.ref_name }}".TrimStart("v")
           cmake -S apps/shop-console -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
+            "-DAPP_VERSION_LABEL=$version" `
             "-DBUILTIN_SUPABASE_URL=$env:SUPABASE_URL" `
             "-DBUILTIN_SUPABASE_ANON_KEY=$env:SUPABASE_ANON_KEY"
 
@@ -121,7 +123,7 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          # Tags like v1.4.1-rc1 become pre-releases, which the self-updater ignores.
+          # Tags like v1.4.1-rc1 become pre-releases; only dev accounts (profiles.is_dev) are offered them.
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             ShopConsole-windows.zip

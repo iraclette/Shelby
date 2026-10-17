@@ -9,12 +9,22 @@
 #include <QProcess>
 #include <QStandardPaths>
 #include <QVector>
+#include <QXmlStreamReader>
 
 namespace {
 
-// "1.2.3" or "v1.2.3" -> {1, 2, 3}. False for anything else.
-bool parseVersion(QString text, QVector<int> &parts) {
+// A tag split into its numbers and optional pre-release label:
+// "v1.2.3" -> {1, 2, 3}, "";  "v1.2.3-rc1" -> {1, 2, 3}, "rc1".
+struct Version {
+    QVector<int> parts;
+    QString prerelease; // empty = a stable release
+};
+
+bool parseVersion(QString text, Version &version) {
     if (text.startsWith('v') || text.startsWith('V')) text.remove(0, 1);
+    const int dash = text.indexOf('-');
+    const QString prerelease = dash < 0 ? QString() : text.mid(dash + 1);
+    if (dash >= 0) text.truncate(dash);
     if (text.isEmpty()) return false;
 
     QVector<int> result;
@@ -25,18 +35,40 @@ bool parseVersion(QString text, QVector<int> &parts) {
         result.append(value);
     }
     while (result.size() < 3) result.append(0);
-    parts = result;
+    version = {result, prerelease};
     return true;
 }
 
-bool isNewer(const QVector<int> &candidate, const QVector<int> &current) {
-    for (int i = 0; i < qMax(candidate.size(), current.size()); ++i) {
-        const int c = i < candidate.size() ? candidate[i] : 0;
-        const int cur = i < current.size() ? current[i] : 0;
+// "rc2" vs "rc10": letters compared as text, then the trailing number as a number.
+int comparePrerelease(const QString &a, const QString &b) {
+    auto split = [](const QString &label, QString &prefix, int &number) {
+        int i = label.size();
+        while (i > 0 && label[i - 1].isDigit()) --i;
+        prefix = label.left(i);
+        number = i < label.size() ? label.mid(i).toInt() : 0;
+    };
+    QString prefixA, prefixB;
+    int numberA = 0, numberB = 0;
+    split(a, prefixA, numberA);
+    split(b, prefixB, numberB);
+    if (const int byPrefix = QString::compare(prefixA, prefixB, Qt::CaseInsensitive)) return byPrefix;
+    return numberA - numberB;
+}
+
+bool isNewer(const Version &candidate, const Version &current) {
+    for (int i = 0; i < qMax(candidate.parts.size(), current.parts.size()); ++i) {
+        const int c = i < candidate.parts.size() ? candidate.parts[i] : 0;
+        const int cur = i < current.parts.size() ? current.parts[i] : 0;
         if (c != cur) return c > cur;
     }
-    return false;
+    // Same numbers: 1.6.0 is newer than 1.6.0-rc2, which is newer than 1.6.0-rc1.
+    if (candidate.prerelease.isEmpty() || current.prerelease.isEmpty()) {
+        return candidate.prerelease.isEmpty() && !current.prerelease.isEmpty();
+    }
+    return comparePrerelease(candidate.prerelease, current.prerelease) > 0;
 }
+
+const QString kTagMarker = "/releases/tag/";
 
 } // namespace
 
@@ -46,6 +78,15 @@ UpdateChecker::UpdateChecker(QObject *parent)
 }
 
 void UpdateChecker::checkForUpdate() {
+    ++m_checkGeneration;
+    if (m_includePrereleases) {
+        checkLatestIncludingPrereleases();
+    } else {
+        checkLatestStable();
+    }
+}
+
+void UpdateChecker::checkLatestStable() {
     // Not the REST API: unauthenticated calls there are capped at 60/hour per IP,
     // which a shop's registers sharing one connection burn through. The plain
     // releases/latest page isn't limited and redirects to .../releases/tag/vX.Y.Z
@@ -55,8 +96,9 @@ void UpdateChecker::checkForUpdate() {
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
 
     QNetworkReply *reply = m_network->head(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, generation = m_checkGeneration]() {
         reply->deleteLater();
+        if (generation != m_checkGeneration) return;
 
         const QUrl target = reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl();
         if (!target.isValid()) {
@@ -67,31 +109,71 @@ void UpdateChecker::checkForUpdate() {
             return;
         }
 
-        const QUrl releaseUrl = reply->url().resolved(target);
-        const QString path = releaseUrl.path();
-        const QString tagMarker = "/releases/tag/";
-        const int markerIndex = path.indexOf(tagMarker);
+        const QString path = reply->url().resolved(target).path();
+        const int markerIndex = path.indexOf(kTagMarker);
         if (markerIndex < 0) {
             emit checkFinished(false, false, {}, {}, {}, "GitHub's response didn't include a release tag.");
             return;
         }
-        const QString tag = path.mid(markerIndex + tagMarker.size());
+        reportTag(path.mid(markerIndex + kTagMarker.size()));
+    });
+}
 
-        // Every release attaches the installer under this fixed name (release.yml).
-        const QString assetUrl =
-            QString("https://github.com/iraclette/Shelby/releases/download/%1/ShopConsole-Setup.exe").arg(tag);
+void UpdateChecker::checkLatestIncludingPrereleases() {
+    // releases/latest skips pre-releases, so read the releases Atom feed instead:
+    // newest ~10 releases of every kind, and no API rate limit either.
+    QNetworkRequest request(QUrl("https://github.com/iraclette/Shelby/releases.atom"));
+    request.setRawHeader("User-Agent", "ShopConsole-UpdateChecker");
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 
-        const QString displayVersion = tag.startsWith('v') ? tag.mid(1) : tag;
-
-        QVector<int> latest;
-        QVector<int> current;
-        if (!parseVersion(tag, latest) || !parseVersion(QStringLiteral(APP_VERSION), current)) {
-            emit checkFinished(true, false, displayVersion, releaseUrl.toString(), assetUrl, {});
+    QNetworkReply *reply = m_network->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, generation = m_checkGeneration]() {
+        reply->deleteLater();
+        if (generation != m_checkGeneration) return;
+        if (reply->error() != QNetworkReply::NoError) {
+            emit checkFinished(false, false, {}, {}, {}, reply->errorString());
             return;
         }
 
-        emit checkFinished(true, isNewer(latest, current), displayVersion, releaseUrl.toString(), assetUrl, {});
+        // Each <entry> has <link href=".../releases/tag/vX.Y.Z[-rcN]"/>; take the highest.
+        QString bestTag;
+        Version best;
+        QXmlStreamReader xml(reply->readAll());
+        while (!xml.atEnd()) {
+            if (xml.readNext() == QXmlStreamReader::StartElement && xml.name() == QLatin1String("link")) {
+                const QString href = xml.attributes().value("href").toString();
+                const int markerIndex = href.indexOf(kTagMarker);
+                Version version;
+                const QString tag = markerIndex < 0 ? QString() : href.mid(markerIndex + kTagMarker.size());
+                if (!tag.isEmpty() && parseVersion(tag, version) && (bestTag.isEmpty() || isNewer(version, best))) {
+                    bestTag = tag;
+                    best = version;
+                }
+            }
+        }
+
+        if (bestTag.isEmpty()) {
+            emit checkFinished(false, false, {}, {}, {}, "GitHub's releases feed didn't list any releases.");
+            return;
+        }
+        reportTag(bestTag);
     });
+}
+
+void UpdateChecker::reportTag(const QString &tag) {
+    const QString releaseUrl = "https://github.com/iraclette/Shelby" + kTagMarker + tag;
+    // Every release attaches the installer under this fixed name (release.yml).
+    const QString assetUrl =
+        QString("https://github.com/iraclette/Shelby/releases/download/%1/ShopConsole-Setup.exe").arg(tag);
+    const QString displayVersion = tag.startsWith('v') ? tag.mid(1) : tag;
+
+    Version latest;
+    Version current;
+    if (!parseVersion(tag, latest) || !parseVersion(QStringLiteral(APP_VERSION), current)) {
+        emit checkFinished(true, false, displayVersion, releaseUrl, assetUrl, {});
+        return;
+    }
+    emit checkFinished(true, isNewer(latest, current), displayVersion, releaseUrl, assetUrl, {});
 }
 
 void UpdateChecker::downloadAndInstall(const QString &assetUrl) {

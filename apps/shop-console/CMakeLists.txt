@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 1.5.1 LANGUAGES CXX)
+project(ShopConsole VERSION 1.6.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,6 +23,8 @@ qt_add_executable(ShopConsole WIN32
     src/PosWindow.cpp
     src/DiscountDialog.h
     src/DiscountDialog.cpp
+    src/PaymentDialog.h
+    src/PaymentDialog.cpp
     src/ProductDialog.h
     src/ProductDialog.cpp
     src/ProductPhotosDialog.h
@@ -82,8 +84,14 @@ if(BUILTIN_SUPABASE_ANON_KEY MATCHES "^sb_secret_")
     message(FATAL_ERROR "BUILTIN_SUPABASE_ANON_KEY is a secret key — use the publishable key.")
 endif()
 
+# Release builds pass the full tag version (e.g. 1.6.0-rc1) so a pre-release
+# knows it's older than the final 1.6.0; local builds use the project version.
+if(NOT APP_VERSION_LABEL)
+    set(APP_VERSION_LABEL "${PROJECT_VERSION}")
+endif()
+
 target_compile_definitions(ShopConsole PRIVATE
-    APP_VERSION="${PROJECT_VERSION}"
+    APP_VERSION="${APP_VERSION_LABEL}"
     BUILTIN_SUPABASE_URL="${BUILTIN_SUPABASE_URL}"
     BUILTIN_SUPABASE_ANON_KEY="${BUILTIN_SUPABASE_ANON_KEY}"
 )

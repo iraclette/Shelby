@@ -17,6 +17,7 @@ struct Profile {
     QString role;
     QString shopId;
     QString fullName;
+    bool isDev = false; // set in the DB only; gets pre-release updates
     // Daily-wage pay config — unset (0) until an admin configures it on the
     // Salary page. See SalaryPage for how these turn into a period's earnings.
     double dailyRate = 0;

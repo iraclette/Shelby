@@ -71,8 +71,15 @@ int main(int argc, char *argv[]) {
     });
 
     QObject::connect(login, &LoginWindow::authenticated, &app,
-                      [&](const QString &role, const QString &shopId) {
+                      [&](const QString &role, const QString &shopId, bool isDev) {
         login->hide();
+
+        // The launch check ran before anyone signed in, so it was stable-only.
+        if (updateChecker->includesPrereleases() != isDev) {
+            updateChecker->setIncludePrereleases(isDev);
+            haveUpdateResult = false;
+            updateChecker->checkForUpdate();
+        }
 
         const bool isAdmin = role == "owner" || role == "admin";
         if (isAdmin) {

@@ -16,9 +16,9 @@ QLabel {
     background: transparent;
 }
 
-/* The one place a real type scale exists — everything else in this app is
-   flat 13px on purpose (a dense admin/POS tool, not a marketing page), but
-   a toolbar needs one clear heading to anchor the eye. */
+/* Everything in this app is flat 13px on purpose (a dense admin/POS tool,
+   not a marketing page). The exceptions: a toolbar needs one clear heading
+   to anchor the eye, and the checkout total must read from across the counter. */
 QLabel#pageTitle {
     font-size: 16px;
     font-weight: 700;
@@ -89,6 +89,43 @@ QPushButton#primaryButton:pressed {
     background-color: #3670d6;
 }
 
+QPushButton#payButton {
+    background-color: #4f8cff;
+    border: 1px solid #4f8cff;
+    border-radius: 8px;
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+QPushButton#payButton:hover {
+    background-color: #6a9dff;
+}
+
+QPushButton#payButton:pressed {
+    background-color: #3670d6;
+}
+
+QPushButton#payButton:disabled {
+    background-color: #2b3a5c;
+    border: 1px solid #2b3a5c;
+    color: #9aa0ac;
+}
+
+QPushButton#dangerButton {
+    color: #f87171;
+}
+
+QPushButton#dangerButton:disabled {
+    color: #6b7280;
+}
+
+QPushButton#stepButton {
+    padding: 8px 0;
+    font-size: 16px;
+    font-weight: 700;
+}
+
 QPushButton#compactButton {
     padding: 2px 6px;
 }
@@ -108,6 +145,77 @@ QPushButton#productTile:hover {
 
 QPushButton#productTile:pressed {
     background-color: #2b3a5c;
+}
+
+QLabel#tileName {
+    font-weight: 600;
+    color: #e8e9ec;
+}
+
+QLabel#tilePrice {
+    font-weight: 700;
+    color: #4f8cff;
+}
+
+QLabel#tileStock {
+    color: #9aa0ac;
+    font-size: 12px;
+}
+
+/* Checkout: receipt column (search, lines, totals, pay) */
+QFrame#posPanel {
+    background-color: #1c1e26;
+    border: 1px solid #2f323d;
+    border-radius: 10px;
+}
+
+QFrame#posPanel QPushButton {
+    padding: 8px 10px;
+}
+
+QLineEdit#posSearch {
+    background-color: #14151a;
+    font-size: 14px;
+    padding: 8px 10px;
+}
+
+QTableWidget#receiptTable {
+    background-color: #14151a;
+    alternate-background-color: #181a21;
+    border: none;
+}
+
+QLineEdit#cashReceived {
+    font-size: 22px;
+    font-weight: 700;
+    padding: 8px 12px;
+    min-height: 34px; /* the 20px base min-height would clip 22px text */
+}
+
+QFrame#totalsPanel {
+    background-color: #14151a;
+    border: 1px solid #2f323d;
+    border-radius: 8px;
+}
+
+QLabel#totalsKey {
+    color: #9aa0ac;
+}
+
+QLabel#totalsValue {
+    font-weight: 600;
+}
+
+QLabel#totalKey {
+    color: #9aa0ac;
+    font-weight: 700;
+    padding-bottom: 6px;
+}
+
+QLabel#totalValue {
+    font-size: 30px;
+    font-weight: 700;
+    color: #f2f3f5;
 }
 
 QPushButton#categoryChip {

@@ -49,6 +49,9 @@ SoftwarePage::SoftwarePage(UpdateChecker *updateChecker, QWidget *parent)
 void SoftwarePage::reportUpdateCheckResult(bool ok, bool isNewer, const QString &version, const QString &releaseUrl,
                                             const QString &assetUrl, const QString &errorMessage) {
     m_pendingAssetUrl = assetUrl;
+    m_versionLabel->setText(m_updateChecker->includesPrereleases()
+                                ? QString("Version %1  ·  dev channel (pre-releases)").arg(QStringLiteral(APP_VERSION))
+                                : QString("Version %1").arg(QStringLiteral(APP_VERSION)));
 
     if (!ok) {
         m_statusLabel->setStyleSheet("color: #dc2626;");

@@ -16,6 +16,10 @@ public:
     explicit UpdateChecker(QObject *parent = nullptr);
 
     void checkForUpdate();
+
+    // Dev accounts (profiles.is_dev) also get offered pre-releases (vX.Y.Z-rcN tags).
+    void setIncludePrereleases(bool include) { m_includePrereleases = include; }
+    bool includesPrereleases() const { return m_includePrereleases; }
     void downloadAndInstall(const QString &assetUrl);
 
 signals:
@@ -29,5 +33,13 @@ signals:
     void installFailed(const QString &message);
 
 private:
+    void checkLatestStable();
+    void checkLatestIncludingPrereleases();
+    // Shared tail of both checks: tag "v1.2.3" (or "v1.2.3-rc1") -> checkFinished.
+    void reportTag(const QString &tag);
+
     QNetworkAccessManager *m_network;
+    bool m_includePrereleases = false;
+    // Bumped per check, so a slower earlier reply can't overwrite a newer one's result.
+    int m_checkGeneration = 0;
 };

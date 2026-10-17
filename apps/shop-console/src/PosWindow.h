@@ -32,7 +32,8 @@ struct HeldSale {
     QVector<CartLine> cart;
 };
 
-// Checkout: product grid + barcode scan. Sales made offline are queued and synced later.
+// Checkout, laid out like Aronium: receipt on the left, product tiles on the
+// right, function keys for everything. Sales made offline are queued and synced later.
 class PosWindow : public QMainWindow {
     Q_OBJECT
 
@@ -52,12 +53,22 @@ private:
     void promptForVariant(const Product &product, QWidget *anchor);
     // For variant products: true if any variant has stock.
     bool productHasStockAtShop(const Product &product) const;
+    int stockAtShop(const Product &product) const; // summed over variants for variant products
+    int availableStock(const QString &productId, const QString &variantId) const;
+    int selectedRow() const; // -1 when nothing is selected
     void removeSelectedLine();
+    void changeSelectedQuantity(int delta);
+    void promptForQuantity();
     void openDiscountDialog(int row);
+    void voidCart();
     void completeSale();
-    void refreshCartTable();
+    // selectRow is reselected after the rebuild; -1 keeps the current row if it still exists.
+    void refreshCartTable(int selectRow = -1);
+    void updateLineButtons();
     void rebuildCategoryChips();
     void rebuildProductGrid();
+    QString categoryColor(const QString &categoryId) const;
+    void showStatus(const QString &message, const QString &color = "#ef4444");
     void updatePendingBadge(int count);
     void holdCart();
     void updateHeldButton();
@@ -68,21 +79,33 @@ private:
 
     QLineEdit *m_barcodeInput;
     QTableWidget *m_cartTable;
+    QLabel *m_itemsCountLabel;
+    QLabel *m_subtotalLabel;
+    QLabel *m_savingsLabel;
+    QWidget *m_savingsRow;
     QLabel *m_totalLabel;
     QLabel *m_statusLabel;
     QLabel *m_pendingBadge;
     QLabel *m_updateBanner;
+    QPushButton *m_minusButton;
+    QPushButton *m_plusButton;
+    QPushButton *m_quantityButton;
+    QPushButton *m_discountButton;
+    QPushButton *m_removeButton;
     QPushButton *m_completeSaleButton;
     QPushButton *m_holdButton;
     QPushButton *m_heldButton;
+    QPushButton *m_voidButton;
 
     FlowLayout *m_categoryChipsLayout;
     QButtonGroup *m_categoryButtonGroup;
     QGridLayout *m_productGridLayout;
     QString m_selectedCategoryId; // empty = "All"
+    QVector<Product> m_visibleProducts; // what the grid currently shows, for Enter-to-add
 
     QVector<Category> m_categories;
     QVector<Product> m_allProducts;
     QVector<CartLine> m_cart;
     QVector<HeldSale> m_heldSales;
+    QString m_lastPaymentNote; // " Change: GEL 4.50", appended to the sale-recorded message
 };
