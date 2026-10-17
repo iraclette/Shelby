@@ -5,6 +5,7 @@
 
 #include "SupabaseClient.h"
 
+class QLineEdit;
 class QTableWidget;
 
 // One row per variant for products that have variants.
@@ -26,6 +27,7 @@ private:
 
     SupabaseClient *m_client;
     QTableWidget *m_table;
+    QLineEdit *m_searchInput;
 
     QVector<Shop> m_shops;
     QVector<Product> m_products;

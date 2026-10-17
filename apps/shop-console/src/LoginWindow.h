@@ -2,10 +2,11 @@
 
 #include <QWidget>
 
+#include "SupabaseClient.h"
+
 class QLabel;
 class QLineEdit;
 class QPushButton;
-class SupabaseClient;
 
 class LoginWindow : public QWidget {
     Q_OBJECT
@@ -15,7 +16,7 @@ public:
 
 signals:
     // Emitted once sign-in succeeds and the caller's role has been resolved.
-    void authenticated(const QString &role, const QString &shopId, bool isDev);
+    void authenticated(const Profile &profile);
 
 private:
     void handleSignIn();

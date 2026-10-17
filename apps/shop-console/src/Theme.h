@@ -357,6 +357,61 @@ QWidget#loginBrandPanel {
     border-right: 1px solid #2f323d;
 }
 
+/* Overview dashboard */
+QLabel#greeting {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f2f3f5;
+}
+
+QFrame#card {
+    background-color: #1c1e26;
+    border: 1px solid #2f323d;
+    border-radius: 10px;
+}
+
+QLabel#cardCaption {
+    color: #9aa0ac;
+    font-weight: 600;
+}
+
+QLabel#kpiValue {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f2f3f5;
+}
+
+QPushButton#attentionRow {
+    background-color: #14151a;
+    border: 1px solid #2f323d;
+    border-radius: 8px;
+    padding: 0;
+    text-align: left;
+}
+
+QPushButton#attentionRow:hover {
+    border: 1px solid #4f8cff;
+}
+
+QLabel#countPill {
+    background-color: #2f323d;
+    color: #9aa0ac;
+    border-radius: 9px;
+    padding: 1px 8px;
+    font-weight: 700;
+}
+
+QLabel#countPill[active="true"] {
+    background-color: #4f8cff;
+    color: white;
+}
+
+QTableWidget#cardTable {
+    background-color: #1c1e26;
+    alternate-background-color: #20222c;
+    border: none;
+}
+
 /* A strip of page-level controls under the toolbar (e.g. the dev Checkout page). */
 QWidget#pageBar {
     background-color: #1c1e26;
@@ -368,16 +423,60 @@ QHeaderView {
     background-color: #23252f;
 }
 
-QListWidget#adminSidebar {
+/* Admin sidebar: brand on top, grouped sections, signed-in user at the bottom. */
+QWidget#sidebarPanel {
     background-color: #1c1e26;
-    border: none;
     border-right: 1px solid #2f323d;
-    padding: 8px 0;
+}
+
+QWidget#sidebarBrand, QWidget#sidebarFooter {
+    background-color: transparent;
+}
+
+QWidget#sidebarFooter {
+    border-top: 1px solid #2f323d;
+}
+
+/* Brand gold, same as the login screen's tagline. */
+QLabel#brandMark {
+    background-color: #c8963e;
+    color: #14151a;
+    border-radius: 9px;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+QLabel#brandName {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f2f3f5;
+}
+
+QLabel#brandSub {
+    font-size: 11px;
+    color: #9aa0ac;
+}
+
+QLabel#avatar {
+    background-color: #2b3a5c;
+    color: #cfe0ff;
+    border-radius: 16px;
+    font-weight: 700;
+}
+
+QLabel#userName {
+    font-weight: 600;
+}
+
+QListWidget#adminSidebar {
+    background-color: transparent;
+    border: none;
+    padding: 0 0 8px 0;
     outline: none;
 }
 
 QListWidget#adminSidebar::item {
-    padding: 12px 16px;
+    padding: 8px 16px;
     margin: 0 8px;
     border-radius: 6px;
     color: #9aa0ac;

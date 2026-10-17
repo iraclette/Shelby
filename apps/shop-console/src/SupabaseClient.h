@@ -264,6 +264,10 @@ public:
 
     // shopId empty = every shop (admin only).
     void fetchSalesForDay(const QString &shopId, const QString &dayStartIso, const QString &dayEndIsoExclusive);
+    // Same query, but answered to the caller only — dailySalesFetched would also
+    // repaint the Daily Summary page with someone else's date range.
+    void fetchSalesBetween(const QString &startIso, const QString &endIsoExclusive,
+                           std::function<void(const QVector<SaleSummary> &sales, const QString &error)> onDone);
 
     // Fire and forget: a logging failure never blocks the action.
     void logAuditEvent(const QString &action, const QString &entityType, const QString &entityId,

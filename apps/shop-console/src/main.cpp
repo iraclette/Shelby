@@ -71,7 +71,8 @@ int main(int argc, char *argv[]) {
     });
 
     QObject::connect(login, &LoginWindow::authenticated, &app,
-                      [&](const QString &role, const QString &shopId, bool isDev) {
+                      [&](const Profile &profile) {
+        const bool isDev = profile.isDev;
         login->hide();
 
         // The launch check ran before anyone signed in, so it was stable-only.
@@ -81,16 +82,16 @@ int main(int argc, char *argv[]) {
             updateChecker->checkForUpdate();
         }
 
-        const bool isAdmin = role == "owner" || role == "admin";
+        const bool isAdmin = profile.role == "owner" || profile.role == "admin";
         if (isAdmin) {
-            activeWindow = new AdminWindow(client, updateChecker, isDev);
+            activeWindow = new AdminWindow(client, updateChecker, profile);
             QObject::connect(static_cast<AdminWindow *>(activeWindow), &AdminWindow::signedOut,
                               &app, [&]() {
                 activeWindow->close();
                 login->show();
             });
         } else {
-            activeWindow = new PosWindow(client, shopId);
+            activeWindow = new PosWindow(client, profile.shopId);
             QObject::connect(static_cast<PosWindow *>(activeWindow), &PosWindow::signedOut,
                               &app, [&]() {
                 activeWindow->close();

@@ -991,6 +991,26 @@ void SupabaseClient::fetchSalesForDay(const QString &shopId, const QString &dayS
     });
 }
 
+void SupabaseClient::fetchSalesBetween(const QString &startIso, const QString &endIsoExclusive,
+                                       std::function<void(const QVector<SaleSummary> &, const QString &)> onDone) {
+    QUrlQuery query;
+    query.addQueryItem("select",
+                        "id,sold_at,total,shop_id,staff_id,"
+                        "sale_items(id,product_id,quantity,unit_price,products(name),product_variants(name))");
+    query.addQueryItem("sold_at", "gte." + startIso);
+    query.addQueryItem("sold_at", "lt." + endIsoExclusive);
+    query.addQueryItem("order", "sold_at.desc");
+
+    authorizedGet("/rest/v1/sales", query, [onDone = std::move(onDone)](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            onDone({}, extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        onDone(parseSaleSummaries(data), {});
+    });
+}
+
 void SupabaseClient::logAuditEvent(const QString &action, const QString &entityType, const QString &entityId,
                                     const QString &detail) {
     QJsonObject body{

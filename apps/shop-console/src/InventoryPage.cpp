@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QJsonValue>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTableWidgetItem>
@@ -19,12 +20,19 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     auto *refreshButton = new QPushButton("Refresh", this);
     toolbar->addWidget(refreshButton);
     auto *newProductButton = new QPushButton("New product", this);
+    newProductButton->setObjectName("primaryButton");
     toolbar->addWidget(newProductButton);
     auto *photosButton = new QPushButton("Photos…", this);
     toolbar->addWidget(photosButton);
     auto *transferButton = new QPushButton("Transfer Stock", this);
     toolbar->addWidget(transferButton);
     toolbar->addStretch();
+    m_searchInput = new QLineEdit(this);
+    m_searchInput->setPlaceholderText("Search name, SKU, variant…");
+    m_searchInput->setClearButtonEnabled(true);
+    m_searchInput->setMinimumWidth(260);
+    toolbar->addWidget(m_searchInput);
+    connect(m_searchInput, &QLineEdit::textChanged, this, &InventoryPage::rebuildTable);
 
     connect(refreshButton, &QPushButton::clicked, this, [this]() { m_client->fetchProducts(); });
     connect(newProductButton, &QPushButton::clicked, this, [this]() {
@@ -126,13 +134,20 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
 void InventoryPage::rebuildTable() {
     m_populating = true;
 
+    // Rows (and so every edit handler's row -> product mapping) only cover what the search lets through.
+    const QString search = m_searchInput->text().trimmed();
+    auto matches = [&search](const QString &text) { return text.contains(search, Qt::CaseInsensitive); };
     m_rows.clear();
     for (int p = 0; p < m_products.size(); ++p) {
         const Product &product = m_products[p];
+        const bool productMatches = search.isEmpty() || matches(product.name) || matches(product.sku);
         if (product.variants.isEmpty()) {
-            m_rows.append({p, -1});
+            if (productMatches) m_rows.append({p, -1});
         } else {
-            for (int v = 0; v < product.variants.size(); ++v) m_rows.append({p, v});
+            for (int v = 0; v < product.variants.size(); ++v) {
+                const ProductVariant &variant = product.variants[v];
+                if (productMatches || matches(variant.name) || matches(variant.sku)) m_rows.append({p, v});
+            }
         }
     }
 

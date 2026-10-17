@@ -77,7 +77,7 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     });
 
     connect(m_client, &SupabaseClient::profileFetched, this, [this](const Profile &profile) {
-        emit authenticated(profile.role, profile.shopId, profile.isDev);
+        emit authenticated(profile);
     });
 }
 
