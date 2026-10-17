@@ -14,6 +14,7 @@ class QHBoxLayout;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QScrollArea;
 class QTableWidget;
 
 struct CartLine {
@@ -38,7 +39,12 @@ class PosWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    PosWindow(SupabaseClient *client, QString shopId, QWidget *parent = nullptr);
+    // embedded: shown as a page inside AdminWindow (dev only), so no toolbar of
+    // its own — the admin window and CheckoutPage's bar cover it (F7 still opens Returns).
+    PosWindow(SupabaseClient *client, QString shopId, QWidget *parent = nullptr, bool embedded = false);
+
+    // Practice: Pay runs the whole flow but records nothing and leaves stock alone.
+    void setPracticeMode(bool practice) { m_practiceMode = practice; }
 
     // Shows a clickable toolbar notice; clicking opens releaseUrl (the
     // release's GitHub page) in the default browser. See UpdateChecker.
@@ -46,6 +52,9 @@ public:
 
 signals:
     void signedOut();
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void handleBarcodeEntered();
@@ -100,6 +109,8 @@ private:
     FlowLayout *m_categoryChipsLayout;
     QButtonGroup *m_categoryButtonGroup;
     QGridLayout *m_productGridLayout;
+    QScrollArea *m_gridScroll;
+    int m_tileColumns = 4; // follows the grid's width, see eventFilter
     QString m_selectedCategoryId; // empty = "All"
     QVector<Product> m_visibleProducts; // what the grid currently shows, for Enter-to-add
 
@@ -107,5 +118,6 @@ private:
     QVector<Product> m_allProducts;
     QVector<CartLine> m_cart;
     QVector<HeldSale> m_heldSales;
+    bool m_practiceMode = false;
     QString m_lastPaymentNote; // " Change: GEL 4.50", appended to the sale-recorded message
 };

@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 
         const bool isAdmin = role == "owner" || role == "admin";
         if (isAdmin) {
-            activeWindow = new AdminWindow(client, updateChecker);
+            activeWindow = new AdminWindow(client, updateChecker, isDev);
             QObject::connect(static_cast<AdminWindow *>(activeWindow), &AdminWindow::signedOut,
                               &app, [&]() {
                 activeWindow->close();

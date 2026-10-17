@@ -13,7 +13,8 @@ class AdminWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, QWidget *parent = nullptr);
+    // isDev adds the Checkout page (see CheckoutPage) — the owner and admins don't need it.
+    AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, bool isDev, QWidget *parent = nullptr);
 
     void reportUpdateCheckResult(bool ok, bool isNewer, const QString &version, const QString &releaseUrl,
                                   const QString &assetUrl, const QString &errorMessage);

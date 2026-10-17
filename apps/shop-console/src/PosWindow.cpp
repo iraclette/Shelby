@@ -6,6 +6,7 @@
 #include "ReturnDialog.h"
 
 #include <QAction>
+#include <QEvent>
 #include <QButtonGroup>
 #include <QFont>
 #include <QFontMetrics>
@@ -30,7 +31,8 @@
 #include <QWidget>
 
 namespace {
-constexpr int kTileColumns = 4;
+constexpr int kMinTileWidth = 150;
+constexpr int kTileSpacing = 8;
 
 // One accent per category, cycled — the tile's top stripe, so a cashier can
 // find a category's products by colour at a glance, like Aronium's coloured buttons.
@@ -61,7 +63,7 @@ QLabel *tileLabel(const QString &text, const char *objectName, QWidget *parent) 
 }
 } // namespace
 
-PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
+PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bool embedded)
     : QMainWindow(parent)
     , m_client(client)
     , m_shopId(std::move(shopId)) {
@@ -70,9 +72,11 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
 
     auto *toolbar = addToolBar("main");
     toolbar->setMovable(false);
-    auto *title = new QLabel("Checkout", this);
-    title->setObjectName("pageTitle");
-    toolbar->addWidget(title);
+    if (!embedded) {
+        auto *title = new QLabel("Checkout", this);
+        title->setObjectName("pageTitle");
+        toolbar->addWidget(title);
+    }
     auto *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     spacer->setStyleSheet("background: transparent;"); // the app-wide QWidget background would show as a box
@@ -88,9 +92,11 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     toolbar->addWidget(m_updateBanner);
     auto *returnsButton = new QPushButton("Returns  F7", this);
     toolbar->addWidget(returnsButton);
-    auto *signOutButton = new QPushButton("Sign out", this);
-    toolbar->addWidget(signOutButton);
-    connect(signOutButton, &QPushButton::clicked, this, &PosWindow::signedOut);
+    if (!embedded) {
+        auto *signOutButton = new QPushButton("Sign out", this);
+        toolbar->addWidget(signOutButton);
+        connect(signOutButton, &QPushButton::clicked, this, &PosWindow::signedOut);
+    }
 
     auto *central = new QWidget(this);
     auto *rootLayout = new QHBoxLayout(central);
@@ -225,17 +231,18 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent)
     m_productGridLayout = new QGridLayout(gridContainer);
     m_productGridLayout->setAlignment(Qt::AlignTop);
     m_productGridLayout->setContentsMargins(0, 0, 4, 0);
-    m_productGridLayout->setSpacing(8);
-    // Equal columns even when a search leaves fewer tiles than a full row.
-    for (int column = 0; column < kTileColumns; ++column) m_productGridLayout->setColumnStretch(column, 1);
-    auto *gridScroll = new QScrollArea(this);
-    gridScroll->setWidget(gridContainer);
-    gridScroll->setWidgetResizable(true);
-    browseLayout->addWidget(gridScroll, 1);
+    m_productGridLayout->setSpacing(kTileSpacing);
+    m_gridScroll = new QScrollArea(this);
+    m_gridScroll->setWidget(gridContainer);
+    m_gridScroll->setWidgetResizable(true);
+    m_gridScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_gridScroll->viewport()->installEventFilter(this); // re-flow tiles on resize
+    browseLayout->addWidget(m_gridScroll, 1);
 
     rootLayout->addLayout(browseLayout, 3);
 
     setCentralWidget(central);
+    toolbar->setVisible(!embedded);
 
     connect(m_barcodeInput, &QLineEdit::returnPressed, this, &PosWindow::handleBarcodeEntered);
     connect(m_barcodeInput, &QLineEdit::textChanged, this, &PosWindow::rebuildProductGrid);
@@ -414,8 +421,25 @@ QString PosWindow::categoryColor(const QString &categoryId) const {
     return "#2f323d"; // uncategorised: same as a plain border
 }
 
+bool PosWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == m_gridScroll->viewport() && event->type() == QEvent::Resize) {
+        const int width = m_gridScroll->viewport()->width() - 4; // the grid's right margin
+        const int columns = qMax(1, (width + kTileSpacing) / (kMinTileWidth + kTileSpacing));
+        if (columns != m_tileColumns) {
+            m_tileColumns = columns;
+            rebuildProductGrid();
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
+}
+
 void PosWindow::rebuildProductGrid() {
     clearLayout(m_productGridLayout);
+    // Equal columns even when a search leaves fewer tiles than a full row.
+    for (int column = 0; column < m_productGridLayout->columnCount(); ++column) {
+        m_productGridLayout->setColumnStretch(column, 0);
+    }
+    for (int column = 0; column < m_tileColumns; ++column) m_productGridLayout->setColumnStretch(column, 1);
     m_visibleProducts.clear();
 
     // A search looks through every category, not just the selected chip.
@@ -442,7 +466,7 @@ void PosWindow::rebuildProductGrid() {
 
         auto *tile = new QPushButton(this);
         tile->setObjectName("productTile");
-        tile->setMinimumSize(150, 96);
+        tile->setMinimumSize(kMinTileWidth, 96);
         tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         tile->setStyleSheet(
             QString("QPushButton#productTile { border-top: 4px solid %1; }").arg(categoryColor(product.categoryId)));
@@ -477,7 +501,7 @@ void PosWindow::rebuildProductGrid() {
             }
         });
 
-        m_productGridLayout->addWidget(tile, index / kTileColumns, index % kTileColumns);
+        m_productGridLayout->addWidget(tile, index / m_tileColumns, index % m_tileColumns);
         ++index;
     }
 
@@ -487,7 +511,7 @@ void PosWindow::rebuildProductGrid() {
                                  this);
         empty->setObjectName("totalsKey");
         empty->setAlignment(Qt::AlignCenter);
-        m_productGridLayout->addWidget(empty, 0, 0, 1, kTileColumns);
+        m_productGridLayout->addWidget(empty, 0, 0, 1, m_tileColumns);
     }
 }
 
@@ -823,6 +847,13 @@ void PosWindow::completeSale() {
     m_lastPaymentNote = payment.paidByCard()   ? QString(" Paid by card.")
                         : payment.change() > 0 ? QString(" Change: %1").arg(money(payment.change()))
                                                : QString();
+
+    if (m_practiceMode) {
+        m_cart.clear();
+        refreshCartTable();
+        showStatus("Practice sale — nothing recorded." + m_lastPaymentNote, "#a855f7");
+        return;
+    }
 
     m_completeSaleButton->setEnabled(false);
     m_client->recordSale(m_shopId, items, total);

@@ -330,6 +330,10 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
     width: 0;
 }
 
+QCheckBox {
+    background: transparent;
+}
+
 QCheckBox::indicator, QTableView::indicator, QListView::indicator {
     width: 14px;
     height: 14px;
@@ -351,6 +355,17 @@ QWidget#loginBrandPanel {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 #0e0e10, stop:0.5 #231c12, stop:1 #14151a);
     border-right: 1px solid #2f323d;
+}
+
+/* A strip of page-level controls under the toolbar (e.g. the dev Checkout page). */
+QWidget#pageBar {
+    background-color: #1c1e26;
+    border-bottom: 1px solid #2f323d;
+}
+
+/* The empty stretch of a header past its last column. */
+QHeaderView {
+    background-color: #23252f;
 }
 
 QListWidget#adminSidebar {
