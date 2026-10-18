@@ -116,6 +116,15 @@ struct JobApplication {
     QString createdAt;
 };
 
+// A "let me know when it's back" request from an out-of-stock product on the storefront.
+struct StockRequest {
+    QString id;
+    QString productName;
+    QString contact; // phone or email
+    QString status; // new/contacted/dismissed
+    QString createdAt;
+};
+
 struct Supplier {
     QString id;
     QString name;
@@ -273,6 +282,8 @@ public:
     void fetchContactMessages();
     void fetchJobApplications();
     void updateJobApplicationStatus(const QString &applicationId, const QString &status);
+    void fetchStockRequests();
+    void updateStockRequestStatus(const QString &requestId, const QString &status);
     // field must be one of contact_messages' own column names (currently just status).
     void updateContactMessageField(const QString &messageId, const QString &field, const QJsonValue &value);
 
@@ -388,6 +399,10 @@ signals:
     void jobApplicationsFetchFailed(const QString &message);
     void jobApplicationUpdated();
     void jobApplicationUpdateFailed(const QString &message);
+    void stockRequestsFetched(const QVector<StockRequest> &requests);
+    void stockRequestsFetchFailed(const QString &message);
+    void stockRequestUpdated();
+    void stockRequestUpdateFailed(const QString &message);
     void contactMessagesFetchFailed(const QString &message);
     void contactMessageUpdated();
     void contactMessageUpdateFailed(const QString &message);

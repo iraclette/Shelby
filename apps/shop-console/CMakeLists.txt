@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 1.7.0 LANGUAGES CXX)
+project(ShopConsole VERSION 1.8.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,6 +28,8 @@ qt_add_executable(ShopConsole WIN32
     src/SessionStore.cpp
     src/ApplicationsPage.h
     src/ApplicationsPage.cpp
+    src/StockRequestsPage.h
+    src/StockRequestsPage.cpp
     src/FlowLayout.h
     src/FlowLayout.cpp
     src/PosWindow.h
@@ -89,6 +91,7 @@ qt_add_resources(ShopConsole "icons"
         resources/icons/overview.svg
         resources/icons/online-orders.svg
         resources/icons/applications.svg
+        resources/icons/stock-requests.svg
         resources/icons/eye.svg
         resources/icons/eye-off.svg
 )

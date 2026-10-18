@@ -35,6 +35,7 @@ export type Product = {
   category_id: string | null;
   categories: Category | null;
   product_images: ProductImage[];
+  inStock: boolean; // summed over every shop; filled in by fetchProducts/fetchProduct
 };
 
 export async function fetchCategories(): Promise<Category[]> {
@@ -68,6 +69,13 @@ function onStorefront(product: Product) {
   return product.categories?.visible_on_storefront !== false;
 }
 
+// Ids of products with stock in any shop. Counts stay private: anon can't read
+// inventory_levels, only this function (0025_stock_requests.sql).
+async function fetchInStockIds(): Promise<Set<string>> {
+  const { data } = await getSupabaseClient().rpc("in_stock_product_ids");
+  return new Set((data as string[] | null) ?? []);
+}
+
 export async function fetchProducts(categoryId?: string): Promise<Product[]> {
   let query = getSupabaseClient()
     .from("products")
@@ -78,18 +86,21 @@ export async function fetchProducts(categoryId?: string): Promise<Product[]> {
     query = query.eq("category_id", categoryId);
   }
 
-  const { data } = await query;
-  return ((data as unknown as Product[]) ?? []).filter(onStorefront);
+  const [{ data }, inStock] = await Promise.all([query, fetchInStockIds()]);
+  return ((data as unknown as Product[]) ?? [])
+    .filter(onStorefront)
+    .map((product) => ({ ...product, inStock: inStock.has(product.id) }))
+    // Newest first still, but what can be bought comes before what can't.
+    .sort((a, b) => Number(b.inStock) - Number(a.inStock));
 }
 
 export async function fetchProduct(id: string): Promise<Product | null> {
-  const { data } = await getSupabaseClient()
-    .from("products")
-    .select(PRODUCT_COLUMNS)
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data }, inStock] = await Promise.all([
+    getSupabaseClient().from("products").select(PRODUCT_COLUMNS).eq("id", id).maybeSingle(),
+    fetchInStockIds(),
+  ]);
   const product = data as unknown as Product | null;
-  return product && onStorefront(product) ? product : null;
+  return product && onStorefront(product) ? { ...product, inStock: inStock.has(product.id) } : null;
 }
 
 export function primaryImage(product: Product): ProductImage | null {

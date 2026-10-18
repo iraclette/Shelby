@@ -1275,6 +1275,53 @@ void SupabaseClient::updateJobApplicationStatus(const QString &applicationId, co
     });
 }
 
+void SupabaseClient::fetchStockRequests() {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,contact,status,created_at,products(name)");
+    query.addQueryItem("order", "created_at.desc");
+    query.addQueryItem("limit", "300");
+
+    authorizedGet("/rest/v1/stock_requests", query, [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit stockRequestsFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+
+        QVector<StockRequest> requests;
+        for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
+            const QJsonObject row = value.toObject();
+            StockRequest request;
+            request.id = row.value("id").toString();
+            request.productName = row.value("products").toObject().value("name").toString();
+            request.contact = row.value("contact").toString();
+            request.status = row.value("status").toString();
+            request.createdAt = row.value("created_at").toString();
+            requests.append(request);
+        }
+        emit stockRequestsFetched(requests);
+    });
+}
+
+void SupabaseClient::updateStockRequestStatus(const QString &requestId, const QString &status) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + requestId);
+
+    const QJsonObject body{{"status", status},
+                           {"updated_at", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/stock_requests", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit stockRequestUpdateFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit stockRequestUpdated();
+    });
+}
+
 void SupabaseClient::updateCustomLeatherOrderField(const QString &orderId, const QString &field, const QJsonValue &value) {
     QUrlQuery query;
     query.addQueryItem("id", "eq." + orderId);

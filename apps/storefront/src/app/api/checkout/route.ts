@@ -79,28 +79,44 @@ export async function POST(request: NextRequest) {
   // Rounded to tetri: summed floats can land on 39.500000001, which BOG would reject.
   const total = Math.round((basket.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0) + deliveryFee) * 100) / 100;
 
+  const { data: levels, error: levelsError } = await supabaseAdmin
+    .from("inventory_levels")
+    .select("shop_id, product_id, quantity")
+    .in("product_id", productIds);
+  if (levelsError) {
+    return NextResponse.json({ code: "order_failed", error: "Could not create the order." }, { status: 500 });
+  }
+  // shop -> product -> units, summed over variants (the storefront doesn't sell by variant).
+  const stock = new Map<string, Map<string, number>>();
+  for (const level of levels ?? []) {
+    const shopStock = stock.get(level.shop_id as string) ?? new Map<string, number>();
+    shopStock.set(level.product_id as string, (shopStock.get(level.product_id as string) ?? 0) + (level.quantity as number));
+    stock.set(level.shop_id as string, shopStock);
+  }
+
   // Delivery orders ship from whichever shop holds the most of what was ordered;
   // that shop's stock is what confirm_online_order() takes from once it's paid.
   let fulfilmentShopId = body.pickupShopId ?? "";
   if (isDelivery) {
-    const { data: levels, error: levelsError } = await supabaseAdmin
-      .from("inventory_levels")
-      .select("shop_id, product_id, quantity")
-      .in("product_id", productIds);
-    if (levelsError) {
-      return NextResponse.json({ code: "order_failed", error: "Could not create the order." }, { status: 500 });
-    }
-    const wanted = new Map(body.items.map((item) => [item.productId, item.quantity]));
-    const coverage = new Map<string, number>();
-    for (const level of levels ?? []) {
-      const units = Math.min(level.quantity as number, wanted.get(level.product_id as string) ?? 0);
-      coverage.set(level.shop_id as string, (coverage.get(level.shop_id as string) ?? 0) + Math.max(0, units));
-    }
-    fulfilmentShopId = [...coverage.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
-    if (!fulfilmentShopId) {
-      const { data: anyShop } = await supabaseAdmin.from("shops").select("id").limit(1).single();
-      fulfilmentShopId = (anyShop?.id as string) ?? "";
-    }
+    const coverage = [...stock.entries()].map(([shopId, shopStock]) => [
+      shopId,
+      body.items.reduce((sum, item) => sum + Math.max(0, Math.min(shopStock.get(item.productId) ?? 0, item.quantity)), 0),
+    ] as const);
+    fulfilmentShopId = coverage.sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+  }
+
+  // Everything has to come from that one shop, since that's where the stock is taken from.
+  const shopStock = stock.get(fulfilmentShopId);
+  const short = body.items.filter((item) => (shopStock?.get(item.productId) ?? 0) < item.quantity);
+  if (short.length > 0) {
+    return NextResponse.json(
+      {
+        code: isDelivery ? "out_of_stock" : "out_of_stock_pickup",
+        error: "Not enough stock for some items.",
+        productIds: short.map((item) => item.productId),
+      },
+      { status: 409 },
+    );
   }
 
   const { data: order, error: orderError } = await supabaseAdmin

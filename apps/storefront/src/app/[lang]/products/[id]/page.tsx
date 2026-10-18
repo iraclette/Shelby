@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Store, Truck } from "lucide-react";
 import { fetchProduct, primaryImage } from "@/lib/supabase";
 import AddToCartButton from "@/components/AddToCartButton";
+import StockRequestForm from "@/components/StockRequestForm";
 import ProductGallery from "@/components/ProductGallery";
 import { getDictionary } from "@/i18n/server";
 import { categoryName, fmt, formatPrice } from "@/i18n/format";
@@ -40,12 +41,16 @@ export default async function ProductPage({
             <p className="mt-6 max-w-prose whitespace-pre-line leading-relaxed text-paper-dim">{product.description}</p>
           )}
 
-          <AddToCartButton
-            productId={product.id}
-            name={product.name}
-            unitPrice={product.sell_price}
-            imagePath={featured?.storage_path ?? null}
-          />
+          {product.inStock ? (
+            <AddToCartButton
+              productId={product.id}
+              name={product.name}
+              unitPrice={product.sell_price}
+              imagePath={featured?.storage_path ?? null}
+            />
+          ) : (
+            <StockRequestForm productId={product.id} />
+          )}
 
           <ul className="mt-6 space-y-3 border-t border-line pt-6 text-sm text-paper-dim">
             <li className="flex gap-3">

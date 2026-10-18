@@ -8,6 +8,7 @@
 #include "InventoryPage.h"
 #include "MessagesPage.h"
 #include "ApplicationsPage.h"
+#include "StockRequestsPage.h"
 #include "OnlineOrdersPage.h"
 #include "OverviewPage.h"
 #include "SalaryPage.h"
@@ -253,6 +254,8 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
         addSection("orders", "Custom Orders", forwardStatus(new CustomOrdersPage(client, this)));
     // Storefront "Contact us" submissions.
     QListWidgetItem *messagesItem = addSection("help", "Messages", forwardStatus(new MessagesPage(client, this)));
+    auto *stockRequestsPage = forwardStatus(new StockRequestsPage(client, this));
+    QListWidgetItem *stockRequestsItem = addSection("stock-requests", "Stock Requests", stockRequestsPage);
     addGroup("System");
     addSection("audit-log", "Audit Log", forwardStatus(new AuditLogPage(client, this)));
     m_softwarePage = new SoftwarePage(updateChecker, this);
@@ -280,6 +283,9 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     });
     connect(applicationsPage, &ApplicationsPage::newCountChanged, this, [applicationsItem](int count) {
         applicationsItem->setData(kBadgeRole, count);
+    });
+    connect(stockRequestsPage, &StockRequestsPage::newCountChanged, this, [stockRequestsItem](int count) {
+        stockRequestsItem->setData(kBadgeRole, count);
     });
 
     auto *central = new QWidget(this);
