@@ -3,13 +3,25 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { createBogOrder } from "@/lib/bog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isNonEmptyString, isOptionalString, isUuid, isValidEmail } from "@/lib/validate";
+import { DELIVERY } from "@/lib/business";
+
+type DeliveryMethod = "pickup" | "inex_branch" | "inex_home";
 
 type CheckoutRequest = {
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
-  pickupShopId: string;
+  deliveryMethod?: DeliveryMethod; // absent = pickup, for carts opened before delivery existed
+  pickupShopId?: string; // pickup only
+  deliveryCity?: string; // Inex only
+  deliveryAddress?: string; // street address for home delivery, preferred branch (optional) for branch
   items: { productId: string; quantity: number }[];
+};
+
+const DELIVERY_FEES: Record<DeliveryMethod, number> = {
+  pickup: 0,
+  inex_branch: DELIVERY.branchPrice,
+  inex_home: DELIVERY.homePrice,
 };
 
 export async function POST(request: NextRequest) {
@@ -21,12 +33,18 @@ export async function POST(request: NextRequest) {
 
   const supabaseAdmin = getSupabaseAdmin();
   const body = (await request.json()) as CheckoutRequest;
+  const method: DeliveryMethod = body.deliveryMethod ?? "pickup";
+  const isDelivery = method !== "pickup";
 
   if (
+    !(method in DELIVERY_FEES) ||
     !isNonEmptyString(body.customerName, 200) ||
     !isValidEmail(body.customerEmail) ||
-    !isOptionalString(body.customerPhone, 30) ||
-    !isUuid(body.pickupShopId) ||
+    // The courier calls before delivering, so a phone is required for Inex.
+    (isDelivery ? !isNonEmptyString(body.customerPhone, 30) : !isOptionalString(body.customerPhone, 30)) ||
+    (method === "pickup" && !isUuid(body.pickupShopId)) ||
+    (isDelivery && !isNonEmptyString(body.deliveryCity, 100)) ||
+    (method === "inex_home" ? !isNonEmptyString(body.deliveryAddress, 300) : !isOptionalString(body.deliveryAddress, 300)) ||
     !body.items?.length ||
     !body.items.every(
       (item) => isUuid(item.productId) && Number.isInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100,
@@ -40,10 +58,14 @@ export async function POST(request: NextRequest) {
   const productIds = body.items.map((item) => item.productId);
   const { data: products, error: productsError } = await supabaseAdmin
     .from("products")
-    .select("id, sell_price")
+    .select("id, sell_price, categories(visible_on_storefront)")
     .in("id", productIds);
 
-  if (productsError || !products || products.length !== productIds.length) {
+  // A cart saved before its category was hidden from the website can't be bought online.
+  const hidden = (products ?? []).some(
+    (p) => (p.categories as unknown as { visible_on_storefront: boolean } | null)?.visible_on_storefront === false,
+  );
+  if (productsError || !products || products.length !== productIds.length || hidden) {
     return NextResponse.json({ code: "product_not_found", error: "One or more products could not be found." }, { status: 400 });
   }
 
@@ -53,15 +75,45 @@ export async function POST(request: NextRequest) {
     quantity: item.quantity,
     unitPrice: priceById.get(item.productId)!,
   }));
-  const total = basket.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const deliveryFee = DELIVERY_FEES[method];
+  // Rounded to tetri: summed floats can land on 39.500000001, which BOG would reject.
+  const total = Math.round((basket.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0) + deliveryFee) * 100) / 100;
+
+  // Delivery orders ship from whichever shop holds the most of what was ordered;
+  // that shop's stock is what confirm_online_order() takes from once it's paid.
+  let fulfilmentShopId = body.pickupShopId ?? "";
+  if (isDelivery) {
+    const { data: levels, error: levelsError } = await supabaseAdmin
+      .from("inventory_levels")
+      .select("shop_id, product_id, quantity")
+      .in("product_id", productIds);
+    if (levelsError) {
+      return NextResponse.json({ code: "order_failed", error: "Could not create the order." }, { status: 500 });
+    }
+    const wanted = new Map(body.items.map((item) => [item.productId, item.quantity]));
+    const coverage = new Map<string, number>();
+    for (const level of levels ?? []) {
+      const units = Math.min(level.quantity as number, wanted.get(level.product_id as string) ?? 0);
+      coverage.set(level.shop_id as string, (coverage.get(level.shop_id as string) ?? 0) + Math.max(0, units));
+    }
+    fulfilmentShopId = [...coverage.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+    if (!fulfilmentShopId) {
+      const { data: anyShop } = await supabaseAdmin.from("shops").select("id").limit(1).single();
+      fulfilmentShopId = (anyShop?.id as string) ?? "";
+    }
+  }
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
     .insert({
       customer_name: body.customerName,
       customer_email: body.customerEmail,
-      customer_phone: body.customerPhone ?? null,
-      pickup_shop_id: body.pickupShopId,
+      customer_phone: body.customerPhone || null,
+      pickup_shop_id: fulfilmentShopId,
+      delivery_method: method,
+      delivery_fee: deliveryFee,
+      delivery_city: isDelivery ? body.deliveryCity!.trim() : null,
+      delivery_address: isDelivery ? body.deliveryAddress?.trim() || null : null,
       total,
     })
     .select("id")
@@ -91,7 +143,8 @@ export async function POST(request: NextRequest) {
     const { orderId: bogOrderId, redirectUrl } = await createBogOrder({
       externalOrderId: order.id,
       totalAmount: total,
-      basket,
+      // BOG wants the basket to add up to the total, so delivery goes in as its own line.
+      basket: deliveryFee > 0 ? [...basket, { productId: "delivery", quantity: 1, unitPrice: deliveryFee }] : basket,
       callbackUrl: `${origin}/api/bog-webhook`,
       successUrl: `${origin}/checkout/success?order=${order.id}`,
       failUrl: `${origin}/checkout/fail?order=${order.id}`,

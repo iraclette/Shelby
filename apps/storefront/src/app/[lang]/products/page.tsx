@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { fetchCategories, fetchProducts } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
+import { ProductGridSkeleton } from "@/components/Skeleton";
 import { getDictionary } from "@/i18n/server";
 import { categoryName } from "@/i18n/format";
 import { sortCategories } from "@/lib/categoryGroups";
@@ -12,11 +14,7 @@ export default async function ProductsPage({
 }: PageProps<"/[lang]/products">) {
   const { category: categoryParam } = await searchParams;
   const category = typeof categoryParam === "string" ? categoryParam : undefined;
-  const [categories, products, dict] = await Promise.all([
-    fetchCategories(),
-    fetchProducts(category),
-    getDictionary(),
-  ]);
+  const [categories, dict] = await Promise.all([fetchCategories(), getDictionary()]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-16">
@@ -48,29 +46,39 @@ export default async function ProductsPage({
         ))}
       </div>
 
-      {products.length === 0 ? (
-        <div className="relative mt-12 overflow-hidden border border-line px-6 py-14 text-center">
-          <div className="atmosphere-subtle" />
-          <p className="relative font-display text-2xl italic text-paper">
-            {category ? dict.products.emptyCategory : dict.products.emptyAll}
-          </p>
-          <p className="relative mx-auto mt-3 max-w-md text-sm text-paper-dim">
-            {dict.products.emptyText}
-          </p>
-          <Link
-            href="/#shops"
-            className="relative mt-6 inline-block text-sm tracking-[0.15em] text-brass uppercase hover:text-brass-soft"
-          >
-            {dict.common.findShop}
-          </Link>
-        </div>
-      ) : (
-        <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      )}
+      {/* Keyed on the category so switching category is new content: React shows the
+          skeleton instead of keeping the previous category's grid until the new one arrives. */}
+      <Suspense key={category ?? "all"} fallback={<ProductGridSkeleton />}>
+        <ProductGrid category={category} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function ProductGrid({ category }: { category?: string }) {
+  const [products, dict] = await Promise.all([fetchProducts(category), getDictionary()]);
+
+  return products.length === 0 ? (
+    <div className="relative mt-12 overflow-hidden border border-line px-6 py-14 text-center">
+      <div className="atmosphere-subtle" />
+      <p className="relative font-display text-2xl italic text-paper">
+        {category ? dict.products.emptyCategory : dict.products.emptyAll}
+      </p>
+      <p className="relative mx-auto mt-3 max-w-md text-sm text-paper-dim">
+        {dict.products.emptyText}
+      </p>
+      <Link
+        href="/#shops"
+        className="relative mt-6 inline-block text-sm tracking-[0.15em] text-brass uppercase hover:text-brass-soft"
+      >
+        {dict.common.findShop}
+      </Link>
+    </div>
+  ) : (
+    <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4">
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
     </div>
   );
 }

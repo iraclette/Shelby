@@ -63,7 +63,7 @@ export default function CartPage() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-paper">{line.name}</p>
-              <p className="text-sm text-paper-dim">{formatPrice(dict, line.unitPrice)}</p>
+              <p className="text-sm text-paper-dim tabular-nums">{formatPrice(dict, line.unitPrice)}</p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <input
                   type="number"
@@ -73,7 +73,7 @@ export default function CartPage() {
                   onChange={(e) => setQuantity(line.productId, parseInt(e.target.value, 10) || 0)}
                   className="w-16 border border-line bg-ink-soft px-2 py-1 text-center text-paper"
                 />
-                <p className="text-paper">{formatPrice(dict, line.quantity * line.unitPrice)}</p>
+                <p className="text-paper tabular-nums">{formatPrice(dict, line.quantity * line.unitPrice)}</p>
                 <button
                   onClick={() => removeItem(line.productId)}
                   className="text-sm text-paper-dim hover:text-brass"
@@ -86,11 +86,14 @@ export default function CartPage() {
         ))}
       </div>
 
-      <div className="mt-6 flex items-center justify-between">
-        <p className="text-lg text-paper">{fmt(dict.cart.subtotal, { amount: formatPrice(dict, subtotal) })}</p>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-lg text-paper tabular-nums">{fmt(dict.cart.subtotal, { amount: formatPrice(dict, subtotal) })}</p>
+          <p className="mt-1 text-sm text-paper-dim">{dict.cart.deliveryHint}</p>
+        </div>
         <Link
           href="/checkout"
-          className="border border-brass px-8 py-3 text-sm tracking-[0.15em] text-brass uppercase transition-colors hover:bg-brass hover:text-ink"
+          className="border border-brass px-8 py-3 text-sm tracking-[0.15em] text-brass uppercase transition-colors hover:bg-brass hover:text-ink active:translate-y-px"
         >
           {dict.cart.checkout}
         </Link>

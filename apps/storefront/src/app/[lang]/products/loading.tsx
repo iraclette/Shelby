@@ -1,4 +1,4 @@
-import Skeleton, { ProductCardSkeleton } from "@/components/Skeleton";
+import Skeleton, { ProductGridSkeleton } from "@/components/Skeleton";
 
 export default function ProductsLoading() {
   return (
@@ -9,11 +9,7 @@ export default function ProductsLoading() {
           <Skeleton key={i} className="h-8.5 w-24" />
         ))}
       </div>
-      <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4">
-        {Array.from({ length: 8 }, (_, i) => (
-          <ProductCardSkeleton key={i} />
-        ))}
-      </div>
+      <ProductGridSkeleton />
     </div>
   );
 }

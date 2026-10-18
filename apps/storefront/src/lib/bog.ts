@@ -117,8 +117,8 @@ export async function getBogOrderStatus(orderId: string): Promise<string> {
     throw new Error(`BOG order lookup failed: ${res.status} ${await res.text()}`);
   }
 
-  // TODO: confirm the exact field name/path once testing against a real
-  // order — docs show "completed" as one possible status value.
-  const data = (await res.json()) as Record<string, unknown>;
-  return (data.status as string) ?? (data.order_status as string) ?? "";
+  // Shape per BOG's Get Payment Details docs: order_status: { key: "completed", value: "<Georgian label>" }.
+  // Keys: created, processing, completed, rejected, refund_requested, refunded, ...
+  const data = (await res.json()) as { order_status?: { key?: string } };
+  return data.order_status?.key ?? "";
 }

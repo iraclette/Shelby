@@ -2,18 +2,30 @@
 
 import { Suspense, use, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import AdminLink from "./AdminLink";
 import CartLink from "./CartLink";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useI18n } from "@/i18n/client";
 
 const navLinkClass = "block py-3 transition-colors hover:text-brass lg:inline lg:py-0";
+const activeNavLinkClass = `${navLinkClass} text-paper`;
+
+// URLs carry no language prefix (see proxy.ts), so the pathname compares directly.
+function useNavClass() {
+  const pathname = usePathname();
+  return (href: string) => {
+    const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+    return { className: active ? activeNavLinkClass : navLinkClass, "aria-current": active ? ("page" as const) : undefined };
+  };
+}
 
 function HandmadeLeatherLink({ show, onClick }: { show: Promise<boolean>; onClick?: () => void }) {
   const { dict } = useI18n();
+  const navClass = useNavClass();
   if (!use(show)) return null;
   return (
-    <Link href="/handmade-leather" className={navLinkClass} onClick={onClick}>
+    <Link href="/handmade-leather" {...navClass("/handmade-leather")} onClick={onClick}>
       {dict.nav.handmadeLeather}
     </Link>
   );
@@ -22,6 +34,7 @@ function HandmadeLeatherLink({ show, onClick }: { show: Promise<boolean>; onClic
 export default function Header({ showHandmadeLeather }: { showHandmadeLeather: Promise<boolean> }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { dict } = useI18n();
+  const navClass = useNavClass();
 
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-ink/95 backdrop-blur">
@@ -31,16 +44,16 @@ export default function Header({ showHandmadeLeather }: { showHandmadeLeather: P
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm tracking-[0.15em] text-paper-dim uppercase lg:flex">
-          <Link href="/" className={navLinkClass}>
+          <Link href="/" {...navClass("/")}>
             {dict.nav.home}
           </Link>
-          <Link href="/products" className={navLinkClass}>
+          <Link href="/products" {...navClass("/products")}>
             {dict.nav.shop}
           </Link>
           <Suspense fallback={null}>
             <HandmadeLeatherLink show={showHandmadeLeather} />
           </Suspense>
-          <Link href="/account" className={navLinkClass}>
+          <Link href="/account" {...navClass("/account")}>
             {dict.nav.account}
           </Link>
           <AdminLink linkClassName={navLinkClass} />
@@ -69,16 +82,16 @@ export default function Header({ showHandmadeLeather }: { showHandmadeLeather: P
 
       {menuOpen && (
         <nav className="border-t border-line px-6 pb-4 text-sm tracking-[0.15em] text-paper-dim uppercase lg:hidden">
-          <Link href="/" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+          <Link href="/" {...navClass("/")} onClick={() => setMenuOpen(false)}>
             {dict.nav.home}
           </Link>
-          <Link href="/products" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+          <Link href="/products" {...navClass("/products")} onClick={() => setMenuOpen(false)}>
             {dict.nav.shop}
           </Link>
           <Suspense fallback={null}>
             <HandmadeLeatherLink show={showHandmadeLeather} onClick={() => setMenuOpen(false)} />
           </Suspense>
-          <Link href="/account" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+          <Link href="/account" {...navClass("/account")} onClick={() => setMenuOpen(false)}>
             {dict.nav.account}
           </Link>
           <AdminLink linkClassName={navLinkClass} onNavigate={() => setMenuOpen(false)} />

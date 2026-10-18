@@ -35,7 +35,7 @@ export default async function ProductCard({ product }: { product: Product }) {
           </p>
         )}
         <h3 className="mt-1 font-display text-lg text-paper">{product.name}</h3>
-        <p className="mt-1 text-sm text-paper-dim">{formatPrice(dict, product.sell_price)}</p>
+        <p className="mt-1 text-sm text-paper-dim tabular-nums">{formatPrice(dict, product.sell_price)}</p>
       </div>
     </Link>
   );

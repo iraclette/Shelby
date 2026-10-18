@@ -17,6 +17,17 @@ export function ProductCardSkeleton() {
   );
 }
 
+// The /products grid while products load.
+export function ProductGridSkeleton() {
+  return (
+    <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4" aria-busy="true">
+      {Array.from({ length: 8 }, (_, i) => (
+        <ProductCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
+
 // Same footprint as a labelled input/select in the storefront forms.
 export function FieldSkeleton() {
   return (

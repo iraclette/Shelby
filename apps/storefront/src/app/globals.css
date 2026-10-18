@@ -15,6 +15,11 @@
   --font-sans: var(--font-geist-sans), var(--font-noto-sans-georgian), sans-serif;
 }
 
+/* Native controls (checkboxes, selects, scrollbars) render in their dark style. */
+html {
+  color-scheme: dark;
+}
+
 body {
   background-color: var(--color-ink);
   color: var(--color-paper);
@@ -61,6 +66,17 @@ body {
   opacity: 0.15;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* No lone word on the last line of a heading or paragraph. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 /* Keyboard focus: one brass ring everywhere, mouse clicks stay clean. */

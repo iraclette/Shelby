@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Store, Truck } from "lucide-react";
 import { fetchProduct, primaryImage } from "@/lib/supabase";
 import AddToCartButton from "@/components/AddToCartButton";
 import ProductGallery from "@/components/ProductGallery";
 import { getDictionary } from "@/i18n/server";
-import { categoryName, formatPrice } from "@/i18n/format";
+import { categoryName, fmt, formatPrice } from "@/i18n/format";
+import { DELIVERY } from "@/lib/business";
 
 export const revalidate = 60;
 
@@ -32,10 +34,10 @@ export default async function ProductPage({
             </p>
           )}
           <h1 className="mt-2 font-display text-4xl text-paper">{product.name}</h1>
-          <p className="mt-4 text-2xl text-paper">{formatPrice(dict, product.sell_price)}</p>
+          <p className="mt-4 text-2xl text-paper tabular-nums">{formatPrice(dict, product.sell_price)}</p>
 
           {product.description && (
-            <p className="mt-6 leading-relaxed text-paper-dim">{product.description}</p>
+            <p className="mt-6 max-w-prose whitespace-pre-line leading-relaxed text-paper-dim">{product.description}</p>
           )}
 
           <AddToCartButton
@@ -45,13 +47,25 @@ export default async function ProductPage({
             imagePath={featured?.storage_path ?? null}
           />
 
-          <div className="mt-4 border border-line px-6 py-4 text-sm text-paper-dim">
-            {dict.product.pickupBefore}
-            <Link href="/contact" className="text-brass underline-offset-4 hover:underline">
-              {dict.product.pickupLink}
-            </Link>
-            {dict.product.pickupAfter}
-          </div>
+          <ul className="mt-6 space-y-3 border-t border-line pt-6 text-sm text-paper-dim">
+            <li className="flex gap-3">
+              <Store className="mt-0.5 h-4 w-4 flex-shrink-0 text-brass" strokeWidth={1.5} aria-hidden="true" />
+              {dict.product.pickupLine}
+            </li>
+            <li className="flex gap-3">
+              <Truck className="mt-0.5 h-4 w-4 flex-shrink-0 text-brass" strokeWidth={1.5} aria-hidden="true" />
+              <span>
+                {fmt(dict.product.deliveryLine, {
+                  branch: formatPrice(dict, DELIVERY.branchPrice),
+                  home: formatPrice(dict, DELIVERY.homePrice),
+                })}
+                .{" "}
+                <Link href="/delivery" className="text-brass underline-offset-4 hover:underline">
+                  {dict.product.deliveryLink}
+                </Link>
+              </span>
+            </li>
+          </ul>
         </div>
       </div>
     </div>

@@ -59,10 +59,19 @@ export async function fetchShops(): Promise<Shop[]> {
   return data ?? [];
 }
 
+const PRODUCT_COLUMNS =
+  "id, name, description, sell_price, category_id, categories(id, name, visible_on_storefront), product_images(storage_path, is_primary)";
+
+// A product in a category hidden from the website (the Shop Console's "show on
+// website" switch) is hidden too; uncategorised products always show.
+function onStorefront(product: Product) {
+  return product.categories?.visible_on_storefront !== false;
+}
+
 export async function fetchProducts(categoryId?: string): Promise<Product[]> {
   let query = getSupabaseClient()
     .from("products")
-    .select("id, name, description, sell_price, category_id, categories(id, name), product_images(storage_path, is_primary)")
+    .select(PRODUCT_COLUMNS)
     .order("created_at", { ascending: false });
 
   if (categoryId) {
@@ -70,16 +79,17 @@ export async function fetchProducts(categoryId?: string): Promise<Product[]> {
   }
 
   const { data } = await query;
-  return (data as unknown as Product[]) ?? [];
+  return ((data as unknown as Product[]) ?? []).filter(onStorefront);
 }
 
 export async function fetchProduct(id: string): Promise<Product | null> {
   const { data } = await getSupabaseClient()
     .from("products")
-    .select("id, name, description, sell_price, category_id, categories(id, name), product_images(storage_path, is_primary)")
+    .select(PRODUCT_COLUMNS)
     .eq("id", id)
     .maybeSingle();
-  return data as unknown as Product | null;
+  const product = data as unknown as Product | null;
+  return product && onStorefront(product) ? product : null;
 }
 
 export function primaryImage(product: Product): ProductImage | null {

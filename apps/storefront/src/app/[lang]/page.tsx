@@ -7,7 +7,8 @@ import ProductCard from "@/components/ProductCard";
 import CategoryIcon from "@/components/CategoryIcon";
 import { MapPin } from "lucide-react";
 import { getDictionary } from "@/i18n/server";
-import { categoryName } from "@/i18n/format";
+import { categoryName, fmt, formatPrice } from "@/i18n/format";
+import { DELIVERY } from "@/lib/business";
 import { groupCategories } from "@/lib/categoryGroups";
 
 export const revalidate = 60;
@@ -49,13 +50,13 @@ export default async function Home() {
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Link
               href="/products"
-              className="inline-block border border-brass px-8 py-3 text-sm tracking-[0.15em] text-brass uppercase transition-colors hover:bg-brass hover:text-ink"
+              className="inline-block border border-brass px-8 py-3 text-sm tracking-[0.15em] text-brass uppercase transition-colors hover:bg-brass hover:text-ink active:translate-y-px"
             >
               {dict.home.browse}
             </Link>
             <a
               href="#shops"
-              className="inline-block border border-line px-8 py-3 text-sm tracking-[0.15em] text-paper-dim uppercase transition-colors hover:border-paper-dim hover:text-paper"
+              className="inline-block border border-line px-8 py-3 text-sm tracking-[0.15em] text-paper-dim uppercase transition-colors hover:border-paper-dim hover:text-paper active:translate-y-px"
             >
               {dict.home.visitShop}
             </a>
@@ -68,7 +69,9 @@ export default async function Home() {
           {dict.promises.map((promise) => (
             <li key={promise.title} className="py-6 pr-4">
               <p className="text-xs tracking-[0.2em] text-brass uppercase">{promise.title}</p>
-              <p className="mt-1 text-sm text-paper-dim">{promise.text}</p>
+              <p className="mt-1 text-sm text-paper-dim">
+                {fmt(promise.text, { price: formatPrice(dict, DELIVERY.branchPrice) })}
+              </p>
             </li>
           ))}
         </ul>

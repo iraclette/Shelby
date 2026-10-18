@@ -11,8 +11,9 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps<"/
       <p className="mt-4 text-paper-dim">
         {dict.checkout.successText}
       </p>
+      {/* Same short code the Shop Console shows, so it can be read out at pickup. */}
       {typeof order === "string" && (
-        <p className="mt-2 text-xs text-paper-dim">{fmt(dict.checkout.order, { id: order })}</p>
+        <p className="mt-2 text-xs text-paper-dim">{fmt(dict.checkout.order, { id: order.slice(0, 8).toUpperCase() })}</p>
       )}
     </div>
   );
