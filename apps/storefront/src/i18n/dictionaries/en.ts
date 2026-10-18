@@ -60,7 +60,6 @@ const en = {
     jobs: "Work with us",
     information: "Information",
     delivery: "Delivery & pickup",
-    returns: "Returns & refunds",
     terms: "Terms of sale",
     privacy: "Privacy policy",
     rights: "© {year} Shelby. All rights reserved.",
@@ -180,7 +179,7 @@ const en = {
     failTitle: "Payment didn't go through",
     failText: "Nothing was charged. You can try again.",
     backToCart: "Back to cart",
-    agree: "By paying, you agree to our terms of sale and returns policy:",
+    agree: "By paying, you agree to our terms of sale:",
   },
   notFound: {
     title: "This page doesn't exist",

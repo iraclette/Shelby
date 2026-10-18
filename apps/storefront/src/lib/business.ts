@@ -1,5 +1,5 @@
 // The seller's legal details and delivery prices, shown on the policy pages
-// (/terms, /privacy, /returns, /delivery) and in the footer. Banks look for
+// (/terms, /privacy, /delivery) and in the footer. Banks look for
 // these before approving online card payments, so keep them accurate.
 // TODO: fill in from the business registration extract before going live.
 export const BUSINESS = {

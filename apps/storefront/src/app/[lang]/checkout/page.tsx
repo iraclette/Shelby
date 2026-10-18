@@ -236,10 +236,6 @@ export default function CheckoutPage() {
           <Link href="/terms" className="underline hover:text-brass">
             {dict.footer.terms}
           </Link>
-          {" · "}
-          <Link href="/returns" className="underline hover:text-brass">
-            {dict.footer.returns}
-          </Link>
         </p>
       </form>
     </div>

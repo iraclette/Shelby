@@ -11,7 +11,6 @@ export type LegalTexts = {
   updated: string;
   terms: LegalDoc;
   privacy: LegalDoc;
-  returns: LegalDoc;
   delivery: LegalDoc;
 };
 
@@ -45,7 +44,7 @@ const en: LegalTexts = {
       {
         heading: "Returns",
         body: [
-          "You can return most items within 14 days of receiving them. The Returns & Refunds page explains how, and which items can't be returned.",
+          "All sales are final. Items can't be returned or exchanged.",
         ],
       },
       {
@@ -105,39 +104,6 @@ const en: LegalTexts = {
       },
     ],
   },
-  returns: {
-    title: "Returns & Refunds",
-    intro: "Changed your mind, or something's wrong with your order? Here's how returns work.",
-    sections: [
-      {
-        heading: "14 days to change your mind",
-        body: [
-          "You can return an item within 14 days of receiving it, for any reason, as long as it's unused, in its original packaging and with all its parts.",
-          "Bring it to any of our shops, or contact us first at {phone} or {email} and we'll explain how to send it back.",
-        ],
-      },
-      {
-        heading: "Items that can't be returned",
-        body: [
-          "For hygiene reasons: cosmetics, skincare, perfume and nail or hair care products once the seal or packaging has been opened.",
-          "Oil perfumes measured out by the gram, and handmade leather items made to your order.",
-        ],
-      },
-      {
-        heading: "Damaged or wrong items",
-        body: [
-          "If your parcel arrives damaged or isn't what you ordered, tell us within 3 days, with a photo if you can. We'll replace it or refund you in full, including delivery.",
-        ],
-      },
-      {
-        heading: "Refunds",
-        body: [
-          "Refunds go back to the card you paid with, usually within 10 working days of us receiving the item. Your bank may take a few more days to show it.",
-          "The original delivery fee is refunded only if the item was faulty or wrong. Return shipping for a change of mind is paid by you.",
-        ],
-      },
-    ],
-  },
   delivery: {
     title: "Delivery & Pickup",
     intro: "Collect your order in Gori for free, or have it delivered anywhere in Georgia.",
@@ -160,7 +126,7 @@ const en: LegalTexts = {
       {
         heading: "Receiving your parcel",
         body: [
-          "Please check the parcel when you receive it. If it's damaged, tell the courier and let us know within 3 days (see Returns & Refunds).",
+          "Please check the parcel when you receive it. If it's damaged, tell the courier and let us know within 3 days.",
           "Age-restricted items (knives, lighters, hookah products) are handed over only to someone aged 18 or over.",
         ],
       },

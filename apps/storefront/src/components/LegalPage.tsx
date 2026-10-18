@@ -11,7 +11,7 @@ export async function legalMetadata(doc: DocKey): Promise<Metadata> {
   return { title: `${legal[doc].title} — Shelby` };
 }
 
-// Terms, privacy, returns and delivery all share this layout.
+// Terms, privacy and delivery all share this layout.
 export default async function LegalPage({ doc }: { doc: DocKey }) {
   const legal = await getLegalTexts();
   const { title, intro, sections } = legal[doc];

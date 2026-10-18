@@ -53,7 +53,6 @@ export default async function Footer({ children }: { children: ReactNode }) {
               {(
                 [
                   ["/delivery", dict.footer.delivery],
-                  ["/returns", dict.footer.returns],
                   ["/terms", dict.footer.terms],
                   ["/privacy", dict.footer.privacy],
                 ] as const
