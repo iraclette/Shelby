@@ -31,7 +31,7 @@
 
             <tr>
               <td align="center" style="padding:0 32px 24px;">
-                <a href="{{ .ConfirmationURL }}"
+                <a href="{{ .SiteURL }}/account?token_hash={{ .TokenHash }}&type=email"
                   style="display:inline-block;background:#c8963e;color:#0e0e10;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;text-decoration:none;padding:14px 28px;">
                   ელ. ფოსტის დადასტურება · Confirm email
                 </a>
@@ -51,7 +51,7 @@
               <td style="padding:24px 32px 32px;font-family:Arial,Helvetica,sans-serif;color:#6b665f;font-size:13px;line-height:1.6;">
                 <p style="margin:0 0 12px;">
                   თუ ღილაკი არ მუშაობს, გახსენით ეს ბმული · If the button doesn't work, open this link:<br />
-                  <a href="{{ .ConfirmationURL }}" style="color:#9a6f24;word-break:break-all;">{{ .ConfirmationURL }}</a>
+                  <a href="{{ .SiteURL }}/account?token_hash={{ .TokenHash }}&type=email" style="color:#9a6f24;word-break:break-all;">{{ .SiteURL }}/account?token_hash={{ .TokenHash }}&type=email</a>
                 </p>
                 <p style="margin:0;">
                   თუ ეს თქვენ არ ყოფილხართ, უბრალოდ უგულებელყავით ეს წერილი.<br />

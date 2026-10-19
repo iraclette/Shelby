@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { EmailOtpType, Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import Turnstile from "@/components/Turnstile";
 import Skeleton, { FieldSkeleton } from "@/components/Skeleton";
@@ -57,7 +57,19 @@ export default function AccountClient() {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    // The confirmation email links here (not to supabase.co) with a one-time token_hash;
+    // trading it in confirms the email and signs the customer in.
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get("token_hash");
+    const type = params.get("type") as EmailOtpType | null;
+    const confirmed = tokenHash && type
+      ? supabase.auth.verifyOtp({ token_hash: tokenHash, type }).then(({ error }) => {
+          window.history.replaceState(null, "", window.location.pathname); // a reload must not reuse the spent token
+          if (error) setError((error.code && dict.account.authErrors[error.code]) || error.message);
+        })
+      : Promise.resolve();
+
+    confirmed.then(() => supabase.auth.getSession()).then(({ data }) => {
       setSession(data.session);
       setCheckingSession(false);
     });
@@ -66,7 +78,7 @@ export default function AccountClient() {
       if (!newSession) setCustomer(null);
     });
     return () => sub.subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, dict]);
 
   useEffect(() => {
     if (!session) return;

@@ -263,6 +263,7 @@ const en = {
       user_already_exists: "An account with this email already exists.",
       weak_password: "That password is too weak.",
       email_not_confirmed: "Confirm your email before signing in.",
+      otp_expired: "This confirmation link has expired or was already used. Try signing in, or create the account again.",
     } as Record<string, string>,
   },
   staff: {
