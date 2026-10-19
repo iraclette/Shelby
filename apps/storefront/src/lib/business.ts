@@ -27,7 +27,7 @@ export const DELIVERY = {
 export const SOCIALS: Record<string, { instagram?: string; facebook?: string }> = {
   "Black Eye Beauty": {
     instagram: "https://www.instagram.com/blackeyebeauty7/",
-    facebook: "https://www.facebook.com/profile.php?id=100064280611306",
+    facebook: "https://www.facebook.com/share/18edvH8CTL/",
   },
   Shelby: {
     instagram: "https://www.instagram.com/shelby.shelby2020/",
