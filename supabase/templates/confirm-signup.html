@@ -1,0 +1,71 @@
+<!-- Supabase Auth "Confirm signup" email. Not deployed from here: paste into
+     Dashboard > Authentication > Emails > Templates > Confirm signup.
+     Subject: დაადასტურეთ თქვენი Shelby ანგარიში · Confirm your Shelby account -->
+<!doctype html>
+<html lang="ka">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shelby</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f6f3ee;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f3ee;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+            style="max-width:520px;background:#ffffff;border:1px solid #e4ded3;">
+            <tr>
+              <td style="background:#0e0e10;padding:24px 32px;">
+                <span style="font-family:Georgia,'Times New Roman',serif;font-size:24px;letter-spacing:2px;color:#c8963e;">SHELBY</span>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:32px 32px 8px;font-family:Arial,Helvetica,sans-serif;color:#0e0e10;">
+                <p style="margin:0 0 16px;font-size:20px;font-weight:bold;">გამარჯობა{{ if .Data.full_name }}, {{ .Data.full_name }}{{ end }}!</p>
+                <p style="margin:0 0 24px;font-size:15px;line-height:1.6;">
+                  მადლობა, რომ Shelby-ზე დარეგისტრირდით. ანგარიშის გასააქტიურებლად დაადასტურეთ თქვენი ელ. ფოსტა.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:0 32px 24px;">
+                <a href="{{ .ConfirmationURL }}"
+                  style="display:inline-block;background:#c8963e;color:#0e0e10;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;text-decoration:none;padding:14px 28px;">
+                  ელ. ფოსტის დადასტურება · Confirm email
+                </a>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:0 32px 24px;font-family:Arial,Helvetica,sans-serif;color:#0e0e10;border-bottom:1px solid #e4ded3;">
+                <p style="margin:0 0 16px;font-size:15px;font-weight:bold;">Hello{{ if .Data.full_name }}, {{ .Data.full_name }}{{ end }}!</p>
+                <p style="margin:0;font-size:15px;line-height:1.6;">
+                  Thanks for signing up at Shelby. Confirm your email address to activate your account.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:24px 32px 32px;font-family:Arial,Helvetica,sans-serif;color:#6b665f;font-size:13px;line-height:1.6;">
+                <p style="margin:0 0 12px;">
+                  თუ ღილაკი არ მუშაობს, გახსენით ეს ბმული · If the button doesn't work, open this link:<br />
+                  <a href="{{ .ConfirmationURL }}" style="color:#9a6f24;word-break:break-all;">{{ .ConfirmationURL }}</a>
+                </p>
+                <p style="margin:0;">
+                  თუ ეს თქვენ არ ყოფილხართ, უბრალოდ უგულებელყავით ეს წერილი.<br />
+                  If you didn't create an account with {{ .Email }}, you can ignore this email.
+                </p>
+              </td>
+            </tr>
+          </table>
+
+          <p style="margin:16px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#a8a29a;">
+            Shelby · Gori, Georgia · <a href="https://shelby.ge" style="color:#a8a29a;">shelby.ge</a>
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
