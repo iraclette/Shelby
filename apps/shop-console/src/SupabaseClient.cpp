@@ -450,9 +450,28 @@ void SupabaseClient::updateProductField(const QString &productId, const QString 
     });
 }
 
+QVector<Category> categoriesInTreeOrder(const QVector<Category> &categories) {
+    QVector<Category> ordered;
+    for (const Category &parent : categories) {
+        if (!parent.parentId.isEmpty()) continue;
+        ordered.append(parent);
+        for (const Category &child : categories) {
+            if (child.parentId == parent.id) ordered.append(child);
+        }
+    }
+    return ordered;
+}
+
+QString categoryLabel(const Category &category, const QVector<Category> &categories) {
+    for (const Category &parent : categories) {
+        if (parent.id == category.parentId) return parent.name + " › " + category.name;
+    }
+    return category.name;
+}
+
 void SupabaseClient::fetchCategories() {
     QUrlQuery query;
-    query.addQueryItem("select", "id,name,visible_on_storefront");
+    query.addQueryItem("select", "id,name,visible_on_storefront,parent_id");
     query.addQueryItem("order", "name.asc");
 
     authorizedGet("/rest/v1/categories", query, [this](QNetworkReply *reply) {
@@ -469,6 +488,7 @@ void SupabaseClient::fetchCategories() {
             category.id = row.value("id").toString();
             category.name = row.value("name").toString();
             category.visibleOnStorefront = row.value("visible_on_storefront").toBool(true);
+            category.parentId = row.value("parent_id").toString();
             categories.append(category);
         }
         emit categoriesFetched(categories);
@@ -493,8 +513,9 @@ void SupabaseClient::updateCategoryField(const QString &categoryId, const QStrin
     });
 }
 
-void SupabaseClient::createCategory(const QString &name) {
-    const QJsonObject body{{"name", name}};
+void SupabaseClient::createCategory(const QString &name, const QString &parentId) {
+    QJsonObject body{{"name", name}};
+    if (!parentId.isEmpty()) body["parent_id"] = parentId;
     const QMap<QByteArray, QByteArray> headers{
         {"Content-Type", "application/json"},
         {"Prefer", "return=representation"},
@@ -515,7 +536,11 @@ void SupabaseClient::createCategory(const QString &name) {
         }
 
         const QJsonObject row = rows.first().toObject();
-        emit categoryCreated({row.value("id").toString(), row.value("name").toString()});
+        Category category;
+        category.id = row.value("id").toString();
+        category.name = row.value("name").toString();
+        category.parentId = row.value("parent_id").toString();
+        emit categoryCreated(category);
     });
 }
 

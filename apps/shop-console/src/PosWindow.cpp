@@ -226,6 +226,10 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
     m_categoryChipsLayout = new FlowLayout(chipsWidget);
     m_categoryChipsLayout->setContentsMargins(0, 0, 0, 0);
     browseLayout->addWidget(chipsWidget);
+    m_subcategoryChips = new QWidget(this);
+    m_subcategoryChipsLayout = new FlowLayout(m_subcategoryChips);
+    m_subcategoryChipsLayout->setContentsMargins(24, 0, 0, 0); // indented under the parent's chip
+    browseLayout->addWidget(m_subcategoryChips);
 
     auto *gridContainer = new QWidget(this);
     m_productGridLayout = new QGridLayout(gridContainer);
@@ -385,12 +389,15 @@ void PosWindow::updatePendingBadge(int count) {
 
 void PosWindow::rebuildCategoryChips() {
     clearLayout(m_categoryChipsLayout);
+    clearLayout(m_subcategoryChipsLayout);
 
-    auto addChip = [this](const QString &label, const QString &categoryId) {
+    // The parent's chip stays lit while one of its subcategories is picked.
+    const QString selectedTop = topLevelCategoryId(m_selectedCategoryId);
+    auto addChip = [this](FlowLayout *layout, const QString &label, const QString &categoryId, bool checked) {
         auto *chip = new QPushButton(label, this);
         chip->setObjectName("categoryChip");
         chip->setCheckable(true);
-        chip->setChecked(categoryId == m_selectedCategoryId);
+        chip->setChecked(checked);
         // The checked style is bold, which is wider than the regular text the
         // size hint was measured with — reserve room for it so it isn't clipped.
         chip->ensurePolished(); // pick up the stylesheet's font size before measuring
@@ -398,25 +405,57 @@ void PosWindow::rebuildCategoryChips() {
         boldFont.setWeight(QFont::DemiBold);
         const int boldTextWidth = QFontMetrics(boldFont).horizontalAdvance(label);
         chip->setMinimumWidth(qMax(chip->sizeHint().width(), boldTextWidth + 2 * 14 + 2 + 4));
-        m_categoryButtonGroup->addButton(chip);
+        // Each row is its own exclusive group: a lit parent and a lit subcategory together.
+        if (layout == m_categoryChipsLayout) m_categoryButtonGroup->addButton(chip);
         connect(chip, &QPushButton::clicked, this, [this, categoryId]() {
             m_selectedCategoryId = categoryId;
+            // Deferred: this chip is deleted by the rebuild.
+            QMetaObject::invokeMethod(this, &PosWindow::rebuildCategoryChips, Qt::QueuedConnection);
             rebuildProductGrid();
             m_barcodeInput->setFocus();
         });
-        m_categoryChipsLayout->addWidget(chip);
+        layout->addWidget(chip);
     };
 
-    addChip("All", "");
+    addChip(m_categoryChipsLayout, "All", "", m_selectedCategoryId.isEmpty());
+    bool hasSubcategories = false;
     for (const Category &category : m_categories) {
-        addChip(category.name, category.id);
+        if (!category.parentId.isEmpty()) continue;
+        addChip(m_categoryChipsLayout, category.name, category.id, category.id == selectedTop);
     }
+    for (const Category &category : m_categories) {
+        if (selectedTop.isEmpty() || category.parentId != selectedTop) continue;
+        if (!hasSubcategories) {
+            addChip(m_subcategoryChipsLayout, "All", selectedTop, m_selectedCategoryId == selectedTop);
+            hasSubcategories = true;
+        }
+        addChip(m_subcategoryChipsLayout, category.name, category.id, category.id == m_selectedCategoryId);
+    }
+    m_subcategoryChips->setVisible(hasSubcategories);
+}
+
+QString PosWindow::topLevelCategoryId(const QString &categoryId) const {
+    for (const Category &category : m_categories) {
+        if (category.id == categoryId && !category.parentId.isEmpty()) return category.parentId;
+    }
+    return categoryId;
+}
+
+// A parent category's chip also shows the products in its subcategories.
+bool PosWindow::inSelectedCategory(const Product &product) const {
+    if (m_selectedCategoryId.isEmpty() || product.categoryId == m_selectedCategoryId) return true;
+    return topLevelCategoryId(product.categoryId) == m_selectedCategoryId;
 }
 
 QString PosWindow::categoryColor(const QString &categoryId) const {
+    // Subcategories share their parent's colour; only top-level categories count.
     constexpr int colorCount = sizeof(kCategoryColors) / sizeof(kCategoryColors[0]);
-    for (int i = 0; i < m_categories.size(); ++i) {
-        if (m_categories[i].id == categoryId) return kCategoryColors[i % colorCount];
+    const QString topId = topLevelCategoryId(categoryId);
+    int index = 0;
+    for (const Category &category : m_categories) {
+        if (!category.parentId.isEmpty()) continue;
+        if (category.id == topId) return kCategoryColors[index % colorCount];
+        ++index;
     }
     return "#2f323d"; // uncategorised: same as a plain border
 }
@@ -457,9 +496,7 @@ void PosWindow::rebuildProductGrid() {
 
     int index = 0;
     for (const Product &product : m_allProducts) {
-        if (search.isEmpty() && !m_selectedCategoryId.isEmpty() && product.categoryId != m_selectedCategoryId) {
-            continue;
-        }
+        if (search.isEmpty() && !inSelectedCategory(product)) continue;
         if (!matchesSearch(product)) continue;
         if (!productHasStockAtShop(product)) continue;
         m_visibleProducts.append(product);

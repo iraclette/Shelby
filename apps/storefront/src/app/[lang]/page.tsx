@@ -9,7 +9,7 @@ import { MapPin } from "lucide-react";
 import { getDictionary } from "@/i18n/server";
 import { categoryName, fmt, formatPrice } from "@/i18n/format";
 import { DELIVERY } from "@/lib/business";
-import { groupCategories } from "@/lib/categoryGroups";
+import { groupCategories, type CategoryGroupKey } from "@/lib/categoryGroups";
 
 export const revalidate = 60;
 
@@ -83,7 +83,15 @@ export default async function Home() {
           <div className="mt-8 space-y-10">
             {groupCategories(categories).map((group) => (
               <div key={group.key}>
-                <h3 className={eyebrow}>{dict.categoryGroups[group.key]}</h3>
+                {group.parent ? (
+                  <h3 className={eyebrow}>
+                    <Link href={`/products?category=${group.parent.id}`} className="hover:text-brass-soft">
+                      {categoryName(dict, group.parent.name)} →
+                    </Link>
+                  </h3>
+                ) : (
+                  <h3 className={eyebrow}>{dict.categoryGroups[group.key as CategoryGroupKey]}</h3>
+                )}
                 <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
                   {group.categories.map((category) => (
                     <Link

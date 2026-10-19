@@ -1,4 +1,5 @@
 #include "ProductDialog.h"
+#include "CategoriesPage.h"
 
 #include "Config.h"
 
@@ -134,17 +135,17 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     });
 
     connect(m_client, &SupabaseClient::categoriesFetched, this, [this](const QVector<Category> &categories) {
-        m_categories = categories;
+        m_categories = categoriesInTreeOrder(categories);
         m_category->clear();
         for (const Category &category : m_categories) {
-            m_category->addItem(category.name, category.id);
+            m_category->addItem(categoryLabel(category, m_categories), category.id);
         }
     });
     m_client->fetchCategories();
 
     connect(m_client, &SupabaseClient::categoryCreated, this, [this](const Category &category) {
         m_categories.append(category);
-        m_category->addItem(category.name, category.id);
+        m_category->addItem(categoryLabel(category, m_categories), category.id);
         m_category->setCurrentIndex(m_category->count() - 1);
     });
     connect(m_client, &SupabaseClient::categoryCreateFailed, this, [this](const QString &message) {
@@ -284,12 +285,7 @@ void ProductDialog::seedVariantStock(const QVector<ProductVariant> &createdVaria
 }
 
 void ProductDialog::promptForNewCategory() {
-    bool ok = false;
-    const QString name = QInputDialog::getText(this, "New category", "Category name:",
-                                                 QLineEdit::Normal, {}, &ok);
-    if (!ok || name.trimmed().isEmpty()) return;
-
-    m_client->createCategory(name.trimmed());
+    CategoriesPage::promptForNewCategory(this, m_client, m_categories);
 }
 
 void ProductDialog::promptForNewSupplier() {

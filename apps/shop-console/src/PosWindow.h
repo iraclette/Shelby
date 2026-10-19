@@ -77,6 +77,8 @@ private:
     void rebuildCategoryChips();
     void rebuildProductGrid();
     QString categoryColor(const QString &categoryId) const;
+    QString topLevelCategoryId(const QString &categoryId) const;
+    bool inSelectedCategory(const Product &product) const;
     void showStatus(const QString &message, const QString &color = "#ef4444");
     void updatePendingBadge(int count);
     void holdCart();
@@ -107,6 +109,8 @@ private:
     QPushButton *m_voidButton;
 
     FlowLayout *m_categoryChipsLayout;
+    QWidget *m_subcategoryChips; // second row, shown while a category with subcategories is picked
+    FlowLayout *m_subcategoryChipsLayout;
     QButtonGroup *m_categoryButtonGroup;
     QGridLayout *m_productGridLayout;
     QScrollArea *m_gridScroll;

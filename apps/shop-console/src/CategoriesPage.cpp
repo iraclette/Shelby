@@ -21,13 +21,8 @@ CategoriesPage::CategoriesPage(SupabaseClient *client, QWidget *parent)
     toolbar->addStretch();
 
     connect(refreshButton, &QPushButton::clicked, this, [this]() { m_client->fetchCategories(); });
-    connect(newCategoryButton, &QPushButton::clicked, this, [this]() {
-        bool ok = false;
-        const QString name = QInputDialog::getText(this, "New category", "Category name:",
-                                                     QLineEdit::Normal, {}, &ok);
-        if (!ok || name.trimmed().isEmpty()) return;
-        m_client->createCategory(name.trimmed());
-    });
+    connect(newCategoryButton, &QPushButton::clicked, this,
+            [this]() { promptForNewCategory(this, m_client, m_categories); });
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(2);
@@ -64,14 +59,36 @@ CategoriesPage::CategoriesPage(SupabaseClient *client, QWidget *parent)
     });
 }
 
+void CategoriesPage::promptForNewCategory(QWidget *parent, SupabaseClient *client,
+                                          const QVector<Category> &categories) {
+    bool ok = false;
+    const QString name = QInputDialog::getText(parent, "New category", "Category name:",
+                                                 QLineEdit::Normal, {}, &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+
+    QStringList parentNames{"None (top-level category)"};
+    QStringList parentIds{QString()};
+    for (const Category &category : categories) {
+        if (!category.parentId.isEmpty()) continue;
+        parentNames.append(category.name);
+        parentIds.append(category.id);
+    }
+    const QString picked = QInputDialog::getItem(parent, "New category", "Subcategory of:", parentNames, 0, false, &ok);
+    if (!ok) return;
+
+    client->createCategory(name.trimmed(), parentIds.value(parentNames.indexOf(picked)));
+}
+
 void CategoriesPage::rebuildTable() {
     m_populating = true;
+    m_categories = categoriesInTreeOrder(m_categories);
 
     m_table->setRowCount(m_categories.size());
     for (int row = 0; row < m_categories.size(); ++row) {
         const Category &category = m_categories[row];
 
-        auto *nameItem = new QTableWidgetItem(category.name);
+        // Subcategories sit indented under their parent.
+        auto *nameItem = new QTableWidgetItem(category.parentId.isEmpty() ? category.name : "      " + category.name);
         nameItem->setData(Qt::UserRole, category.id);
         nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(row, kColName, nameItem);

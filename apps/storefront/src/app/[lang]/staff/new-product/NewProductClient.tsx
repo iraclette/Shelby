@@ -9,9 +9,10 @@ import Skeleton from "@/components/Skeleton";
 import { randomId } from "@/lib/randomId";
 import { useI18n } from "@/i18n/client";
 import { categoryName, fmt } from "@/i18n/format";
+import { subcategoriesOf, topLevelCategories } from "@/lib/categoryGroups";
 
 type Shop = { id: string; name: string };
-type Category = { id: string; name: string };
+type Category = { id: string; name: string; parent_id: string | null };
 type PickedPhoto = { id: string; file: File; previewUrl: string };
 
 const inputClass =
@@ -64,7 +65,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
   useEffect(() => {
     Promise.all([
       supabase.from("shops").select("id, name").order("name"),
-      supabase.from("categories").select("id, name").order("name"),
+      supabase.from("categories").select("id, name, parent_id").order("name"),
     ]).then(([shopsRes, categoriesRes]) => {
       setShops((shopsRes.data as Shop[]) ?? []);
       setCategories((categoriesRes.data as Category[]) ?? []);
@@ -286,11 +287,23 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
         <span className={labelClass}>{dict.staff.category}</span>
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`mt-1 ${inputClass}`}>
           <option value="">{dict.staff.noCategory}</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {categoryName(dict, category.name)}
-            </option>
-          ))}
+          {/* A category with subcategories is a group: products go in one of its subcategories. */}
+          {topLevelCategories(categories).map((category) => {
+            const subcategories = subcategoriesOf(categories, category.id);
+            return subcategories.length > 0 ? (
+              <optgroup key={category.id} label={categoryName(dict, category.name)}>
+                {subcategories.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {categoryName(dict, sub.name)}
+                  </option>
+                ))}
+              </optgroup>
+            ) : (
+              <option key={category.id} value={category.id}>
+                {categoryName(dict, category.name)}
+              </option>
+            );
+          })}
         </select>
       </label>
 

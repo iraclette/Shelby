@@ -55,7 +55,13 @@ struct Category {
     QString id;
     QString name;
     bool visibleOnStorefront = true;
+    QString parentId; // empty for a top-level category
 };
+
+// Top-level categories, each followed by its subcategories (one level deep).
+QVector<Category> categoriesInTreeOrder(const QVector<Category> &categories);
+// "Perfumes › Niche Perfumes" for a subcategory, just the name otherwise.
+QString categoryLabel(const Category &category, const QVector<Category> &categories);
 
 struct CustomLeatherOrder {
     QString id;
@@ -264,7 +270,7 @@ public:
     void updateProductField(const QString &productId, const QString &field, const QJsonValue &value);
 
     void fetchCategories();
-    void createCategory(const QString &name);
+    void createCategory(const QString &name, const QString &parentId = {});
     // field must be one of categories' own column names (currently just
     // visible_on_storefront) — same fixed-string guarantee as updateProductField.
     void updateCategoryField(const QString &categoryId, const QString &field, const QJsonValue &value);

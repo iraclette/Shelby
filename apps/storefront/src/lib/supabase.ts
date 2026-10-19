@@ -20,6 +20,7 @@ export type Category = {
   id: string;
   name: string;
   visible_on_storefront: boolean;
+  parent_id?: string | null; // a subcategory's parent (0026_subcategories.sql)
 };
 
 export type ProductImage = {
@@ -43,7 +44,7 @@ export async function fetchCategories(): Promise<Category[]> {
   // customer-facing (nav, /products filter chips), so filter at the source.
   const { data } = await getSupabaseClient()
     .from("categories")
-    .select("id, name, visible_on_storefront")
+    .select("id, name, visible_on_storefront, parent_id")
     .eq("visible_on_storefront", true)
     .order("name");
   return data ?? [];
@@ -83,7 +84,9 @@ export async function fetchProducts(categoryId?: string): Promise<Product[]> {
     .order("created_at", { ascending: false });
 
   if (categoryId) {
-    query = query.eq("category_id", categoryId);
+    // A parent category also lists everything in its subcategories.
+    const { data: subcategories } = await getSupabaseClient().from("categories").select("id").eq("parent_id", categoryId);
+    query = query.in("category_id", [categoryId, ...(subcategories ?? []).map((c) => c.id as string)]);
   }
 
   const [{ data }, inStock] = await Promise.all([query, fetchInStockIds()]);

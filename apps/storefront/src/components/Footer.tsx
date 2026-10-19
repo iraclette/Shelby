@@ -85,7 +85,7 @@ export default async function Footer({ children }: { children: ReactNode }) {
           <p>{fmt(dict.footer.rights, { year: new Date().getFullYear() })}</p>
           {/* Who the seller legally is: card schemes want this visible on every page. */}
           <p>
-            {BUSINESS.legalName} · {BUSINESS.idNumber} · {BUSINESS.address}
+            {BUSINESS.legalName}  · {BUSINESS.address}
           </p>
         </div>
       </div>

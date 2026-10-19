@@ -15,6 +15,10 @@ class CategoriesPage : public QWidget {
 public:
     explicit CategoriesPage(SupabaseClient *client, QWidget *parent = nullptr);
 
+    // Asks for a name and an optional parent (making it a subcategory), then creates it.
+    // Shared with ProductDialog's "+ New".
+    static void promptForNewCategory(QWidget *parent, SupabaseClient *client, const QVector<Category> &categories);
+
 signals:
     void statusMessage(const QString &message);
 
