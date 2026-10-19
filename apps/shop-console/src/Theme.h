@@ -260,6 +260,14 @@ QTableWidget::item:selected {
     background-color: #2b3a5c;
 }
 
+QTableView QLineEdit, QTableView QSpinBox, QTableView QDoubleSpinBox {
+    border: 1px solid #4f8cff;
+    border-radius: 0;
+    padding: 0 5px;
+    min-height: 0;
+    margin: 0;
+}
+
 QHeaderView::section {
     background-color: #23252f;
     color: #9aa0ac;
