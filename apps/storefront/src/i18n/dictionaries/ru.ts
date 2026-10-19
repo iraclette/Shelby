@@ -102,7 +102,7 @@ const ru: Dictionary = {
     "hair clips & ties": "Заколки и резинки",
     "nail care": "Уход за ногтями",
     perfumes: "Парфюмерия",
-    "mini perfumes 8-12 gel": "Мини-парфюм 8–12 ₾",
+    "mini perfumes 8-12 gel": "Мини-парфюм 8-12 ₾",
     "special offer 25 gel": "Акция 25 ₾",
     "dubai perfumes": "Дубайская парфюмерия",
     "original tester quality": "Оригинальные тестеры",

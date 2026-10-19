@@ -17,8 +17,8 @@ export async function sendContactNotification(params: { name: string; email: str
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      // onboarding@resend.dev only delivers to the Resend account's own email until a domain is verified.
-      from: "Shelby Storefront <onboarding@resend.dev>",
+      // shelby.ge is verified in Resend, so any address on it can send.
+      from: "Shelby <noreply@shelby.ge>",
       to: [to],
       reply_to: params.email,
       subject: `Contact form: ${params.name}`,
