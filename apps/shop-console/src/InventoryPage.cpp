@@ -156,6 +156,12 @@ void InventoryPage::rebuildTable() {
     m_table->setColumnCount(headers.size());
     m_table->setHorizontalHeaderLabels(headers);
 
+    // A fixed, draggable Name column, so a long name can't push prices and stock off screen.
+    if (m_table->horizontalHeader()->sectionResizeMode(kColName) != QHeaderView::Interactive) {
+        m_table->horizontalHeader()->setSectionResizeMode(kColName, QHeaderView::Interactive);
+        m_table->setColumnWidth(kColName, 280);
+    }
+
     m_table->setRowCount(m_rows.size());
     for (int row = 0; row < m_rows.size(); ++row) {
         const InventoryRow &r = m_rows[row];
