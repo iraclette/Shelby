@@ -1,6 +1,5 @@
 #pragma once
 
-// setObjectName("primaryButton" / "productTile" / "categoryChip" / "compactButton") for the styled variants.
 inline const char *kAppStyleSheet = R"(
 QWidget {
     background-color: #14151a;
@@ -16,9 +15,6 @@ QLabel {
     background: transparent;
 }
 
-/* Everything in this app is flat 13px on purpose (a dense admin/POS tool,
-   not a marketing page). The exceptions: a toolbar needs one clear heading
-   to anchor the eye, and the checkout total must read from across the counter. */
 QLabel#pageTitle {
     font-size: 16px;
     font-weight: 700;
@@ -31,9 +27,6 @@ QLineEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
     border: 1px solid #2f323d;
     border-radius: 6px;
     padding: 6px 8px;
-    /* Without this, Qt sizes these to font-height alone and the padding
-       above eats into that instead of adding to it, so the text renders
-       vertically clipped through the middle instead of fully visible. */
     min-height: 20px;
     selection-background-color: #2b3a5c;
 }
@@ -162,7 +155,6 @@ QLabel#tileStock {
     font-size: 12px;
 }
 
-/* Checkout: receipt column (search, lines, totals, pay) */
 QFrame#posPanel {
     background-color: #1c1e26;
     border: 1px solid #2f323d;
@@ -189,7 +181,7 @@ QLineEdit#cashReceived {
     font-size: 22px;
     font-weight: 700;
     padding: 8px 12px;
-    min-height: 34px; /* the 20px base min-height would clip 22px text */
+    min-height: 34px; 
 }
 
 QFrame#totalsPanel {
@@ -357,7 +349,6 @@ QWidget#loginBrandPanel {
     border-right: 1px solid #2f323d;
 }
 
-/* Overview dashboard */
 QLabel#greeting {
     font-size: 22px;
     font-weight: 700;
@@ -412,18 +403,15 @@ QTableWidget#cardTable {
     border: none;
 }
 
-/* A strip of page-level controls under the toolbar (e.g. the dev Checkout page). */
 QWidget#pageBar {
     background-color: #1c1e26;
     border-bottom: 1px solid #2f323d;
 }
 
-/* The empty stretch of a header past its last column. */
 QHeaderView {
     background-color: #23252f;
 }
 
-/* Admin sidebar: brand on top, grouped sections, signed-in user at the bottom. */
 QWidget#sidebarPanel {
     background-color: #1c1e26;
     border-right: 1px solid #2f323d;
@@ -437,7 +425,6 @@ QWidget#sidebarFooter {
     border-top: 1px solid #2f323d;
 }
 
-/* Brand gold, same as the login screen's tagline. */
 QLabel#brandMark {
     background-color: #c8963e;
     color: #14151a;
@@ -487,8 +474,6 @@ QListWidget#adminSidebar::item:hover {
     color: #e8e9ec;
 }
 
-/* Same "selected = filled accent" language as categoryChip:checked, rather
-   than introducing a second, different selection style. */
 QListWidget#adminSidebar::item:selected {
     background-color: #4f8cff;
     color: white;
