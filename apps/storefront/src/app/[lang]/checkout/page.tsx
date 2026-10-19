@@ -80,7 +80,7 @@ export default function CheckoutPage() {
           pickupShopId: method === "pickup" ? shopId : undefined,
           deliveryCity: method === "pickup" ? undefined : city,
           deliveryAddress: method === "pickup" ? undefined : address || undefined,
-          items: lines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+          items: lines.map((line) => ({ productId: line.productId, variantId: line.variantId ?? undefined, quantity: line.quantity })),
         }),
       });
 

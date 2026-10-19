@@ -23,7 +23,6 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
-namespace {
 QString generateInternalSku() {
     const QString alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1 to avoid label confusion
     QString code;
@@ -32,16 +31,15 @@ QString generateInternalSku() {
     }
     return "INT-" + code;
 }
-} // namespace
 
 ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     : QDialog(parent), m_client(client) {
     setWindowTitle("New Product");
-    resize(480, 720);
+    resize(900, 520);
 
     m_name = new QLineEdit(this);
     m_description = new QPlainTextEdit(this);
-    m_description->setFixedHeight(70);
+    m_description->setFixedHeight(110);
     m_category = new QComboBox(this);
     m_supplier = new QComboBox(this);
     m_costPrice = new QDoubleSpinBox(this);
@@ -109,13 +107,26 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     m_saveButton = buttons->addButton("Save", QDialogButtonBox::AcceptRole);
     m_saveButton->setObjectName("primaryButton");
 
+    // Two columns so the dialog fits on screen: product details on the left,
+    // photos/stock/variants on the right.
+    auto *leftColumn = new QVBoxLayout;
+    leftColumn->addLayout(form);
+    leftColumn->addStretch();
+
+    auto *rightColumn = new QVBoxLayout;
+    rightColumn->addWidget(photosGroup);
+    rightColumn->addWidget(stockGroup);
+    rightColumn->addWidget(variantsGroup);
+    rightColumn->addStretch();
+
+    auto *columns = new QHBoxLayout;
+    columns->setSpacing(16);
+    columns->addLayout(leftColumn, 1);
+    columns->addLayout(rightColumn, 1);
+
     auto *layout = new QVBoxLayout(this);
-    layout->addLayout(form);
-    layout->addWidget(photosGroup);
-    layout->addWidget(stockGroup);
-    layout->addWidget(variantsGroup);
+    layout->addLayout(columns, 1);
     layout->addWidget(m_statusLabel);
-    layout->addStretch();
     layout->addWidget(buttons);
 
     connect(addPhotoButton, &QPushButton::clicked, this, &ProductDialog::addPhotos);

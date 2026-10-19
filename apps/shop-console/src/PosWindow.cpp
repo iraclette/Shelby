@@ -561,7 +561,12 @@ void PosWindow::handleBarcodeEntered() {
     // still works while offline.
     for (const Product &product : m_allProducts) {
         if (!product.sku.isEmpty() && product.sku.compare(text, Qt::CaseInsensitive) == 0) {
-            addToCart(product);
+            // A product with variants is sold as one of them, same as tapping its tile.
+            if (product.variants.isEmpty()) {
+                addToCart(product);
+            } else {
+                promptForVariant(product, m_barcodeInput);
+            }
             return;
         }
         for (const ProductVariant &variant : product.variants) {

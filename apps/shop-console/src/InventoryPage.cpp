@@ -5,14 +5,66 @@
 #include "TransferStockDialog.h"
 
 #include <QColor>
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QJsonValue>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QStyledItemDelegate>
 #include <QTableWidget>
 #include <QTableWidgetItem>
+#include <QTimer>
 #include <QVBoxLayout>
+
+namespace {
+
+// Edits the category column with a dropdown of the existing categories. The item keeps
+// the category id in Qt::UserRole; committing a pick sets both it and the label, which
+// fires itemChanged like any other edit.
+class CategoryDelegate : public QStyledItemDelegate {
+public:
+    CategoryDelegate(const QVector<Category> *categories, QObject *parent)
+        : QStyledItemDelegate(parent), m_categories(categories) {}
+
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const override {
+        auto *combo = new QComboBox(parent);
+        combo->addItem("(none)", QString());
+        for (const Category &category : *m_categories) {
+            combo->addItem(categoryLabel(category, *m_categories), category.id);
+        }
+        // Picking an entry is the whole edit, so commit right away instead of waiting for focus to leave.
+        auto *self = const_cast<CategoryDelegate *>(this);
+        connect(combo, &QComboBox::activated, self, [self, combo]() {
+            emit self->commitData(combo);
+            emit self->closeEditor(combo);
+        });
+        QTimer::singleShot(0, combo, &QComboBox::showPopup);
+        return combo;
+    }
+
+    void setEditorData(QWidget *editor, const QModelIndex &index) const override {
+        auto *combo = static_cast<QComboBox *>(editor);
+        combo->setCurrentIndex(qMax(0, combo->findData(index.data(Qt::UserRole).toString())));
+    }
+
+    void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const override {
+        auto *combo = static_cast<QComboBox *>(editor);
+        const QString id = combo->currentData().toString();
+        if (id == index.data(Qt::UserRole).toString()) return;
+        model->setData(index, id, Qt::UserRole);
+        model->setData(index, id.isEmpty() ? QString() : combo->currentText(), Qt::DisplayRole);
+    }
+
+private:
+    const QVector<Category> *m_categories;
+};
+
+} // namespace
 
 InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
@@ -24,6 +76,8 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     toolbar->addWidget(newProductButton);
     auto *photosButton = new QPushButton("Photos…", this);
     toolbar->addWidget(photosButton);
+    auto *addVariantButton = new QPushButton("Add variant…", this);
+    toolbar->addWidget(addVariantButton);
     auto *transferButton = new QPushButton("Transfer Stock", this);
     toolbar->addWidget(transferButton);
     toolbar->addStretch();
@@ -51,6 +105,47 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
         ProductPhotosDialog dialog(m_client, product.id, product.name, this);
         dialog.exec();
     });
+    connect(addVariantButton, &QPushButton::clicked, this, [this]() {
+        const int row = m_table->currentRow();
+        if (row < 0 || row >= m_rows.size()) {
+            emit statusMessage("Select a product row first.");
+            return;
+        }
+        const Product &product = m_products[m_rows[row].productIndex];
+
+        QDialog dialog(this);
+        dialog.setWindowTitle("Add variant to " + product.name);
+        auto *nameInput = new QLineEdit(&dialog);
+        nameInput->setPlaceholderText("e.g. 212, Red, 50 ml");
+        auto *skuInput = new QLineEdit(&dialog);
+        skuInput->setPlaceholderText("Scan, or leave empty for an internal code");
+        auto *form = new QFormLayout(&dialog);
+        form->addRow("Name", nameInput);
+        form->addRow("Barcode / SKU", skuInput);
+        if (product.variants.isEmpty()) {
+            auto *note = new QLabel("The product's current stock moves to this first variant.", &dialog);
+            note->setWordWrap(true);
+            form->addRow(note);
+        }
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        form->addRow(buttons);
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        if (dialog.exec() != QDialog::Accepted || nameInput->text().trimmed().isEmpty()) return;
+
+        const QString name = nameInput->text().trimmed();
+        const QString sku = skuInput->text().trimmed().isEmpty() ? generateInternalSku() : skuInput->text().trimmed();
+        m_client->addProductVariant(product.id, name, sku);
+        m_client->logAuditEvent("product_updated", "product", product.id, QString("variant added: %1").arg(name));
+    });
+    connect(m_client, &SupabaseClient::variantAdded, this, [this]() {
+        emit statusMessage("Variant added.");
+        m_client->fetchProducts();
+    });
+    connect(m_client, &SupabaseClient::variantAddFailed, this, [this](const QString &message) {
+        emit statusMessage("Couldn't add the variant: " + message);
+    });
+
     connect(transferButton, &QPushButton::clicked, this, [this]() {
         if (m_shops.size() < 2) {
             emit statusMessage("Need at least two shops to transfer stock between.");
@@ -76,6 +171,7 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     m_table->setAlternatingRowColors(true);
+    m_table->setItemDelegateForColumn(kColCategory, new CategoryDelegate(&m_categories, m_table));
 
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(toolbar);
@@ -93,6 +189,12 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
         m_suppliers = suppliers;
     });
     m_client->fetchSuppliers();
+
+    connect(m_client, &SupabaseClient::categoriesFetched, this, [this](const QVector<Category> &categories) {
+        m_categories = categoriesInTreeOrder(categories);
+        rebuildTable();
+    });
+    m_client->fetchCategories();
 
     connect(m_client, &SupabaseClient::supplierCreated, this, [this](const Supplier &supplier) {
         m_suppliers.append(supplier);
@@ -151,7 +253,7 @@ void InventoryPage::rebuildTable() {
         }
     }
 
-    QStringList headers{"Name", "Variant", "Supplier", "SKU", "Sell price", "Cost price"};
+    QStringList headers{"Name", "Variant", "Category", "Supplier", "SKU", "Sell price", "Cost price"};
     for (const Shop &shop : m_shops) headers << shop.name;
     m_table->setColumnCount(headers.size());
     m_table->setHorizontalHeaderLabels(headers);
@@ -176,6 +278,17 @@ void InventoryPage::rebuildTable() {
         auto *variantItem = new QTableWidgetItem(variant ? variant->name : "—");
         if (!variant) variantItem->setFlags(variantItem->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(row, kColVariant, variantItem);
+
+        QString categoryName;
+        for (const Category &category : m_categories) {
+            if (category.id == product.categoryId) {
+                categoryName = categoryLabel(category, m_categories);
+                break;
+            }
+        }
+        auto *categoryItem = new QTableWidgetItem(categoryName);
+        categoryItem->setData(Qt::UserRole, product.categoryId);
+        m_table->setItem(row, kColCategory, categoryItem);
 
         QString supplierName;
         for (const Supplier &supplier : m_suppliers) {
@@ -251,6 +364,22 @@ void InventoryPage::handleItemChanged(QTableWidgetItem *item) {
         m_client->updateVariantField(variantId, "name", text);
         m_client->logAuditEvent("product_updated", "product", product.id,
                                  QString("variant name: %1 -> %2").arg(oldName, text));
+    } else if (col == kColCategory) {
+        const QString categoryId = item->data(Qt::UserRole).toString();
+        if (categoryId == product.categoryId) return;
+        m_client->updateProductField(product.id, "category_id",
+                                     categoryId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(categoryId));
+        auto labelFor = [this](const QString &id) {
+            for (const Category &category : m_categories) {
+                if (category.id == id) return categoryLabel(category, m_categories);
+            }
+            return QString("(none)");
+        };
+        m_client->logAuditEvent("product_updated", "product", product.id,
+                                 QString("category: %1 -> %2").arg(labelFor(product.categoryId), labelFor(categoryId)));
+        // The product's other variant rows show the category too; rebuild once this edit has unwound.
+        m_products[r.productIndex].categoryId = categoryId;
+        QMetaObject::invokeMethod(this, &InventoryPage::rebuildTable, Qt::QueuedConnection);
     } else if (col == kColSupplier) {
         applySupplierEdit(row, text);
     } else if (col == kColSku) {

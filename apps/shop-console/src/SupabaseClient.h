@@ -297,6 +297,9 @@ public:
     void createSupplier(const QString &name);
 
     void createVariants(const QString &productId, const QVector<ProductVariantInput> &variants);
+    // A variant for an existing product; the first one takes over the product's own stock
+    // (add_product_variant in 0028_storefront_variants.sql).
+    void addProductVariant(const QString &productId, const QString &name, const QString &sku);
     // field must be one of product_variants' own column names (name/sku).
     void updateVariantField(const QString &variantId, const QString &field, const QJsonValue &value);
 
@@ -420,6 +423,8 @@ signals:
 
     void variantsCreated(const QVector<ProductVariant> &variants);
     void variantsCreateFailed(const QString &message);
+    void variantAdded();
+    void variantAddFailed(const QString &message);
     void variantUpdated();
     void variantUpdateFailed(const QString &message);
 

@@ -32,6 +32,7 @@ private:
     QVector<Shop> m_shops;
     QVector<Product> m_products;
     QVector<Supplier> m_suppliers;
+    QVector<Category> m_categories; // tree order, as the category column's dropdown lists them
     bool m_populating = false; // guards against itemChanged firing during rebuildTable()
 
     // One entry per table row: which product, and which of its variants
@@ -48,9 +49,10 @@ private:
 
     static constexpr int kColName = 0;
     static constexpr int kColVariant = 1;
-    static constexpr int kColSupplier = 2;
-    static constexpr int kColSku = 3;
-    static constexpr int kColSellPrice = 4;
-    static constexpr int kColCostPrice = 5;
-    static constexpr int kFixedColumnCount = 6;
+    static constexpr int kColCategory = 2;
+    static constexpr int kColSupplier = 3;
+    static constexpr int kColSku = 4;
+    static constexpr int kColSellPrice = 5;
+    static constexpr int kColCostPrice = 6;
+    static constexpr int kFixedColumnCount = 7;
 };

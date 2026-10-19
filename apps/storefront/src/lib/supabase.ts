@@ -26,6 +26,13 @@ export type Category = {
 export type ProductImage = {
   storage_path: string;
   is_primary: boolean;
+  variant_id?: string | null; // a photo of one variant (0028_storefront_variants.sql)
+};
+
+export type ProductVariant = {
+  id: string;
+  name: string;
+  inStock?: boolean; // only filled in by fetchProduct
 };
 
 export type Product = {
@@ -36,6 +43,7 @@ export type Product = {
   category_id: string | null;
   categories: Category | null;
   product_images: ProductImage[];
+  product_variants: ProductVariant[];
   inStock: boolean; // summed over every shop; filled in by fetchProducts/fetchProduct
 };
 
@@ -62,7 +70,7 @@ export async function fetchShops(): Promise<Shop[]> {
 }
 
 const PRODUCT_COLUMNS =
-  "id, name, description, sell_price, category_id, categories(id, name, visible_on_storefront), product_images(storage_path, is_primary)";
+  "id, name, description, sell_price, category_id, categories(id, name, visible_on_storefront), product_images(storage_path, is_primary, variant_id), product_variants(id, name)";
 
 // A product in a category hidden from the website (the Shop Console's "show on
 // website" switch) is hidden too; uncategorised products always show.
@@ -98,15 +106,24 @@ export async function fetchProducts(categoryId?: string): Promise<Product[]> {
 }
 
 export async function fetchProduct(id: string): Promise<Product | null> {
-  const [{ data }, inStock] = await Promise.all([
+  const [{ data }, inStock, variantsInStock] = await Promise.all([
     getSupabaseClient().from("products").select(PRODUCT_COLUMNS).eq("id", id).maybeSingle(),
     fetchInStockIds(),
+    getSupabaseClient().rpc("in_stock_variant_ids"),
   ]);
   const product = data as unknown as Product | null;
-  return product && onStorefront(product) ? { ...product, inStock: inStock.has(product.id) } : null;
+  if (!product || !onStorefront(product)) return null;
+  const variantStock = new Set((variantsInStock.data as string[] | null) ?? []);
+  return {
+    ...product,
+    inStock: inStock.has(product.id),
+    product_variants: [...product.product_variants]
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+      .map((variant) => ({ ...variant, inStock: variantStock.has(variant.id) })),
+  };
 }
 
-export function primaryImage(product: Product): ProductImage | null {
+export function primaryImage(product: Pick<Product, "product_images">): ProductImage | null {
   if (product.product_images.length === 0) return null;
   return product.product_images.find((img) => img.is_primary) ?? product.product_images[0];
 }

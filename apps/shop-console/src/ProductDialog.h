@@ -18,6 +18,9 @@ class QPushButton;
 class QSpinBox;
 class QVBoxLayout;
 
+// "INT-XXXXXX" code for products and variants without a barcode (same format as the website's).
+QString generateInternalSku();
+
 // "New product" form. Image uploads finish in the background after it closes.
 class ProductDialog : public QDialog {
     Q_OBJECT

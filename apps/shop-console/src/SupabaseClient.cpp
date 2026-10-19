@@ -698,6 +698,21 @@ void SupabaseClient::upsertInventoryLevels(const QString &productId, const QVect
     });
 }
 
+void SupabaseClient::addProductVariant(const QString &productId, const QString &name, const QString &sku) {
+    const QJsonObject body{{"p_product_id", productId}, {"p_name", name}, {"p_sku", sku}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("POST", "/rest/v1/rpc/add_product_variant", {}, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit variantAddFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit variantAdded();
+    });
+}
+
 void SupabaseClient::transferStock(const QString &productId, const QString &fromShopId, const QString &toShopId,
                                     int quantity, const QString &variantId) {
     QJsonObject body{
@@ -1191,7 +1206,7 @@ void SupabaseClient::fetchOnlineOrders() {
     QUrlQuery query;
     query.addQueryItem("select", "id,customer_name,customer_email,customer_phone,pickup_shop_id,status,total,created_at,"
                                  "delivery_method,delivery_fee,delivery_city,delivery_address,"
-                                 "order_items(quantity,unit_price,products(name))");
+                                 "order_items(quantity,unit_price,products(name),product_variants(name))");
     query.addQueryItem("order", "created_at.desc");
     query.addQueryItem("limit", "300");
 
@@ -1220,7 +1235,10 @@ void SupabaseClient::fetchOnlineOrders() {
             order.createdAt = row.value("created_at").toString();
             for (const QJsonValue &itemValue : row.value("order_items").toArray()) {
                 const QJsonObject item = itemValue.toObject();
-                order.items.append({item.value("products").toObject().value("name").toString(),
+                QString name = item.value("products").toObject().value("name").toString();
+                const QString variantName = item.value("product_variants").toObject().value("name").toString();
+                if (!variantName.isEmpty()) name += " (" + variantName + ")";
+                order.items.append({name,
                                     item.value("quantity").toInt(), item.value("unit_price").toDouble()});
             }
             orders.append(order);
@@ -1302,7 +1320,7 @@ void SupabaseClient::updateJobApplicationStatus(const QString &applicationId, co
 
 void SupabaseClient::fetchStockRequests() {
     QUrlQuery query;
-    query.addQueryItem("select", "id,contact,status,created_at,products(name)");
+    query.addQueryItem("select", "id,contact,status,created_at,products(name),product_variants(name)");
     query.addQueryItem("order", "created_at.desc");
     query.addQueryItem("limit", "300");
 
@@ -1319,6 +1337,8 @@ void SupabaseClient::fetchStockRequests() {
             StockRequest request;
             request.id = row.value("id").toString();
             request.productName = row.value("products").toObject().value("name").toString();
+            const QString variantName = row.value("product_variants").toObject().value("name").toString();
+            if (!variantName.isEmpty()) request.productName += " (" + variantName + ")";
             request.contact = row.value("contact").toString();
             request.status = row.value("status").toString();
             request.createdAt = row.value("created_at").toString();

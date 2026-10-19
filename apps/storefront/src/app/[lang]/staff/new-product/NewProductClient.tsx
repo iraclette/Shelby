@@ -5,27 +5,22 @@ import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import StaffAuthGate from "@/components/StaffAuthGate";
+import CategoryOptions, { type StaffCategory } from "@/components/CategoryOptions";
 import Skeleton from "@/components/Skeleton";
 import { randomId } from "@/lib/randomId";
+import { generateInternalSku } from "@/lib/sku";
 import { useI18n } from "@/i18n/client";
-import { categoryName, fmt } from "@/i18n/format";
-import { subcategoriesOf, topLevelCategories } from "@/lib/categoryGroups";
+import { fmt } from "@/i18n/format";
 
 type Shop = { id: string; name: string };
-type Category = { id: string; name: string; parent_id: string | null };
-type PickedPhoto = { id: string; file: File; previewUrl: string };
+// variantKey: which NewVariant the photo shows ("" = the product in general).
+type PickedPhoto = { id: string; file: File; previewUrl: string; variantKey: string };
+// key is local to the form; the database id only exists once it's saved.
+type NewVariant = { key: string; name: string; stock: Record<string, string> };
 
 const inputClass =
   "w-full rounded-md border border-line bg-ink-soft px-4 py-3 text-base text-paper outline-none focus:border-brass";
 const labelClass = "block text-sm text-paper-dim";
-
-// Same format as the Shop Console's generateInternalSku() (ProductDialog.cpp).
-function generateInternalSku() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1 to avoid label confusion
-  let code = "";
-  for (let i = 0; i < 6; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return `INT-${code}`;
-}
 
 // Phones in Georgian locale type "12,50".
 function parsePrice(text: string): number | null {
@@ -44,7 +39,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
   const { dict } = useI18n();
 
   const [shops, setShops] = useState<Shop[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<StaffCategory[]>([]);
   const [listsLoaded, setListsLoaded] = useState(false);
 
   const [name, setName] = useState("");
@@ -54,6 +49,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
   const [description, setDescription] = useState("");
   const [stock, setStock] = useState<Record<string, string>>({});
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
+  const [variants, setVariants] = useState<NewVariant[]>([]);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -68,7 +64,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
       supabase.from("categories").select("id, name, parent_id").order("name"),
     ]).then(([shopsRes, categoriesRes]) => {
       setShops((shopsRes.data as Shop[]) ?? []);
-      setCategories((categoriesRes.data as Category[]) ?? []);
+      setCategories((categoriesRes.data as StaffCategory[]) ?? []);
       setListsLoaded(true);
     });
   }, [supabase]);
@@ -79,6 +75,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
       id: randomId(),
       file,
       previewUrl: URL.createObjectURL(file),
+      variantKey: "",
     }));
     setPhotos((current) => [...current, ...picked]);
     if (cameraInputRef.current) cameraInputRef.current.value = "";
@@ -90,6 +87,15 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
     setPhotos((current) => current.filter((p) => p.id !== photo.id));
   }
 
+  function updateVariant(key: string, change: Partial<NewVariant>) {
+    setVariants((current) => current.map((v) => (v.key === key ? { ...v, ...change } : v)));
+  }
+
+  function removeVariant(key: string) {
+    setVariants((current) => current.filter((v) => v.key !== key));
+    setPhotos((current) => current.map((p) => (p.variantKey === key ? { ...p, variantKey: "" } : p)));
+  }
+
   function resetForm() {
     photos.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
     setName("");
@@ -98,6 +104,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
     setDescription("");
     setStock({});
     setPhotos([]);
+    setVariants([]);
     setError("");
     setCreated(null);
   }
@@ -124,6 +131,10 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
     if (!name.trim()) return setError(dict.staff.enterName);
     if (sell === null) return setError(dict.staff.enterPrice);
     if (cost === null) return setError(dict.staff.costNumber);
+    const namedVariants = variants.filter((v) => v.name.trim());
+    const variantNames = namedVariants.map((v) => v.name.trim().toLowerCase());
+    const duplicate = namedVariants.find((v, i) => variantNames.indexOf(v.name.trim().toLowerCase()) !== i);
+    if (duplicate) return setError(fmt(dict.staff.variantExists, { name: duplicate.name.trim() }));
 
     setSaving(true);
 
@@ -143,8 +154,42 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
 
     const problems: string[] = [];
 
-    const levels = shops
-      .map((shop) => ({ product_id: product.id, shop_id: shop.id, quantity: parseInt(stock[shop.id] ?? "", 10) }))
+    // Form key -> saved variant id.
+    const variantIds = new Map<string, string>();
+    for (const variant of namedVariants) {
+      let result = await supabase
+        .from("product_variants")
+        .insert({ product_id: product.id, name: variant.name.trim(), sku: generateInternalSku() })
+        .select("id")
+        .single();
+      // Retry on the rare random-SKU collision.
+      for (let attempt = 0; attempt < 2 && result.error?.code === "23505"; attempt++) {
+        result = await supabase
+          .from("product_variants")
+          .insert({ product_id: product.id, name: variant.name.trim(), sku: generateInternalSku() })
+          .select("id")
+          .single();
+      }
+      if (result.data) variantIds.set(variant.key, result.data.id);
+    }
+    if (variantIds.size < namedVariants.length) problems.push(dict.staff.variantsFailed);
+
+    // A product with variants only has stock per variant.
+    const stockRows =
+      namedVariants.length > 0
+        ? namedVariants.flatMap((variant) =>
+            variantIds.has(variant.key)
+              ? shops.map((shop) => ({ shop, variantId: variantIds.get(variant.key)!, text: variant.stock[shop.id] }))
+              : [],
+          )
+        : shops.map((shop) => ({ shop, variantId: null as string | null, text: stock[shop.id] }));
+    const levels = stockRows
+      .map((row) => ({
+        product_id: product.id,
+        shop_id: row.shop.id,
+        variant_id: row.variantId,
+        quantity: parseInt(row.text ?? "", 10),
+      }))
       .filter((level) => Number.isInteger(level.quantity) && level.quantity > 0);
     if (levels.length > 0) {
       const { error: stockError } = await supabase.from("inventory_levels").insert(levels);
@@ -162,7 +207,12 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
         ? { error: uploadError }
         : await supabase
             .from("product_images")
-            .insert({ product_id: product.id, storage_path: storagePath, is_primary: i === 0 });
+            .insert({
+              product_id: product.id,
+              variant_id: variantIds.get(photo.variantKey) ?? null,
+              storage_path: storagePath,
+              is_primary: i === 0,
+            });
       if (rowError) failedPhotos += 1;
     }
     if (failedPhotos > 0) problems.push(fmt(dict.staff.photosFailed, { n: failedPhotos }));
@@ -175,7 +225,9 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
         action: "product_created",
         entity_type: "product",
         entity_id: product.id,
-        detail: `created from phone: ${name.trim()} @ GEL ${sell.toFixed(2)}`,
+        detail:
+          `created from phone: ${name.trim()} @ GEL ${sell.toFixed(2)}` +
+          (namedVariants.length > 0 ? `, variants: ${namedVariants.map((v) => v.name.trim()).join(", ")}` : ""),
       })
       .then(() => {});
 
@@ -264,6 +316,27 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
                     {dict.staff.main}
                   </span>
                 )}
+                {variants.some((v) => v.name.trim()) && (
+                  <select
+                    value={photo.variantKey}
+                    onChange={(e) =>
+                      setPhotos((current) =>
+                        current.map((p) => (p.id === photo.id ? { ...p, variantKey: e.target.value } : p)),
+                      )
+                    }
+                    aria-label={dict.staff.photoOf}
+                    className="absolute inset-x-0 bottom-0 bg-ink/85 px-1 py-1.5 text-xs text-paper outline-none"
+                  >
+                    <option value="">{dict.staff.allVariants}</option>
+                    {variants
+                      .filter((v) => v.name.trim())
+                      .map((v) => (
+                        <option key={v.key} value={v.key}>
+                          {v.name.trim()}
+                        </option>
+                      ))}
+                  </select>
+                )}
                 <button
                   type="button"
                   onClick={() => removePhoto(photo)}
@@ -286,24 +359,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
       <label className="block">
         <span className={labelClass}>{dict.staff.category}</span>
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={`mt-1 ${inputClass}`}>
-          <option value="">{dict.staff.noCategory}</option>
-          {/* A category with subcategories is a group: products go in one of its subcategories. */}
-          {topLevelCategories(categories).map((category) => {
-            const subcategories = subcategoriesOf(categories, category.id);
-            return subcategories.length > 0 ? (
-              <optgroup key={category.id} label={categoryName(dict, category.name)}>
-                {subcategories.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {categoryName(dict, sub.name)}
-                  </option>
-                ))}
-              </optgroup>
-            ) : (
-              <option key={category.id} value={category.id}>
-                {categoryName(dict, category.name)}
-              </option>
-            );
-          })}
+          <CategoryOptions categories={categories} dict={dict} />
         </select>
       </label>
 
@@ -349,7 +405,58 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
         </div>
       )}
 
-      {shops.length > 0 && (
+      <fieldset>
+        <legend className={labelClass}>{dict.staff.variants}</legend>
+        {variants.length === 0 && <p className="mt-1 text-xs text-paper-dim">{dict.staff.variantsHint}</p>}
+        {variants.length > 0 && <p className="mt-1 text-xs text-paper-dim">{dict.staff.variantStock}</p>}
+        <div className="mt-2 space-y-3">
+          {variants.map((variant) => (
+            <div key={variant.key} className="rounded-md border border-line p-3">
+              <div className="flex items-center gap-2">
+                <input
+                  value={variant.name}
+                  onChange={(e) => updateVariant(variant.key, { name: e.target.value })}
+                  placeholder={dict.staff.variantPlaceholder}
+                  className={inputClass}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeVariant(variant.key)}
+                  aria-label={dict.staff.removeVariant}
+                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center text-xl text-paper-dim active:text-brass"
+                >
+                  ×
+                </button>
+              </div>
+              {shops.map((shop) => (
+                <label key={shop.id} className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-sm text-paper-dim">{shop.name}</span>
+                  <input
+                    value={variant.stock[shop.id] ?? ""}
+                    onChange={(e) =>
+                      updateVariant(variant.key, {
+                        stock: { ...variant.stock, [shop.id]: e.target.value.replace(/\D/g, "") },
+                      })
+                    }
+                    inputMode="numeric"
+                    placeholder="0"
+                    className="w-24 rounded-md border border-line bg-ink-soft px-4 py-2 text-right text-base text-paper outline-none focus:border-brass"
+                  />
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setVariants((current) => [...current, { key: randomId(), name: "", stock: {} }])}
+          className="mt-2 min-h-11 text-sm text-brass active:text-paper"
+        >
+          {dict.staff.addVariant}
+        </button>
+      </fieldset>
+
+      {shops.length > 0 && variants.length === 0 && (
         <fieldset>
           <legend className={labelClass}>{dict.staff.howMany}</legend>
           <div className="mt-1 space-y-2">

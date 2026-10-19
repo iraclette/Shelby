@@ -15,7 +15,7 @@ type CheckoutRequest = {
   pickupShopId?: string; // pickup only
   deliveryCity?: string; // Inex only
   deliveryAddress?: string; // street address for home delivery, preferred branch (optional) for branch
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; variantId?: string; quantity: number }[];
 };
 
 const DELIVERY_FEES: Record<DeliveryMethod, number> = {
@@ -47,7 +47,12 @@ export async function POST(request: NextRequest) {
     (method === "inex_home" ? !isNonEmptyString(body.deliveryAddress, 300) : !isOptionalString(body.deliveryAddress, 300)) ||
     !body.items?.length ||
     !body.items.every(
-      (item) => isUuid(item.productId) && Number.isInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 100,
+      (item) =>
+        isUuid(item.productId) &&
+        (item.variantId === undefined || isUuid(item.variantId)) &&
+        Number.isInteger(item.quantity) &&
+        item.quantity >= 1 &&
+        item.quantity <= 100,
     )
   ) {
     return NextResponse.json({ code: "invalid_fields", error: "Missing or invalid fields." }, { status: 400 });
@@ -55,23 +60,33 @@ export async function POST(request: NextRequest) {
 
   // Never trust prices from the client — look up each product's current
   // sell_price server-side and compute the total from that.
-  const productIds = body.items.map((item) => item.productId);
+  // Two shades of one product are two lines with the same productId.
+  const productIds = [...new Set(body.items.map((item) => item.productId))];
   const { data: products, error: productsError } = await supabaseAdmin
     .from("products")
-    .select("id, sell_price, categories(visible_on_storefront)")
+    .select("id, sell_price, categories(visible_on_storefront), product_variants(id)")
     .in("id", productIds);
 
   // A cart saved before its category was hidden from the website can't be bought online.
   const hidden = (products ?? []).some(
     (p) => (p.categories as unknown as { visible_on_storefront: boolean } | null)?.visible_on_storefront === false,
   );
-  if (productsError || !products || products.length !== productIds.length || hidden) {
+  // A product with variants is bought as one of them; one without, as itself.
+  const variantIdsByProduct = new Map(
+    (products ?? []).map((p) => [p.id as string, (p.product_variants as { id: string }[]).map((v) => v.id)]),
+  );
+  const variantsMatch = body.items.every((item) => {
+    const variantIds = variantIdsByProduct.get(item.productId) ?? [];
+    return variantIds.length === 0 ? item.variantId === undefined : variantIds.includes(item.variantId ?? "");
+  });
+  if (productsError || !products || products.length !== productIds.length || hidden || !variantsMatch) {
     return NextResponse.json({ code: "product_not_found", error: "One or more products could not be found." }, { status: 400 });
   }
 
   const priceById = new Map(products.map((p) => [p.id as string, p.sell_price as number]));
   const basket = body.items.map((item) => ({
     productId: item.productId,
+    variantId: item.variantId ?? null,
     quantity: item.quantity,
     unitPrice: priceById.get(item.productId)!,
   }));
@@ -81,16 +96,18 @@ export async function POST(request: NextRequest) {
 
   const { data: levels, error: levelsError } = await supabaseAdmin
     .from("inventory_levels")
-    .select("shop_id, product_id, quantity")
+    .select("shop_id, product_id, variant_id, quantity")
     .in("product_id", productIds);
   if (levelsError) {
     return NextResponse.json({ code: "order_failed", error: "Could not create the order." }, { status: 500 });
   }
-  // shop -> product -> units, summed over variants (the storefront doesn't sell by variant).
+  // shop -> stockKey -> units. Products with variants keep their stock per variant.
+  const stockKey = (productId: string, variantId?: string | null) => (variantId ? `${productId}:${variantId}` : productId);
   const stock = new Map<string, Map<string, number>>();
   for (const level of levels ?? []) {
     const shopStock = stock.get(level.shop_id as string) ?? new Map<string, number>();
-    shopStock.set(level.product_id as string, (shopStock.get(level.product_id as string) ?? 0) + (level.quantity as number));
+    const key = stockKey(level.product_id as string, level.variant_id as string | null);
+    shopStock.set(key, (shopStock.get(key) ?? 0) + (level.quantity as number));
     stock.set(level.shop_id as string, shopStock);
   }
 
@@ -100,14 +117,18 @@ export async function POST(request: NextRequest) {
   if (isDelivery) {
     const coverage = [...stock.entries()].map(([shopId, shopStock]) => [
       shopId,
-      body.items.reduce((sum, item) => sum + Math.max(0, Math.min(shopStock.get(item.productId) ?? 0, item.quantity)), 0),
+      body.items.reduce(
+        (sum, item) =>
+          sum + Math.max(0, Math.min(shopStock.get(stockKey(item.productId, item.variantId)) ?? 0, item.quantity)),
+        0,
+      ),
     ] as const);
     fulfilmentShopId = coverage.sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
   }
 
   // Everything has to come from that one shop, since that's where the stock is taken from.
   const shopStock = stock.get(fulfilmentShopId);
-  const short = body.items.filter((item) => (shopStock?.get(item.productId) ?? 0) < item.quantity);
+  const short = body.items.filter((item) => (shopStock?.get(stockKey(item.productId, item.variantId)) ?? 0) < item.quantity);
   if (short.length > 0) {
     return NextResponse.json(
       {
@@ -143,6 +164,7 @@ export async function POST(request: NextRequest) {
     basket.map((item) => ({
       order_id: order.id,
       product_id: item.productId,
+      variant_id: item.variantId,
       quantity: item.quantity,
       unit_price: item.unitPrice,
     })),

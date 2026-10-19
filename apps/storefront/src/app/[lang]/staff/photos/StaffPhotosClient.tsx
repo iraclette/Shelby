@@ -10,7 +10,8 @@ import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 
 type Product = { id: string; name: string; sku: string };
-type ProductImage = { id: string; storage_path: string; is_primary: boolean };
+type ProductImage = { id: string; storage_path: string; is_primary: boolean; variant_id: string | null };
+type Variant = { id: string; name: string };
 
 function publicUrl(storagePath: string) {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${storagePath}`;
@@ -30,6 +31,7 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
 
   const [selected, setSelected] = useState<Product | null>(null);
   const [images, setImages] = useState<ProductImage[]>([]);
+  const [variants, setVariants] = useState<Variant[]>([]);
   const [imagesLoading, setImagesLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -55,12 +57,18 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
 
   async function loadImages(productId: string) {
     setImagesLoading(true);
-    const { data } = await supabase
-      .from("product_images")
-      .select("id, storage_path, is_primary")
-      .eq("product_id", productId)
-      .order("is_primary", { ascending: false });
+    const [{ data }, { data: variantRows }] = await Promise.all([
+      supabase
+        .from("product_images")
+        .select("id, storage_path, is_primary, variant_id")
+        .eq("product_id", productId)
+        .order("is_primary", { ascending: false }),
+      supabase.from("product_variants").select("id, name").eq("product_id", productId),
+    ]);
     setImages((data as ProductImage[]) ?? []);
+    setVariants(
+      ((variantRows as Variant[]) ?? []).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+    );
     setImagesLoading(false);
   }
 
@@ -106,6 +114,15 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
     setStatusMessage(failures > 0 ? fmt(dict.staff.uploadFailed, { n: failures }) : dict.staff.uploaded);
     if (fileInputRef.current) fileInputRef.current.value = "";
     loadImages(selected.id);
+  }
+
+  async function setImageVariant(image: ProductImage, variantId: string | null) {
+    setImages((current) => current.map((i) => (i.id === image.id ? { ...i, variant_id: variantId } : i)));
+    const { error } = await supabase.from("product_images").update({ variant_id: variantId }).eq("id", image.id);
+    if (error && selected) {
+      setStatusMessage(dict.staff.photoVariantFailed);
+      loadImages(selected.id);
+    }
   }
 
   async function removeImage(image: ProductImage) {
@@ -154,18 +171,34 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
             <p className="col-span-3 text-sm text-paper-dim">{dict.staff.noPhotos}</p>
           )}
           {images.map((image) => (
-            <button
-              key={image.id}
-              onClick={() => removeImage(image)}
-              className="relative aspect-square overflow-hidden rounded-md border border-line"
-            >
-              <Image src={publicUrl(image.storage_path)} alt="" fill sizes="33vw" className="object-cover" />
-              {image.is_primary && (
-                <span className="absolute left-1 top-1 rounded bg-ink/80 px-1.5 py-0.5 text-[10px] text-brass">
-                  {dict.staff.primary}
-                </span>
+            <div key={image.id}>
+              <button
+                onClick={() => removeImage(image)}
+                className="relative block aspect-square w-full overflow-hidden rounded-md border border-line"
+              >
+                <Image src={publicUrl(image.storage_path)} alt="" fill sizes="33vw" className="object-cover" />
+                {image.is_primary && (
+                  <span className="absolute left-1 top-1 rounded bg-ink/80 px-1.5 py-0.5 text-[10px] text-brass">
+                    {dict.staff.primary}
+                  </span>
+                )}
+              </button>
+              {variants.length > 0 && (
+                <select
+                  value={image.variant_id ?? ""}
+                  onChange={(e) => setImageVariant(image, e.target.value || null)}
+                  aria-label={dict.staff.photoOf}
+                  className="mt-1 min-h-9 w-full rounded-md border border-line bg-ink-soft px-1 text-xs text-paper outline-none focus:border-brass"
+                >
+                  <option value="">{dict.staff.allVariants}</option>
+                  {variants.map((variant) => (
+                    <option key={variant.id} value={variant.id}>
+                      {variant.name}
+                    </option>
+                  ))}
+                </select>
               )}
-            </button>
+            </div>
           ))}
         </div>
       </div>

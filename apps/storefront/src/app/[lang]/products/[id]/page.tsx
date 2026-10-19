@@ -5,6 +5,8 @@ import { fetchProduct, primaryImage } from "@/lib/supabase";
 import AddToCartButton from "@/components/AddToCartButton";
 import StockRequestForm from "@/components/StockRequestForm";
 import ProductGallery from "@/components/ProductGallery";
+import { VariantProvider } from "@/components/VariantSelection";
+import VariantPurchase from "@/components/VariantPurchase";
 import { getDictionary } from "@/i18n/server";
 import { categoryName, fmt, formatPrice } from "@/i18n/format";
 import { DELIVERY } from "@/lib/business";
@@ -22,8 +24,14 @@ export default async function ProductPage({
   const galleryImages = featured
     ? [featured, ...product.product_images.filter((image) => image !== featured)]
     : [];
+  // First photo of each variant, so the cart shows the shade that was picked.
+  const variantImagePaths: Record<string, string> = {};
+  for (const image of galleryImages) {
+    if (image.variant_id && !variantImagePaths[image.variant_id]) variantImagePaths[image.variant_id] = image.storage_path;
+  }
 
   return (
+    <VariantProvider variants={product.product_variants}>
     <div className="mx-auto max-w-6xl px-6 py-16">
       <div className="grid gap-12 md:grid-cols-2">
         <ProductGallery images={galleryImages} alt={product.name} />
@@ -41,7 +49,15 @@ export default async function ProductPage({
             <p className="mt-6 max-w-prose whitespace-pre-line leading-relaxed text-paper-dim">{product.description}</p>
           )}
 
-          {product.inStock ? (
+          {product.product_variants.length > 0 ? (
+            <VariantPurchase
+              productId={product.id}
+              name={product.name}
+              unitPrice={product.sell_price}
+              imagePath={featured?.storage_path ?? null}
+              variantImagePaths={variantImagePaths}
+            />
+          ) : product.inStock ? (
             <AddToCartButton
               productId={product.id}
               name={product.name}
@@ -74,5 +90,6 @@ export default async function ProductPage({
         </div>
       </div>
     </div>
+    </VariantProvider>
   );
 }

@@ -3,9 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useI18n } from "@/i18n/client";
 
-// Shown instead of "Add to cart" when nothing is in stock. The shop sees these
-// requests in the Shop Console and gets back to the visitor once it's restocked.
-export default function StockRequestForm({ productId }: { productId: string }) {
+// Shown instead of "Add to cart" when nothing (or the picked variant) is in stock. The
+// shop sees these requests in the Shop Console and gets back to the visitor once it's restocked.
+export default function StockRequestForm({ productId, variantId }: { productId: string; variantId?: string }) {
   const { dict } = useI18n();
   const [contact, setContact] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -21,7 +21,7 @@ export default function StockRequestForm({ productId }: { productId: string }) {
       const res = await fetch("/api/stock-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, contact }),
+        body: JSON.stringify({ productId, variantId, contact }),
       });
 
       const data = await res.json();

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { productImageUrl, type ProductImage } from "@/lib/supabase";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
+import { useVariantSelection } from "@/components/VariantSelection";
 
 const SWIPE_THRESHOLD_PX = 40;
 
@@ -13,6 +14,15 @@ export default function ProductGallery({ images, alt }: { images: ProductImage[]
   const [index, setIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const { dict } = useI18n();
+  const selectedVariantId = useVariantSelection()?.selected?.id;
+  const [shownVariantId, setShownVariantId] = useState(selectedVariantId);
+
+  // Picking a variant jumps to its photo, if it has one.
+  if (selectedVariantId !== shownVariantId) {
+    setShownVariantId(selectedVariantId);
+    const photo = images.findIndex((image) => image.variant_id === selectedVariantId);
+    if (photo >= 0) setIndex(photo);
+  }
 
   if (images.length === 0) {
     return (
