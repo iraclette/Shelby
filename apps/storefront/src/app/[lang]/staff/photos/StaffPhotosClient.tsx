@@ -37,6 +37,7 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
   const [statusMessage, setStatusMessage] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   async function runSearch(text: string) {
     setQuery(text);
@@ -113,6 +114,7 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
     setUploading(false);
     setStatusMessage(failures > 0 ? fmt(dict.staff.uploadFailed, { n: failures }) : dict.staff.uploaded);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
     loadImages(selected.id);
   }
 
@@ -150,17 +152,37 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
           type="file"
           accept="image/*"
           capture="environment"
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
           multiple
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
         />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="mt-6 flex min-h-14 w-full items-center justify-center gap-2 rounded-md bg-brass text-base font-medium text-ink disabled:opacity-60"
-        >
-          {uploading ? dict.staff.uploading : dict.staff.takePhoto}
-        </button>
+        {uploading ? (
+          <p className="mt-6 flex min-h-14 items-center justify-center rounded-md bg-brass/60 text-base font-medium text-ink">
+            {dict.staff.uploading}
+          </p>
+        ) : (
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="min-h-14 rounded-md bg-brass text-base font-medium text-ink"
+            >
+              {dict.staff.takePhoto}
+            </button>
+            <button
+              onClick={() => galleryInputRef.current?.click()}
+              className="min-h-14 rounded-md border border-line text-base text-paper active:border-brass"
+            >
+              {dict.staff.fromGallery}
+            </button>
+          </div>
+        )}
         {statusMessage && <p className="mt-2 text-sm text-paper-dim">{statusMessage}</p>}
 
         <div className="mt-6 grid grid-cols-3 gap-2">
