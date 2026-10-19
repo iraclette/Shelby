@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
+    console.error("Job application insert failed:", error);
     return NextResponse.json({ code: "send_failed", error: "Could not submit the application." }, { status: 500 });
   }
 

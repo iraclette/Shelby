@@ -120,7 +120,7 @@ const en: LegalTexts = {
           "We ship with {courier}, to every city and region in Georgia:",
           "To an {courier} branch near you: {branchPrice} GEL. You collect it there with your ID.",
           "To your door: {homePrice} GEL.",
-          "Parcels are handed to {courier} within 1–2 working days of payment, and {courier} usually delivers within a few working days after that.",
+          "Parcels are handed to {courier} within 1–2 working days of payment, and {courier} usually delivers within 3–4 working days after that, sometimes a little longer.",
         ],
       },
       {
