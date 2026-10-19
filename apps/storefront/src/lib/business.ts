@@ -30,7 +30,7 @@ export const SOCIALS: Record<string, { instagram?: string; facebook?: string }> 
     facebook: "https://www.facebook.com/share/18edvH8CTL/",
   },
   Shelby: {
-    instagram: "https://www.instagram.com/shelby.shelby2020/",
+    instagram: "https://www.instagram.com/lmaccessories7/",
     facebook: "https://www.facebook.com/shel.bi.180560",
   },
   End: {
