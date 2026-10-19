@@ -111,7 +111,12 @@ export default function AccountClient() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, account_type: "customer" } },
+      // Back to this page signed in. Must match Supabase's Redirect URLs allowlist,
+      // otherwise Supabase falls back to the Site URL.
+      options: {
+        data: { full_name: fullName, account_type: "customer" },
+        emailRedirectTo: `${window.location.origin}/account`,
+      },
     });
 
     setSubmitting(false);
