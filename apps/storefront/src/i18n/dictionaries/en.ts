@@ -49,6 +49,7 @@ const en = {
     out_of_stock_pickup: "That shop doesn't have everything in your cart. Try another shop or delivery.",
     order_failed: "Could not create the order. Try again.",
     payment_failed: "The payment couldn't be started. Try again.",
+    ordering_unavailable: "Online ordering is paused for now. Please contact us to order.",
     send_failed: "Could not send it. Try again.",
     captchaRequired: "Please complete the CAPTCHA challenge.",
     captchaFailed: "CAPTCHA verification failed.",
@@ -169,6 +170,13 @@ const en = {
     checkout: "Checkout",
     deliveryHint: "Pickup or delivery is chosen at checkout.",
   },
+  // While online ordering is off (ONLINE_ORDERING in lib/business.ts).
+  ordering: {
+    pausedTitle: "Online ordering is paused for now",
+    pausedText: "To order, message any of our shops on Instagram or Facebook, or write to us through the contact form. We'll arrange pickup or delivery with you.",
+    contactUs: "Contact us",
+    promise: { title: "Order by message", text: "Message any of our shops on social media, or use the contact form." },
+  },
   checkout: {
     title: "Checkout",
     pickupFrom: "Pick up from",
@@ -233,6 +241,7 @@ const en = {
     intro: "Questions, feedback, or anything else — send us a message.",
     messageShop: "Message a shop directly",
     orWriteHere: "Or write to us here",
+    phoneOrEmail: "Phone or email",
     message: "Message",
     send: "Send message",
     sentTitle: "Message sent",

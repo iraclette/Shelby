@@ -25,7 +25,7 @@ MessagesPage::MessagesPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(5);
-    m_table->setHorizontalHeaderLabels({"Received", "Name", "Email", "Message", "Status"});
+    m_table->setHorizontalHeaderLabels({"Received", "Name", "Phone / email", "Message", "Status"});
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(kColCreated, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(kColName, QHeaderView::ResizeToContents);

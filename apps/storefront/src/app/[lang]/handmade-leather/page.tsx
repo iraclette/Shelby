@@ -9,8 +9,7 @@ export default function HandmadeLeatherPage() {
   const { dict } = useI18n();
   const [shops, setShops] = useState<Shop[]>([]);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [contact, setContact] = useState("");
   const [shopId, setShopId] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -46,8 +45,7 @@ export default function HandmadeLeatherPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerName: name,
-          customerEmail: email,
-          customerPhone: phone || undefined,
+          customerContact: contact,
           preferredShopId: shopId,
           itemDescription: description,
         }),
@@ -85,20 +83,12 @@ export default function HandmadeLeatherPage() {
           />
         </div>
         <div>
-          <label className="block text-sm text-paper-dim">{dict.common.email}</label>
+          <label className="block text-sm text-paper-dim">{dict.contact.phoneOrEmail}</label>
           <input
             required
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full border border-line bg-ink-soft px-3 py-2 text-paper"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-paper-dim">{dict.common.phoneOptional}</label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            autoComplete="tel"
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
             className="mt-1 w-full border border-line bg-ink-soft px-3 py-2 text-paper"
           />
         </div>

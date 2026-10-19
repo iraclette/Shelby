@@ -219,7 +219,9 @@ void SupabaseClient::requestTokens(const QString &grantType, const QJsonObject &
 void SupabaseClient::signOut() {
     if (!m_accessToken.isEmpty()) {
         // Best-effort revoke so a saved refresh token can't be reused; the local session goes either way.
-        QNetworkRequest request(QUrl(m_baseUrl + "/auth/v1/logout"));
+        // scope=local: only this session. The default (global) also signs the account out of the
+        // website and every other device.
+        QNetworkRequest request(QUrl(m_baseUrl + "/auth/v1/logout?scope=local"));
         request.setRawHeader("apikey", m_anonKey.toUtf8());
         request.setRawHeader("Authorization", ("Bearer " + m_accessToken).toUtf8());
         QNetworkReply *reply = m_network->post(request, QByteArray());

@@ -117,7 +117,8 @@ export default function StaffAuthGate({ children }: { children: (ctx: StaffConte
   }
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    // Just this browser: the default (global) would also sign the account out of the Shop Console.
+    await supabase.auth.signOut({ scope: "local" });
   }
 
   if (checkingSession) {

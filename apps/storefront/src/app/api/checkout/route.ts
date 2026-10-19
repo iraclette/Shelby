@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { createBogOrder } from "@/lib/bog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isNonEmptyString, isOptionalString, isUuid, isValidEmail } from "@/lib/validate";
-import { DELIVERY } from "@/lib/business";
+import { DELIVERY, ONLINE_ORDERING } from "@/lib/business";
 
 type DeliveryMethod = "pickup" | "inex_branch" | "inex_home";
 
@@ -25,6 +25,10 @@ const DELIVERY_FEES: Record<DeliveryMethod, number> = {
 };
 
 export async function POST(request: NextRequest) {
+  if (!ONLINE_ORDERING) {
+    return NextResponse.json({ code: "ordering_unavailable", error: "Online ordering is paused." }, { status: 503 });
+  }
+
   // Hits the live BOG payment API twice per call, so this is the most
   // expensive route to spam — keep the window tight.
   if (!checkRateLimit(`checkout:${getClientIp(request)}`, 5, 10 * 60 * 1000)) {

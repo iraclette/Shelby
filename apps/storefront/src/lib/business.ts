@@ -10,6 +10,11 @@ export const BUSINESS = {
   email: "[email]",
 };
 
+// Off = the website is a catalogue: no cart or card payments, and product pages point
+// visitors to the contact page / shops' social media to order. Flip back to true to sell
+// online again (Bank of Georgia checkout).
+export const ONLINE_ORDERING = false;
+
 // Shipping is through Inex; parcels are dropped off at Inex in Gori.
 export const DELIVERY = {
   courier: "Inex",

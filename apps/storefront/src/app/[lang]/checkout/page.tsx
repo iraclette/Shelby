@@ -7,7 +7,8 @@ import { fetchShops, type Shop } from "@/lib/supabase";
 import Skeleton, { FieldSkeleton } from "@/components/Skeleton";
 import { useI18n } from "@/i18n/client";
 import { fmt, formatPrice } from "@/i18n/format";
-import { DELIVERY } from "@/lib/business";
+import { DELIVERY, ONLINE_ORDERING } from "@/lib/business";
+import OrderByContact from "@/components/OrderByContact";
 
 type DeliveryMethod = "pickup" | "inex_branch" | "inex_home";
 
@@ -40,6 +41,14 @@ export default function CheckoutPage() {
       if (data.length > 0) setShopId(data[0].id);
     });
   }, []);
+
+  if (!ONLINE_ORDERING) {
+    return (
+      <div className="mx-auto max-w-xl px-6 py-16">
+        <OrderByContact dict={dict} />
+      </div>
+    );
+  }
 
   if (!hydrated) {
     return (

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useCart } from "@/lib/cart";
 import { useI18n } from "@/i18n/client";
 import { useVariantSelection } from "@/components/VariantSelection";
+import OrderByContact from "@/components/OrderByContact";
+import { ONLINE_ORDERING } from "@/lib/business";
 
 export default function AddToCartButton({
   productId,
@@ -23,6 +25,8 @@ export default function AddToCartButton({
   const [added, setAdded] = useState(false);
   const selection = useVariantSelection();
   const variant = selection?.selected ?? null;
+
+  if (!ONLINE_ORDERING) return <OrderByContact dict={dict} />;
 
   return (
     <button

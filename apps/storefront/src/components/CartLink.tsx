@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { useI18n } from "@/i18n/client";
+import { ONLINE_ORDERING } from "@/lib/business";
 
 export default function CartLink({
   className = "transition-colors hover:text-brass",
@@ -13,6 +14,8 @@ export default function CartLink({
 }) {
   const { itemCount } = useCart();
   const { dict } = useI18n();
+
+  if (!ONLINE_ORDERING) return null;
 
   return (
     <Link href="/cart" className={className} onClick={onNavigate}>

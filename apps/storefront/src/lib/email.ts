@@ -3,7 +3,13 @@ import "server-only";
 // Best-effort: the message is already saved to contact_messages before this runs.
 const RESEND_API_URL = "https://api.resend.com/emails";
 
-export async function sendContactNotification(params: { name: string; email: string; message: string }): Promise<void> {
+// contact is the visitor's phone or email; replyTo is set only when it's an email.
+export async function sendContactNotification(params: {
+  name: string;
+  contact: string;
+  replyTo?: string;
+  message: string;
+}): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.CONTACT_EMAIL;
   if (!apiKey || !to) {
@@ -20,9 +26,9 @@ export async function sendContactNotification(params: { name: string; email: str
       // shelby.ge is verified in Resend, so any address on it can send.
       from: "Shelby <noreply@shelby.ge>",
       to: [to],
-      reply_to: params.email,
+      ...(params.replyTo ? { reply_to: params.replyTo } : {}),
       subject: `Contact form: ${params.name}`,
-      text: `From: ${params.name} <${params.email}>\n\n${params.message}`,
+      text: `From: ${params.name} (${params.contact})\n\n${params.message}`,
     }),
     cache: "no-store",
   });

@@ -143,7 +143,8 @@ export default function AccountClient() {
   }
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
+    // Just this browser: the default (global) would sign them out on their other devices too.
+    await supabase.auth.signOut({ scope: "local" });
   }
 
   if (checkingSession) {

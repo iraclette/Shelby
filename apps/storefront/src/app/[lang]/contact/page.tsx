@@ -11,7 +11,7 @@ const socialLinkClass =
 export default function ContactPage() {
   const { dict } = useI18n();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -35,7 +35,7 @@ export default function ContactPage() {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, message }),
+        body: JSON.stringify({ name, contact, message }),
       });
 
       const data = await res.json();
@@ -94,12 +94,12 @@ export default function ContactPage() {
           />
         </div>
         <div>
-          <label className="block text-sm text-paper-dim">{dict.common.email}</label>
+          <label className="block text-sm text-paper-dim">{dict.contact.phoneOrEmail}</label>
           <input
             required
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="tel"
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
             className="mt-1 w-full border border-line bg-ink-soft px-3 py-2 text-paper"
           />
         </div>

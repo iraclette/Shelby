@@ -8,7 +8,7 @@ import CategoryIcon from "@/components/CategoryIcon";
 import { MapPin } from "lucide-react";
 import { getDictionary } from "@/i18n/server";
 import { categoryName, fmt, formatPrice } from "@/i18n/format";
-import { DELIVERY } from "@/lib/business";
+import { DELIVERY, ONLINE_ORDERING } from "@/lib/business";
 import { groupCategories, type CategoryGroupKey } from "@/lib/categoryGroups";
 
 export const revalidate = 60;
@@ -66,7 +66,8 @@ export default async function Home() {
 
       <section className="border-b border-line bg-ink-soft">
         <ul className="mx-auto grid max-w-6xl grid-cols-2 gap-px px-6 md:grid-cols-4">
-          {dict.promises.map((promise) => (
+          {/* The second promise is the card-payment one; while ordering is off it says how to order instead. */}
+          {dict.promises.map((p, i) => (i === 1 && !ONLINE_ORDERING ? dict.ordering.promise : p)).map((promise) => (
             <li key={promise.title} className="py-6 pr-4">
               <p className="text-xs tracking-[0.2em] text-brass uppercase">{promise.title}</p>
               <p className="mt-1 text-sm text-paper-dim">

@@ -7,10 +7,20 @@ import { productImageUrl } from "@/lib/supabase";
 import Skeleton from "@/components/Skeleton";
 import { useI18n } from "@/i18n/client";
 import { fmt, formatPrice } from "@/i18n/format";
+import OrderByContact from "@/components/OrderByContact";
+import { ONLINE_ORDERING } from "@/lib/business";
 
 export default function CartPage() {
   const { lines, setQuantity, removeItem, subtotal, hydrated } = useCart();
   const { dict } = useI18n();
+
+  if (!ONLINE_ORDERING) {
+    return (
+      <div className="mx-auto max-w-xl px-6 py-16">
+        <OrderByContact dict={dict} />
+      </div>
+    );
+  }
 
   if (!hydrated) {
     return (

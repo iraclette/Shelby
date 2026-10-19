@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isNonEmptyString, isOptionalString, isUuid, isValidEmail } from "@/lib/validate";
+import { isNonEmptyString, isPhoneOrEmail, isUuid, isValidEmail } from "@/lib/validate";
 
 type CustomOrderRequest = {
   customerName: string;
-  customerEmail: string;
-  customerPhone?: string;
+  customerContact: string; // phone or email, whichever the visitor gave
   preferredShopId: string;
   itemDescription: string;
 };
@@ -18,10 +17,10 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json()) as CustomOrderRequest;
 
+  const contact = typeof body.customerContact === "string" ? body.customerContact.trim() : "";
   if (
     !isNonEmptyString(body.customerName, 200) ||
-    !isValidEmail(body.customerEmail) ||
-    !isOptionalString(body.customerPhone, 30) ||
+    !isPhoneOrEmail(contact) ||
     !isUuid(body.preferredShopId) ||
     !isNonEmptyString(body.itemDescription, 2000)
   ) {
@@ -31,8 +30,9 @@ export async function POST(request: NextRequest) {
   const supabaseAdmin = getSupabaseAdmin();
   const { error } = await supabaseAdmin.from("custom_leather_orders").insert({
     customer_name: body.customerName,
-    customer_email: body.customerEmail,
-    customer_phone: body.customerPhone ?? null,
+    // customer_email is NOT NULL, so a phone-only request stores "" there.
+    customer_email: isValidEmail(contact) ? contact : "",
+    customer_phone: isValidEmail(contact) ? null : contact,
     preferred_shop_id: body.preferredShopId,
     item_description: body.itemDescription,
   });

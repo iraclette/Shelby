@@ -80,8 +80,11 @@ void CustomOrdersPage::rebuildTable() {
         customerItem->setFlags(customerItem->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(row, kColCustomer, customerItem);
 
-        QString contact = order.customerEmail;
-        if (!order.customerPhone.isEmpty()) contact += " / " + order.customerPhone;
+        // Newer requests have only one of the two (the website asks for "phone or email").
+        QStringList contactParts;
+        if (!order.customerEmail.isEmpty()) contactParts << order.customerEmail;
+        if (!order.customerPhone.isEmpty()) contactParts << order.customerPhone;
+        const QString contact = contactParts.join(" / ");
         auto *contactItem = new QTableWidgetItem(contact);
         contactItem->setFlags(contactItem->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(row, kColContact, contactItem);

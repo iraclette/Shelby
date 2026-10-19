@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendContactNotification } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
-import { isNonEmptyString, isValidEmail } from "@/lib/validate";
+import { isNonEmptyString, isPhoneOrEmail, isValidEmail } from "@/lib/validate";
 
 type ContactRequest = {
   name: string;
-  email: string;
+  contact: string; // phone or email, whichever the visitor gave
   message: string;
 };
 
@@ -19,14 +19,16 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json()) as ContactRequest;
 
-  if (!isNonEmptyString(body.name, 200) || !isValidEmail(body.email) || !isNonEmptyString(body.message, 5000)) {
+  const contact = typeof body.contact === "string" ? body.contact.trim() : "";
+  if (!isNonEmptyString(body.name, 200) || !isPhoneOrEmail(contact) || !isNonEmptyString(body.message, 5000)) {
     return NextResponse.json({ code: "invalid_fields", error: "Missing or invalid fields." }, { status: 400 });
   }
 
   const supabaseAdmin = getSupabaseAdmin();
   const { data: inserted, error } = await supabaseAdmin
     .from("contact_messages")
-    .insert({ name: body.name, email: body.email, message: body.message })
+    // The column is still called email (older Shop Consoles read it by that name); it holds either.
+    .insert({ name: body.name, email: contact, message: body.message })
     .select("id")
     .single();
 
@@ -37,7 +39,12 @@ export async function POST(request: NextRequest) {
   // Best-effort: the message is already safely in the admin's Help page
   // regardless of what happens here.
   try {
-    await sendContactNotification({ name: body.name, email: body.email, message: body.message });
+    await sendContactNotification({
+      name: body.name,
+      contact,
+      replyTo: isValidEmail(contact) ? contact : undefined,
+      message: body.message,
+    });
     await supabaseAdmin.from("contact_messages").update({ email_sent: true }).eq("id", inserted.id);
   } catch (err) {
     console.error("Contact notification email failed:", err);
