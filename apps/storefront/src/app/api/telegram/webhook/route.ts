@@ -32,15 +32,18 @@ export async function POST(request: NextRequest) {
   const fallbackLang = telegramLocale(message.from?.language_code);
   const [command, argument] = message.text.trim().split(/\s+/, 2);
   const supabaseAdmin = getSupabaseAdmin();
+  console.log(`Telegram bot: ${command}${argument ? " <code>" : ""} from chat ${chatId}`);
 
   if (command === "/start" && argument) {
-    const { data: code } = await supabaseAdmin
+    const { data: code, error: lookupError } = await supabaseAdmin
       .from("telegram_link_codes")
       .select("code, profile_id, lang, created_at, profiles(full_name)")
       .eq("code", argument)
       .maybeSingle();
+    if (lookupError) console.error("Telegram link code lookup failed:", lookupError);
 
     if (!code || Date.now() - new Date(code.created_at as string).getTime() > CODE_LIFETIME_MS) {
+      console.log("Telegram bot: link code not found or expired");
       await sendTelegramMessage(chatId, TELEGRAM_TEXT[fallbackLang].linkExpired);
       return NextResponse.json({ ok: true });
     }

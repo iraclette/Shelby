@@ -8,7 +8,10 @@ import type { Locale } from "@/i18n/config";
 // chat is gone or blocked the bot, so the caller can forget it.
 export async function sendTelegramMessage(chatId: number, text: string): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return true;
+  if (!token) {
+    console.warn("TELEGRAM_BOT_TOKEN is not set; Telegram message not sent.");
+    return true;
+  }
 
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
