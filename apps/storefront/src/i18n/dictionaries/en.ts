@@ -82,7 +82,7 @@ const en = {
     emptyText: "We're putting the collection online now. Until then, everything is waiting for you in store.",
     ourShops: "Our shops",
     shopsText:
-      "Each shop has its own character. Any of them can hold your online order for pickup, or send it to your door.",
+      "Each shop has its own character. Visit any of them or message us, and we'll set your order aside for pickup or bring it to your door.",
     directions: "Directions",
   },
   promises: [
