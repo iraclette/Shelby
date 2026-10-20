@@ -29,6 +29,8 @@
 #include <QSize>
 #include <QStackedWidget>
 #include <QStatusBar>
+#include <QHash>
+#include <algorithm>
 #include <QStyle>
 #include <QStyledItemDelegate>
 #include <QTableView>
@@ -235,16 +237,20 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
 
     auto *pages = new QStackedWidget(this);
 
+    // Each group heading and the sections under it, so a heading can hide with its sections.
+    QList<QPair<QListWidgetItem *, QList<QListWidgetItem *>>> groups;
     auto addGroup = [&](const QString &caption) {
         auto *item = new QListWidgetItem(caption);
         item->setFlags(Qt::NoItemFlags);
         item->setData(kHeaderRole, true);
         sidebar->addItem(item);
+        groups.append(qMakePair(item, QList<QListWidgetItem *>()));
     };
     auto addSection = [&](const QString &icon, const QString &label, QWidget *page) {
         auto *item = new QListWidgetItem(QIcon(":/icons/" + icon + ".svg"), label);
         item->setData(kPageRole, pages->count());
         sidebar->addItem(item);
+        if (!groups.isEmpty()) groups.last().second.append(item);
         tidyTables(page);
         pages->addWidget(page);
         return item;
@@ -261,6 +267,8 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     addGroup("Sales");
     auto *onlineOrdersPage = forwardStatus(new OnlineOrdersPage(client, this));
     QListWidgetItem *onlineOrdersItem = addSection("online-orders", "Online Orders", onlineOrdersPage);
+    QHash<QString, QListWidgetItem *> moduleItems; // Settings → Modules key -> sidebar item
+    moduleItems.insert("online_orders", onlineOrdersItem);
     addSection("daily-summary", "Daily Summary", forwardStatus(new DailySummaryPage(client, this)));
     if (profile.isDev) addSection("checkout", "Checkout", new CheckoutPage(client, this));
     addGroup("Catalog");
@@ -268,16 +276,20 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     addSection("categories", "Categories", forwardStatus(new CategoriesPage(client, this)));
     addGroup("People");
     addSection("employees", "Employees", forwardStatus(new EmployeesPage(client, this)));
-    addSection("salary", "Salary", forwardStatus(new SalaryPage(client, this)));
+    moduleItems.insert("salary", addSection("salary", "Salary", forwardStatus(new SalaryPage(client, this))));
     auto *applicationsPage = forwardStatus(new ApplicationsPage(client, this));
     QListWidgetItem *applicationsItem = addSection("applications", "Applications", applicationsPage);
+    moduleItems.insert("job_applications", applicationsItem);
     addGroup("Storefront");
     QListWidgetItem *ordersItem =
         addSection("orders", "Custom Orders", forwardStatus(new CustomOrdersPage(client, this)));
     // Storefront "Contact us" submissions.
+    moduleItems.insert("custom_orders", ordersItem);
     QListWidgetItem *messagesItem = addSection("help", "Messages", forwardStatus(new MessagesPage(client, this)));
+    moduleItems.insert("messages", messagesItem);
     auto *stockRequestsPage = forwardStatus(new StockRequestsPage(client, this));
     QListWidgetItem *stockRequestsItem = addSection("stock-requests", "Stock Requests", stockRequestsPage);
+    moduleItems.insert("stock_requests", stockRequestsItem);
     addGroup("System");
     addSection("audit-log", "Audit Log", forwardStatus(new AuditLogPage(client, this)));
     m_softwarePage = new SoftwarePage(updateChecker, this);
@@ -289,6 +301,18 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
         title->setText(item->text());
     });
     sidebar->setCurrentItem(overviewItem);
+
+    // Settings → Modules: hide what the business switched off, and a heading left with nothing under it.
+    auto applyModules = [sidebar, overviewItem, moduleItems, groups]() {
+        const QStringList disabled = BusinessProfile::instance()->settings().disabledModules;
+        for (auto it = moduleItems.cbegin(); it != moduleItems.cend(); ++it) it.value()->setHidden(disabled.contains(it.key()));
+        for (const auto &[header, items] : groups) {
+            header->setHidden(std::all_of(items.begin(), items.end(), [](QListWidgetItem *item) { return item->isHidden(); }));
+        }
+        if (sidebar->currentItem() && sidebar->currentItem()->isHidden()) sidebar->setCurrentItem(overviewItem);
+    };
+    applyModules();
+    connect(BusinessProfile::instance(), &BusinessProfile::changed, sidebar, applyModules);
 
     connect(overviewPage, &OverviewPage::openSection, this, [sidebar](const QString &section) {
         const auto matches = sidebar->findItems(section, Qt::MatchExactly);

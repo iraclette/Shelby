@@ -2,7 +2,9 @@
 #include "BusinessProfile.h"
 #include "SupabaseClient.h"
 
+#include <QCheckBox>
 #include <QComboBox>
+#include <QJsonArray>
 #include <QCompleter>
 #include <QDateTime>
 #include <QFileDialog>
@@ -58,6 +60,7 @@ SettingsPage::SettingsPage(SupabaseClient *client, QWidget *softwareSection, QWi
     auto *business = new BusinessSettingsSection(client, this);
     connect(business, &BusinessSettingsSection::statusMessage, this, &SettingsPage::statusMessage);
     addSection("Business", business);
+    addSection("Modules", new ModulesSettingsSection(client, this));
     addSection("Software", softwareSection);
 
     connect(sections, &QListWidget::currentRowChanged, stack, &QStackedWidget::setCurrentIndex);
@@ -275,4 +278,72 @@ void BusinessSettingsSection::removeLogo() {
     m_saveButton->setEnabled(false);
     m_status->setText("Removing the logo…");
     m_client->updateBusinessSettings({{"logo_path", QJsonValue(QJsonValue::Null)}});
+}
+
+ModulesSettingsSection::ModulesSettingsSection(SupabaseClient *client, QWidget *parent)
+    : QWidget(parent), m_client(client) {
+    auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(sectionHeader(
+        "Modules",
+        "Switch off the parts of the console your business doesn't use; they disappear from the sidebar on "
+        "every till. Nothing is deleted, and switching one back on brings everything back.",
+        this));
+
+    for (const OptionalModule &module : kOptionalModules) {
+        auto *toggle = new QCheckBox(module.name, this);
+        toggle->setStyleSheet("font-weight: 600;");
+        auto *description = new QLabel(module.description, this);
+        description->setObjectName("brandSub");
+        description->setContentsMargins(26, 0, 0, 6);
+        layout->addWidget(toggle);
+        layout->addWidget(description);
+        m_switches.append({module.key, toggle});
+    }
+
+    m_saveButton = new QPushButton("Save", this);
+    m_saveButton->setObjectName("primaryButton");
+    m_status = new QLabel(this);
+    m_status->setObjectName("brandSub");
+    m_status->setWordWrap(true);
+    auto *saveRow = new QHBoxLayout;
+    saveRow->addWidget(m_saveButton);
+    saveRow->addWidget(m_status, 1);
+    layout->addSpacing(12);
+    layout->addLayout(saveRow);
+    layout->addStretch();
+
+    connect(m_saveButton, &QPushButton::clicked, this, &ModulesSettingsSection::save);
+    connect(m_client, &SupabaseClient::businessSettingsSaved, this, [this]() {
+        if (!m_saving) return;
+        m_saving = false;
+        m_saveButton->setEnabled(true);
+        m_status->setText("Saved. Other tills pick it up the next time they start.");
+    });
+    connect(m_client, &SupabaseClient::businessSettingsSaveFailed, this, [this](const QString &message) {
+        if (!m_saving) return;
+        m_saving = false;
+        m_saveButton->setEnabled(true);
+        m_status->setText("Couldn't save: " + message);
+    });
+    connect(BusinessProfile::instance(), &BusinessProfile::changed, this, [this]() {
+        if (!m_saving) loadFromProfile();
+    });
+    loadFromProfile();
+}
+
+void ModulesSettingsSection::loadFromProfile() {
+    const QStringList disabled = BusinessProfile::instance()->settings().disabledModules;
+    for (const auto &[key, toggle] : m_switches) toggle->setChecked(!disabled.contains(key));
+}
+
+void ModulesSettingsSection::save() {
+    QJsonArray disabled;
+    for (const auto &[key, toggle] : m_switches) {
+        if (!toggle->isChecked()) disabled.append(key);
+    }
+    m_saving = true;
+    m_saveButton->setEnabled(false);
+    m_status->setText("Saving…");
+    m_client->updateBusinessSettings({{"disabled_modules", disabled}});
 }

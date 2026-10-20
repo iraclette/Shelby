@@ -875,6 +875,7 @@ BusinessSettings parseBusinessSettings(const QJsonObject &row) {
     settings.currencySymbol = row.value("currency_symbol").toString();
     settings.currencyStyle = row.value("currency_style").toString();
     settings.timezone = row.value("timezone").toString();
+    for (const QJsonValue &module : row.value("disabled_modules").toArray()) settings.disabledModules << module.toString();
     return settings;
 }
 } // namespace
@@ -887,7 +888,7 @@ void SupabaseClient::fetchBusinessSettings() {
     // Public read (0032), so the anon key alone is enough, signed in or not.
     QUrl url(m_baseUrl + "/rest/v1/business_settings");
     QUrlQuery query;
-    query.addQueryItem("select", "name,logo_path,currency_code,currency_symbol,currency_style,timezone");
+    query.addQueryItem("select", "name,logo_path,currency_code,currency_symbol,currency_style,timezone,disabled_modules");
     url.setQuery(query);
     QNetworkRequest request(url);
     request.setRawHeader("apikey", m_anonKey.toUtf8());

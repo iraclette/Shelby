@@ -2,6 +2,7 @@
 
 #include <QWidget>
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -52,5 +53,23 @@ private:
 
     // A logo that was just replaced or removed: deleted from storage once the change is saved.
     QString m_oldLogoPath;
+    bool m_saving = false;
+};
+
+// Settings → Modules: switch off console sections the business doesn't use, on every till.
+class ModulesSettingsSection : public QWidget {
+    Q_OBJECT
+
+public:
+    explicit ModulesSettingsSection(SupabaseClient *client, QWidget *parent = nullptr);
+
+private:
+    void loadFromProfile();
+    void save();
+
+    SupabaseClient *m_client;
+    QList<QPair<QString, QCheckBox *>> m_switches; // module key -> its checkbox (checked = on)
+    QPushButton *m_saveButton;
+    QLabel *m_status;
     bool m_saving = false;
 };

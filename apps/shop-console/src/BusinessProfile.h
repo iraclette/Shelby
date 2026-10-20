@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QPixmap>
 #include <QString>
+#include <QStringList>
 
 class QNetworkAccessManager;
 
@@ -17,6 +18,23 @@ struct BusinessSettings {
     QString currencySymbol = "₾";
     QString currencyStyle = "code_before"; // code_before ("GEL 12.50"), symbol_before ("₾12.50"), symbol_after ("12.50 ₾")
     QString timezone = "Asia/Tbilisi";
+    // Settings → Modules: console sections this business switched off (see kOptionalModules).
+    QStringList disabledModules;
+};
+
+// The console sections a business can switch off, in sidebar order: key, name, what it's for.
+struct OptionalModule {
+    const char *key;
+    const char *name;
+    const char *description;
+};
+inline constexpr OptionalModule kOptionalModules[] = {
+    {"online_orders", "Online Orders", "Orders paid on the website, to prepare and hand over."},
+    {"salary", "Salary", "Track and pay employees' salaries."},
+    {"job_applications", "Job Applications", "Applications sent from the website's \"work with us\" page."},
+    {"custom_orders", "Custom Orders", "Made-to-order requests from the website (handmade leather)."},
+    {"messages", "Messages", "Messages sent through the website's contact form."},
+    {"stock_requests", "Stock Requests", "\"Let me know when it's back\" requests from the website."},
 };
 
 class BusinessProfile : public QObject {

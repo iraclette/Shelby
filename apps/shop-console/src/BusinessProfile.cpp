@@ -36,6 +36,7 @@ BusinessProfile::BusinessProfile() {
     m_settings.currencySymbol = s.value("currencySymbol", m_settings.currencySymbol).toString();
     m_settings.currencyStyle = s.value("currencyStyle", m_settings.currencyStyle).toString();
     m_settings.timezone = s.value("timezone", m_settings.timezone).toString();
+    m_settings.disabledModules = s.value("disabledModules").toStringList();
     s.endGroup();
     if (!m_settings.logoPath.isEmpty()) m_logo.load(logoCacheFile());
 }
@@ -79,6 +80,7 @@ void BusinessProfile::saveCache() const {
     s.setValue("currencySymbol", m_settings.currencySymbol);
     s.setValue("currencyStyle", m_settings.currencyStyle);
     s.setValue("timezone", m_settings.timezone);
+    s.setValue("disabledModules", m_settings.disabledModules);
     s.endGroup();
 }
 
