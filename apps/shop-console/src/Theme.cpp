@@ -573,8 +573,8 @@ Palette lightPalette() {
     };
 }
 
-// The Bloodborne palette from the user's desktop: void, stone, old blood, tarnished gold, parchment.
-Palette hunterPalette() {
+// Near-black, oxblood red, tarnished gold and parchment text.
+Palette oxbloodPalette() {
     return {
         .window = QColor("#0b0a0a"), .surface = QColor("#151313"), .control = QColor("#1f1b1b"),
         .controlHover = QColor("#2a2424"), .alternateRow = QColor("#121010"), .alternateRowDeep = QColor("#0e0d0d"),
@@ -590,7 +590,7 @@ Palette hunterPalette() {
 
 Palette basePalette(const QString &id) {
     if (id == "light") return lightPalette();
-    if (id == "hunter") return hunterPalette();
+    if (id == "oxblood") return oxbloodPalette();
     return darkPalette();
 }
 
@@ -617,17 +617,18 @@ int g_startupScale = 100;
 } // namespace
 
 QStringList themeIds() {
-    return {"dark", "light", "hunter"};
+    return {"dark", "light", "oxblood"};
 }
 
 QString themeName(const QString &id) {
     if (id == "light") return "Light";
-    if (id == "hunter") return "Hunter";
+    if (id == "oxblood") return "Oxblood";
     return "Dark";
 }
 
 QString currentThemeId() {
-    const QString id = localSettings().value("appearance/theme", "dark").toString();
+    QString id = localSettings().value("appearance/theme", "dark").toString();
+    if (id == "hunter") id = "oxblood"; // its name in 2.0.0-rc3
     return themeIds().contains(id) ? id : "dark";
 }
 

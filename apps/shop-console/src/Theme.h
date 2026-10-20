@@ -39,7 +39,7 @@ struct Palette {
     QColor loginGradientMid;
 };
 
-// "dark", "light", "hunter"
+// "dark", "light", "oxblood"
 QStringList themeIds();
 QString themeName(const QString &id);
 
