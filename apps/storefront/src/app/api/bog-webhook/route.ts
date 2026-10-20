@@ -1,7 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { verifyBogCallbackSignature, getBogOrderStatus } from "@/lib/bog";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { notifyStaff, shopName } from "@/lib/telegram";
+import { TELEGRAM_TEXT } from "@/lib/telegramText";
+import { fmt } from "@/i18n/format";
 
 export async function POST(request: NextRequest) {
   // Flood protection only; the signature check is the real gate.
@@ -29,12 +32,27 @@ export async function POST(request: NextRequest) {
   if (status === "completed") {
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id")
+      .select("id, status, customer_name, total, delivery_method, delivery_city, pickup_shop_id")
       .eq("bog_order_id", bogOrderId)
       .maybeSingle();
 
     if (order) {
       await supabaseAdmin.rpc("confirm_online_order", { p_order_id: order.id });
+
+      // BOG can call back more than once; only the call that actually confirms it notifies.
+      if (order.status === "pending") {
+        after(async () => {
+          const shop = await shopName(order.pickup_shop_id);
+          await notifyStaff("online_order", (lang) => ({
+            total: Number(order.total).toFixed(2),
+            customer: order.customer_name,
+            how:
+              order.delivery_method === "pickup"
+                ? fmt(TELEGRAM_TEXT[lang].pickup, { shop: shop ?? "?" })
+                : fmt(TELEGRAM_TEXT[lang].delivery, { city: order.delivery_city ?? "?" }),
+          }));
+        });
+      }
     }
   }
 

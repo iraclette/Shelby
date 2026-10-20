@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendContactNotification } from "@/lib/email";
+import { notifyStaff } from "@/lib/telegram";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isNonEmptyString, isPhoneOrEmail, isValidEmail } from "@/lib/validate";
 
@@ -35,6 +36,8 @@ export async function POST(request: NextRequest) {
   if (error || !inserted) {
     return NextResponse.json({ code: "send_failed", error: "Could not send your message." }, { status: 500 });
   }
+
+  after(() => notifyStaff("contact_message", () => ({ name: body.name, contact, message: body.message })));
 
   // Best-effort: the message is already safely in the admin's Help page
   // regardless of what happens here.

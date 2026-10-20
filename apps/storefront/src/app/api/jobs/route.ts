@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { notifyStaff, preferredShopText, shopName } from "@/lib/telegram";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isNonEmptyString, isOptionalString, isUuid, isValidEmail } from "@/lib/validate";
 
@@ -53,6 +54,15 @@ export async function POST(request: NextRequest) {
     console.error("Job application insert failed:", error);
     return NextResponse.json({ code: "send_failed", error: "Could not submit the application." }, { status: 500 });
   }
+
+  after(async () => {
+    const shop = await shopName(body.preferredShopId);
+    await notifyStaff("job_application", (lang) => ({
+      name: body.name.trim(),
+      phone: body.phone.trim(),
+      shop: preferredShopText(lang, shop),
+    }));
+  });
 
   return NextResponse.json({ ok: true });
 }

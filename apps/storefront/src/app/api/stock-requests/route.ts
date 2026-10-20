@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { notifyStaff } from "@/lib/telegram";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { isNonEmptyString, isUuid } from "@/lib/validate";
 
@@ -39,6 +40,20 @@ export async function POST(request: NextRequest) {
   }
   if (error && error.code !== "23505") {
     return NextResponse.json({ code: "send_failed", error: "Could not submit the request." }, { status: 500 });
+  }
+
+  // Only for a new request: asking twice (23505) doesn't ping anyone again.
+  if (!error) {
+    after(async () => {
+      const [{ data: product }, { data: variant }] = await Promise.all([
+        getSupabaseAdmin().from("products").select("name").eq("id", body.productId).maybeSingle(),
+        body.variantId
+          ? getSupabaseAdmin().from("product_variants").select("name").eq("id", body.variantId).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      const label = `${product?.name ?? "?"}${variant?.name ? ` (${variant.name})` : ""}`;
+      await notifyStaff("stock_request", () => ({ product: label, contact }));
+    });
   }
 
   return NextResponse.json({ ok: true });
