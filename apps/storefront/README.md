@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shelby Storefront
 
-## Getting Started
+The customer-facing website for Shelby's shops, at [shelby.ge](https://shelby.ge), plus a few phone-friendly pages for staff. Built with Next.js (App Router), React and Tailwind CSS, on the same Supabase backend as the Shop Console.
 
-First, run the development server:
+## Running it locally
+
+Requires Node.js 20 or later.
 
 ```bash
+npm install
+# create .env.local with the values below
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The site runs at [http://localhost:3000](http://localhost:3000). Other scripts:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Command | What it does |
+|---|---|
+| `npm run build` | Production build |
+| `npm start` | Serves the production build |
+| `npm run lint` | ESLint |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Configuration
 
-## Learn More
+All settings are environment variables, set in `.env.local` locally and in the host's settings in production. Only the two Supabase public values are needed to browse the site locally. Everything else switches on one feature and is skipped while unset.
 
-To learn more about Next.js, take a look at the following resources:
+| Variables | Used for |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Reading the catalog, customer and staff sign-in |
+| `SUPABASE_SECRET_KEY` | Server-only API routes that write orders and form submissions. Never expose it to the browser |
+| `BOG_CLIENT_ID`, `BOG_CLIENT_SECRET`, `BOG_PUBLIC_KEY` | Bank of Georgia card payments and their callback |
+| `RESEND_API_KEY`, `CONTACT_EMAIL` | Emailing the business about contact form messages |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile CAPTCHA on sign-in and sign-up |
+| `TELEGRAM_BOT_TOKEN`, `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` | Telegram alerts for owners |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Business details shown on the policy pages, delivery prices and the online ordering switch live in `src/lib/business.ts`. With `ONLINE_ORDERING` off, the site works as a catalogue: there's no cart, and product pages point visitors to the shops to order.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Languages
 
-## Deploy on Vercel
+Every page is served in English, Georgian and Russian under `/en`, `/ka` and `/ru`. Visitors get their browser's language when the site has it, English otherwise, and the language switcher remembers their choice. The text lives in `src/i18n/dictionaries/`. Georgian wording follows `src/i18n/GLOSSARY.md`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Layout
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Path | Contents |
+|---|---|
+| `src/app/[lang]/` | Pages: catalog, product pages, cart and checkout, account, contact, handmade leather, jobs, delivery and policy pages |
+| `src/app/[lang]/staff/` | Staff pages: product photos, new product, stock lookup, Telegram notifications |
+| `src/app/api/` | Server routes: checkout and the Bank of Georgia webhook, form submissions (contact, custom orders, jobs, stock requests), the Telegram webhook, CAPTCHA verification |
+| `src/lib/` | Supabase clients, payments, email, Telegram, validation and rate limiting |
+| `src/components/` | Shared UI |
+
+The database schema and access rules are in `supabase/migrations/` at the repository root. Every table is protected by row-level security, and the secret key is used only in server routes that need to write past it.
