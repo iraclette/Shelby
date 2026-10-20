@@ -7,6 +7,7 @@ struct Config {
     QString supabaseUrl;
     QString supabaseAnonKey;
     QString photosSyncDir;
+    QString telegramBotUsername; // without the @; empty = Telegram not set up
 
     bool isValid() const { return !supabaseUrl.isEmpty() && !supabaseAnonKey.isEmpty(); }
 

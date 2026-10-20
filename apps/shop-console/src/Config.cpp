@@ -51,5 +51,7 @@ Config Config::load() {
         fileValues.value("SUPABASE_ANON_KEY", env.value("SUPABASE_ANON_KEY", BUILTIN_SUPABASE_ANON_KEY));
     config.photosSyncDir = fileValues.value("PHOTOS_SYNC_DIR", env.value("PHOTOS_SYNC_DIR"));
     if (config.photosSyncDir.isEmpty()) config.photosSyncDir = guessPhotosSyncDir();
+    config.telegramBotUsername =
+        fileValues.value("TELEGRAM_BOT_USERNAME", env.value("TELEGRAM_BOT_USERNAME", BUILTIN_TELEGRAM_BOT_USERNAME));
     return config;
 }

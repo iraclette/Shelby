@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QDateTime>
+#include <QVector>
 #include <QWidget>
 
 class QCheckBox;
@@ -7,6 +9,8 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QTimer;
+class QVBoxLayout;
 class SupabaseClient;
 
 // Settings: a list of sections on the left (Business, Software…), the section on the right.
@@ -111,4 +115,41 @@ private:
     QPushButton *m_saveButton;
     QLabel *m_status;
     bool m_saving = false;
+};
+
+// Settings → Notifications: desktop pop-ups for this account on this computer, and phones
+// linked to the website's Telegram bot. Linking shows a QR code to scan with the phone, so the
+// computer itself doesn't need Telegram.
+class NotificationsSettingsSection : public QWidget {
+    Q_OBJECT
+
+public:
+    explicit NotificationsSettingsSection(SupabaseClient *client, QWidget *parent = nullptr);
+
+private:
+    struct TelegramLink {
+        QString id;
+        QString chatName;
+        QStringList events;
+    };
+
+    void startLinking();
+    void stopLinking();
+    void loadLinks();
+    void showLinks();
+    void setLinkEvent(const QString &linkId, const QString &event, bool on);
+    void disconnectLink(const QString &linkId, const QString &chatName);
+    void showEvent(QShowEvent *event) override; // picks up phones linked from the website meanwhile
+
+    SupabaseClient *m_client;
+    QString m_botUsername;
+    QPushButton *m_connectButton = nullptr;
+    QWidget *m_qrPanel = nullptr;
+    QLabel *m_qrCode = nullptr;
+    QLabel *m_qrLink = nullptr;
+    QLabel *m_telegramStatus = nullptr;
+    QVBoxLayout *m_linksLayout = nullptr;
+    QTimer *m_linkPoll = nullptr; // while the QR code is up: has the phone linked yet?
+    QDateTime m_linkStarted;
+    QVector<TelegramLink> m_links;
 };

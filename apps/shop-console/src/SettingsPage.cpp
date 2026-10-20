@@ -1,5 +1,7 @@
 #include "SettingsPage.h"
 #include "BusinessProfile.h"
+#include "Config.h"
+#include "DesktopNotifier.h"
 #include "SessionStore.h"
 #include "SupabaseClient.h"
 #include "Theme.h"
@@ -22,12 +24,18 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMessageBox>
 #include <QPainter>
 #include <QProcess>
+#include <QRandomGenerator>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTimeZone>
+#include <QTimer>
+#include <QUrlQuery>
 #include <QVBoxLayout>
+
+#include "qrcodegen.hpp"
 
 namespace {
 // Common currencies and their symbols; anything else can be typed in.
@@ -72,6 +80,7 @@ SettingsPage::SettingsPage(SupabaseClient *client, QWidget *softwareSection, QWi
     addSection(tr("Modules"), new ModulesSettingsSection(client, this));
     addSection(tr("Appearance"), new AppearanceSettingsSection(client, this));
     addSection(tr("Language"), new LanguageSettingsSection(client, this));
+    addSection(tr("Notifications"), new NotificationsSettingsSection(client, this));
     addSection(tr("Software"), softwareSection);
 
     connect(sections, &QListWidget::currentRowChanged, stack, &QStackedWidget::setCurrentIndex);
@@ -544,4 +553,268 @@ void LanguageSettingsSection::refresh() {
     const bool needsRestart = translations::currentLanguage() != translations::startupLanguage();
     m_note->setText(needsRestart ? tr("Takes effect after a restart.") : QString());
     m_restartButton->setVisible(needsRestart);
+}
+
+namespace {
+// The website's bot drops a link code after 30 minutes (storefront /api/telegram/webhook).
+constexpr int kLinkCodeLifetimeMs = 30 * 60 * 1000;
+
+// 24 URL-safe characters: Telegram's /start parameter allows A-Z, a-z, 0-9, _ and -.
+QString randomLinkCode() {
+    QByteArray bytes(18, Qt::Uninitialized);
+    for (char &byte : bytes) byte = char(QRandomGenerator::system()->bounded(256));
+    return QString::fromLatin1(bytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+}
+
+// Black on white with the quiet border scanners expect, whatever the theme.
+QPixmap qrPixmap(const QString &text, int size, qreal devicePixelRatio) {
+    const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(text.toUtf8().constData(), qrcodegen::QrCode::Ecc::MEDIUM);
+    const int modules = qr.getSize() + 8;
+    QPixmap pixmap(QSize(size, size) * devicePixelRatio);
+    pixmap.setDevicePixelRatio(devicePixelRatio);
+    pixmap.fill(Qt::white);
+    QPainter painter(&pixmap);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(Qt::black);
+    const qreal cell = qreal(size) / modules;
+    for (int y = 0; y < qr.getSize(); ++y) {
+        for (int x = 0; x < qr.getSize(); ++x) {
+            if (qr.getModule(x, y)) painter.drawRect(QRectF((x + 4) * cell, (y + 4) * cell, cell + 0.02, cell + 0.02));
+        }
+    }
+    return pixmap;
+}
+
+QLabel *groupTitle(const QString &text, QWidget *parent) {
+    auto *label = new QLabel(text, parent);
+    label->setStyleSheet("font-weight: 600;");
+    return label;
+}
+
+QLabel *hintLabel(const QString &text, QWidget *parent) {
+    auto *label = new QLabel(text, parent);
+    label->setObjectName("brandSub");
+    label->setWordWrap(true);
+    return label;
+}
+} // namespace
+
+NotificationsSettingsSection::NotificationsSettingsSection(SupabaseClient *client, QWidget *parent)
+    : QWidget(parent), m_client(client), m_botUsername(Config::load().telegramBotUsername) {
+    auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(sectionHeader(tr("Notifications"), tr("Alerts for what customers send through the website."), this));
+
+    layout->addWidget(groupTitle(tr("Pop-ups on this computer"), this));
+    layout->addWidget(hintLabel(
+        tr("Shown in the corner of the screen while the console is open, for your account on this computer."), this));
+    for (const QString &event : DesktopNotifier::events()) {
+        auto *toggle = new QCheckBox(DesktopNotifier::eventName(event), this);
+        toggle->setChecked(DesktopNotifier::isEnabled(m_client->userId(), event));
+        connect(toggle, &QCheckBox::toggled, this, [this, event](bool on) {
+            DesktopNotifier::setEnabled(m_client->userId(), event, on);
+        });
+        layout->addWidget(toggle);
+    }
+
+    layout->addSpacing(20);
+    layout->addWidget(groupTitle(tr("Telegram"), this));
+    layout->addWidget(hintLabel(tr("The same alerts on your phone, even when the console is closed."), this));
+    if (m_botUsername.isEmpty()) {
+        layout->addWidget(hintLabel(tr("Telegram isn't set up for this console."), this));
+        layout->addStretch();
+        return;
+    }
+
+    m_connectButton = new QPushButton(tr("Connect a phone"), this);
+    m_connectButton->setObjectName("primaryButton");
+    auto *connectRow = new QHBoxLayout;
+    connectRow->addWidget(m_connectButton);
+    connectRow->addStretch();
+    layout->addLayout(connectRow);
+    connect(m_connectButton, &QPushButton::clicked, this, &NotificationsSettingsSection::startLinking);
+
+    m_qrPanel = new QWidget(this);
+    m_qrPanel->setObjectName("card");
+    auto *qrLayout = new QHBoxLayout(m_qrPanel);
+    qrLayout->setContentsMargins(16, 16, 16, 16);
+    qrLayout->setSpacing(20);
+    m_qrCode = new QLabel(m_qrPanel);
+    m_qrCode->setFixedSize(200, 200);
+    qrLayout->addWidget(m_qrCode, 0, Qt::AlignTop);
+    auto *qrText = new QVBoxLayout;
+    qrText->setSpacing(8);
+    qrText->addWidget(groupTitle(tr("Scan this code with your phone's camera"), m_qrPanel));
+    qrText->addWidget(hintLabel(tr("Telegram opens on the %1 bot. Press Start, and this phone gets the alerts. "
+                                   "The code works for 30 minutes.")
+                                    .arg("@" + m_botUsername),
+                                m_qrPanel));
+    m_qrLink = new QLabel(m_qrPanel);
+    m_qrLink->setObjectName("brandSub");
+    m_qrLink->setOpenExternalLinks(true);
+    m_qrLink->setWordWrap(true);
+    qrText->addWidget(m_qrLink);
+    auto *cancelButton = new QPushButton(tr("Cancel"), m_qrPanel);
+    auto *cancelRow = new QHBoxLayout;
+    cancelRow->addWidget(cancelButton);
+    cancelRow->addStretch();
+    qrText->addLayout(cancelRow);
+    qrText->addStretch();
+    qrLayout->addLayout(qrText, 1);
+    m_qrPanel->hide();
+    layout->addWidget(m_qrPanel);
+    connect(cancelButton, &QPushButton::clicked, this, [this]() {
+        stopLinking();
+        m_telegramStatus->clear();
+    });
+
+    m_telegramStatus = hintLabel({}, this);
+    layout->addWidget(m_telegramStatus);
+
+    m_linksLayout = new QVBoxLayout;
+    m_linksLayout->setSpacing(10);
+    layout->addSpacing(6);
+    layout->addLayout(m_linksLayout);
+    layout->addStretch();
+
+    m_linkPoll = new QTimer(this);
+    m_linkPoll->setInterval(3000);
+    connect(m_linkPoll, &QTimer::timeout, this, [this]() {
+        if (m_linkStarted.msecsTo(QDateTime::currentDateTimeUtc()) > kLinkCodeLifetimeMs) {
+            stopLinking();
+            m_telegramStatus->setText(tr("The code ran out. Press Connect a phone for a new one."));
+            return;
+        }
+        loadLinks();
+    });
+
+    loadLinks();
+}
+
+void NotificationsSettingsSection::showEvent(QShowEvent *event) {
+    QWidget::showEvent(event);
+    if (!m_botUsername.isEmpty()) loadLinks();
+}
+
+void NotificationsSettingsSection::startLinking() {
+    const QString code = randomLinkCode();
+    m_connectButton->setEnabled(false);
+    m_telegramStatus->clear();
+    const QJsonObject row{{"code", code}, {"profile_id", m_client->userId()}, {"lang", translations::currentLanguage()}};
+    m_client->writeRows("POST", "telegram_link_codes", {}, row, [this, code](const QString &error) {
+        if (!error.isEmpty()) {
+            m_connectButton->setEnabled(true);
+            m_telegramStatus->setText(tr("Couldn't start: ") + error);
+            return;
+        }
+        const QString url = QString("https://t.me/%1?start=%2").arg(m_botUsername, code);
+        m_qrCode->setPixmap(qrPixmap(url, m_qrCode->width(), devicePixelRatioF()));
+        m_qrLink->setText(tr("No camera? <a href=\"%1\">Open the link on this computer</a>.").arg(url));
+        m_qrPanel->show();
+        m_linkStarted = QDateTime::currentDateTimeUtc();
+        m_linkPoll->start();
+    });
+}
+
+void NotificationsSettingsSection::stopLinking() {
+    m_linkPoll->stop();
+    m_qrPanel->hide();
+    m_qrCode->clear();
+    m_connectButton->setEnabled(true);
+}
+
+void NotificationsSettingsSection::loadLinks() {
+    QUrlQuery query;
+    query.addQueryItem("select", "id,chat_name,events");
+    query.addQueryItem("order", "created_at");
+    m_client->selectRows("telegram_links", query, [this](const QJsonArray &rows, const QString &error) {
+        if (!error.isEmpty()) {
+            if (!m_linkPoll->isActive()) m_telegramStatus->setText(tr("Couldn't load linked phones: ") + error);
+            return;
+        }
+        QSet<QString> knownIds;
+        for (const TelegramLink &link : m_links) knownIds.insert(link.id);
+        QVector<TelegramLink> links;
+        QString newChat;
+        for (const QJsonValue &value : rows) {
+            const QJsonObject row = value.toObject();
+            TelegramLink link{row.value("id").toString(), row.value("chat_name").toString(), {}};
+            for (const QJsonValue &event : row.value("events").toArray()) link.events.append(event.toString());
+            if (!knownIds.contains(link.id)) newChat = link.chatName.isEmpty() ? "Telegram" : link.chatName;
+            links.append(link);
+        }
+        const bool changed = links.size() != m_links.size() || !newChat.isEmpty();
+        m_links = links;
+        if (m_linkPoll->isActive() && !newChat.isEmpty()) {
+            stopLinking();
+            m_telegramStatus->setText(tr("Connected: %1. Telegram sent a message to say so.").arg(newChat));
+        }
+        if (changed || m_linksLayout->isEmpty()) showLinks();
+    });
+}
+
+void NotificationsSettingsSection::showLinks() {
+    while (QLayoutItem *item = m_linksLayout->takeAt(0)) {
+        delete item->widget();
+        delete item;
+    }
+    if (m_links.isEmpty()) {
+        m_linksLayout->addWidget(hintLabel(tr("No phones connected yet."), this));
+        return;
+    }
+    for (const TelegramLink &link : m_links) {
+        auto *card = new QWidget(this);
+        card->setObjectName("card");
+        auto *cardLayout = new QVBoxLayout(card);
+        cardLayout->setContentsMargins(16, 12, 16, 12);
+        auto *top = new QHBoxLayout;
+        const QString name = link.chatName.isEmpty() ? "Telegram" : link.chatName;
+        top->addWidget(groupTitle(name, card), 1);
+        auto *disconnectButton = new QPushButton(tr("Disconnect"), card);
+        disconnectButton->setObjectName("dangerButton");
+        top->addWidget(disconnectButton);
+        cardLayout->addLayout(top);
+        cardLayout->addWidget(hintLabel(tr("Sends:"), card));
+        for (const QString &event : DesktopNotifier::events()) {
+            auto *toggle = new QCheckBox(DesktopNotifier::eventName(event), card);
+            toggle->setChecked(link.events.contains(event));
+            connect(toggle, &QCheckBox::toggled, this,
+                    [this, id = link.id, event](bool on) { setLinkEvent(id, event, on); });
+            cardLayout->addWidget(toggle);
+        }
+        connect(disconnectButton, &QPushButton::clicked, this,
+                [this, id = link.id, name]() { disconnectLink(id, name); });
+        m_linksLayout->addWidget(card);
+    }
+}
+
+void NotificationsSettingsSection::setLinkEvent(const QString &linkId, const QString &event, bool on) {
+    QJsonArray events;
+    for (TelegramLink &link : m_links) {
+        if (link.id != linkId) continue;
+        link.events.removeAll(event);
+        if (on) link.events.append(event);
+        for (const QString &e : link.events) events.append(e);
+    }
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + linkId);
+    m_client->writeRows("PATCH", "telegram_links", query, QJsonObject{{"events", events}}, [this](const QString &error) {
+        if (error.isEmpty()) return;
+        m_telegramStatus->setText(tr("Couldn't save: ") + error);
+        m_links.clear(); // shows the saved state again
+        loadLinks();
+    });
+}
+
+void NotificationsSettingsSection::disconnectLink(const QString &linkId, const QString &chatName) {
+    if (QMessageBox::question(this, tr("Disconnect"), tr("Stop sending alerts to %1 on Telegram?").arg(chatName)) !=
+        QMessageBox::Yes) {
+        return;
+    }
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + linkId);
+    m_client->writeRows("DELETE", "telegram_links", query, QJsonValue(), [this](const QString &error) {
+        m_telegramStatus->setText(error.isEmpty() ? QString() : tr("Couldn't disconnect: ") + error);
+        loadLinks();
+    });
 }

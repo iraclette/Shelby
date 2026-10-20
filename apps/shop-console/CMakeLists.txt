@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 2.0.0 LANGUAGES CXX)
+project(ShopConsole VERSION 2.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -80,7 +80,12 @@ qt_add_executable(ShopConsole WIN32
     src/Theme.cpp
     src/Translations.h
     src/Translations.cpp
+    src/DesktopNotifier.h
+    src/DesktopNotifier.cpp
+    third_party/qrcodegen/qrcodegen.hpp
+    third_party/qrcodegen/qrcodegen.cpp
 )
+target_include_directories(ShopConsole PRIVATE third_party/qrcodegen)
 
 qt_add_resources(ShopConsole "icons"
     PREFIX "/icons"
@@ -112,6 +117,8 @@ endif()
 # Publishable key only, never the secret key (it bypasses RLS). Empty = read .env.
 set(BUILTIN_SUPABASE_URL "" CACHE STRING "Supabase URL compiled into the app")
 set(BUILTIN_SUPABASE_ANON_KEY "" CACHE STRING "Supabase publishable (anon) key compiled into the app")
+# The website's Telegram bot (TELEGRAM_BOT_USERNAME there), for Settings → Notifications.
+set(BUILTIN_TELEGRAM_BOT_USERNAME "Shebly_bot" CACHE STRING "Telegram bot username, without the @")
 if(BUILTIN_SUPABASE_ANON_KEY MATCHES "^sb_secret_")
     message(FATAL_ERROR "BUILTIN_SUPABASE_ANON_KEY is a secret key — use the publishable key.")
 endif()
@@ -126,6 +133,7 @@ target_compile_definitions(ShopConsole PRIVATE
     APP_VERSION="${APP_VERSION_LABEL}"
     BUILTIN_SUPABASE_URL="${BUILTIN_SUPABASE_URL}"
     BUILTIN_SUPABASE_ANON_KEY="${BUILTIN_SUPABASE_ANON_KEY}"
+    BUILTIN_TELEGRAM_BOT_USERNAME="${BUILTIN_TELEGRAM_BOT_USERNAME}"
 )
 
 # update.ps1 must sit next to the exe for self-update.

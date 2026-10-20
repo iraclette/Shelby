@@ -1227,6 +1227,30 @@ void SupabaseClient::fetchSalesBetween(const QString &startIso, const QString &e
     });
 }
 
+void SupabaseClient::selectRows(const QString &table, const QUrlQuery &query,
+                                std::function<void(const QJsonArray &, const QString &)> onDone) {
+    authorizedGet("/rest/v1/" + table, query, [onDone = std::move(onDone)](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            onDone({}, extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        onDone(QJsonDocument::fromJson(data).array(), {});
+    });
+}
+
+void SupabaseClient::writeRows(const QByteArray &verb, const QString &table, const QUrlQuery &query,
+                               const QJsonValue &body, std::function<void(const QString &)> onDone) {
+    const QByteArray json = body.isObject() ? QJsonDocument(body.toObject()).toJson(QJsonDocument::Compact)
+                          : body.isArray()  ? QJsonDocument(body.toArray()).toJson(QJsonDocument::Compact)
+                                            : QByteArray();
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+    authorizedWrite(verb, "/rest/v1/" + table, query, json, headers, [onDone = std::move(onDone)](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        onDone(reply->error() == QNetworkReply::NoError ? QString() : extractErrorMessage(data, reply->errorString()));
+    });
+}
+
 void SupabaseClient::logAuditEvent(const QString &action, const QString &entityType, const QString &entityId,
                                     const QString &detail) {
     QJsonObject body{

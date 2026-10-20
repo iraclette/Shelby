@@ -6,6 +6,7 @@
 #include "CheckoutPage.h"
 #include "CustomOrdersPage.h"
 #include "DailySummaryPage.h"
+#include "DesktopNotifier.h"
 #include "EmployeesPage.h"
 #include "InventoryPage.h"
 #include "MessagesPage.h"
@@ -333,6 +334,21 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     });
     connect(stockRequestsPage, &StockRequestsPage::newCountChanged, this, [stockRequestsItem](int count) {
         stockRequestsItem->setData(kBadgeRole, count);
+    });
+
+    // Settings → Notifications: pop-ups for what comes in from the website, and the lists they're
+    // about reload so the counts stay current without pressing Refresh.
+    auto *notifier = new DesktopNotifier(client, this);
+    connect(notifier, &DesktopNotifier::arrived, this, [client](const QString &event) {
+        if (event == "contact_message") client->fetchContactMessages();
+        else if (event == "stock_request") client->fetchStockRequests();
+        else if (event == "custom_order") client->fetchCustomLeatherOrders();
+        else if (event == "job_application") client->fetchJobApplications();
+        else if (event == "online_order") client->fetchOnlineOrders();
+    });
+    connect(notifier, &DesktopNotifier::openRequested, this, [sidebar, moduleItems](const QString &event) {
+        QListWidgetItem *item = moduleItems.value(DesktopNotifier::moduleKey(event));
+        if (item && !item->isHidden()) sidebar->setCurrentItem(item);
     });
 
     auto *central = new QWidget(this);

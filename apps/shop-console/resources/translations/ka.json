@@ -461,5 +461,52 @@
   "Couldn't start the installer.": "ინსტალერი ვერ გაეშვა.",
   "Missing Supabase configuration.\n\nCreate a .env file next to the executable (see .env.example) with SUPABASE_URL and SUPABASE_ANON_KEY.": "Supabase-ის კონფიგურაცია არ არის.\n\nშექმენით .env ფაილი პროგრამის გვერდით (იხ. .env.example) SUPABASE_URL და SUPABASE_ANON_KEY მნიშვნელობებით.",
   "Your session ended. Please sign in again.": "სესია დასრულდა. გთხოვთ, ხელახლა შეხვიდეთ.",
-  "Update failed": "განახლება ვერ მოხერხდა"
+  "Update failed": "განახლება ვერ მოხერხდა",
+  "Contact form messages": "საკონტაქტო ფორმის შეტყობინებები",
+  "\"Let me know when it's back\" requests": "„შემატყობინეთ, როცა დაბრუნდება“ მოთხოვნები",
+  "Custom order requests": "ინდივიდუალური შეკვეთები",
+  "New candidates": "ახალი კანდიდატები",
+  "Paid online orders": "გადახდილი ონლაინ შეკვეთები",
+  "New message": "ახალი შეტყობინება",
+  "%n new messages": {
+    "other": "%n ახალი შეტყობინება"
+  },
+  "Someone is waiting for a product": "მომხმარებელი პროდუქტის დაბრუნებას ელოდება",
+  "%n new stock requests": {
+    "other": "%n ახალი მარაგის მოთხოვნა"
+  },
+  "New custom order": "ახალი ინდივიდუალური შეკვეთა",
+  "%n new custom orders": {
+    "other": "%n ახალი ინდივიდუალური შეკვეთა"
+  },
+  "New candidate": "ახალი კანდიდატი",
+  "%n new candidates": {
+    "other": "%n ახალი კანდიდატი"
+  },
+  "New paid online order": "ახალი გადახდილი ონლაინ შეკვეთა",
+  "%n new paid online orders": {
+    "other": "%n ახალი გადახდილი ონლაინ შეკვეთა"
+  },
+  "Open the console to see it.": "დეტალები Shop Console-შია.",
+  "Notifications": "შეტყობინებები",
+  "Alerts for what customers send through the website.": "შეტყობინებები იმის შესახებ, რასაც მომხმარებლები საიტიდან აგზავნიან.",
+  "Pop-ups on this computer": "ამომხტარი შეტყობინებები ამ კომპიუტერზე",
+  "Shown in the corner of the screen while the console is open, for your account on this computer.": "ჩანს ეკრანის კუთხეში, სანამ კონსოლი გახსნილია. ეხება თქვენს ანგარიშს ამ კომპიუტერზე.",
+  "Telegram": "Telegram",
+  "The same alerts on your phone, even when the console is closed.": "იგივე შეტყობინებები ტელეფონზე, მაშინაც კი, როცა კონსოლი დახურულია.",
+  "Telegram isn't set up for this console.": "Telegram ამ კონსოლისთვის ჯერ არ არის გამართული.",
+  "Connect a phone": "ტელეფონის დაკავშირება",
+  "Scan this code with your phone's camera": "დაასკანერეთ ეს კოდი ტელეფონის კამერით",
+  "Telegram opens on the %1 bot. Press Start, and this phone gets the alerts. The code works for 30 minutes.": "გაიხსნება Telegram-ის ბოტი %1. დააჭირეთ Start-ს და ეს ტელეფონი შეტყობინებებს მიიღებს. კოდი 30 წუთის განმავლობაში მოქმედებს.",
+  "Cancel": "გაუქმება",
+  "The code ran out. Press Connect a phone for a new one.": "კოდს ვადა გაუვიდა. ახალი კოდისთვის დააჭირეთ „ტელეფონის დაკავშირებას“.",
+  "Couldn't start: ": "დაწყება ვერ მოხერხდა: ",
+  "No camera? <a href=\"%1\">Open the link on this computer</a>.": "კამერა არ გაქვთ? <a href=\"%1\">გახსენით ბმული ამ კომპიუტერზე</a>.",
+  "Couldn't load linked phones: ": "დაკავშირებული ტელეფონები ვერ ჩაიტვირთა: ",
+  "Connected: %1. Telegram sent a message to say so.": "დაკავშირდა: %1. დადასტურება Telegram-ში გამოიგზავნა.",
+  "No phones connected yet.": "ჯერ არცერთი ტელეფონი არ არის დაკავშირებული.",
+  "Disconnect": "გათიშვა",
+  "Sends:": "რას მიიღებთ:",
+  "Stop sending alerts to %1 on Telegram?": "შევწყვიტოთ შეტყობინებები Telegram-ზე (%1)?",
+  "Couldn't disconnect: ": "გათიშვა ვერ მოხერხდა: "
 }

@@ -1,10 +1,12 @@
 #pragma once
 
 #include <QDateTime>
+#include <QJsonArray>
 #include <QJsonValue>
 #include <QMap>
 #include <QObject>
 #include <QString>
+#include <QUrlQuery>
 #include <QVector>
 #include <functional>
 
@@ -264,6 +266,7 @@ public:
     // Revokes the session on the server and forgets it locally.
     void signOut();
     QString refreshToken() const { return m_refreshToken; }
+    QString userId() const { return m_userId; } // the signed-in account, empty before sign-in
     void fetchProfile(const QString &userId);
 
     void fetchProducts();
@@ -338,6 +341,13 @@ public:
     // repaint the Daily Summary page with someone else's date range.
     void fetchSalesBetween(const QString &startIso, const QString &endIsoExclusive,
                            std::function<void(const QVector<SaleSummary> &sales, const QString &error)> onDone);
+
+    // Plain PostgREST access for small features that don't need a typed struct and signal
+    // (desktop pop-ups, Telegram links). table is e.g. "telegram_links"; body is the JSON to send.
+    void selectRows(const QString &table, const QUrlQuery &query,
+                    std::function<void(const QJsonArray &rows, const QString &error)> onDone);
+    void writeRows(const QByteArray &verb, const QString &table, const QUrlQuery &query, const QJsonValue &body,
+                   std::function<void(const QString &error)> onDone);
 
     // Fire and forget: a logging failure never blocks the action.
     void logAuditEvent(const QString &action, const QString &entityType, const QString &entityId,

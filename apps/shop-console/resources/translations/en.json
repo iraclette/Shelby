@@ -54,5 +54,25 @@
   "%n employees for %1.": {
     "one": "%n employee for %1.",
     "other": "%n employees for %1."
+  },
+  "%n new messages": {
+    "one": "%n new message",
+    "other": "%n new messages"
+  },
+  "%n new stock requests": {
+    "one": "%n new stock request",
+    "other": "%n new stock requests"
+  },
+  "%n new custom orders": {
+    "one": "%n new custom order",
+    "other": "%n new custom orders"
+  },
+  "%n new candidates": {
+    "one": "%n new candidate",
+    "other": "%n new candidates"
+  },
+  "%n new paid online orders": {
+    "one": "%n new paid online order",
+    "other": "%n new paid online orders"
   }
 }

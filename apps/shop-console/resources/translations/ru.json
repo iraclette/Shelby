@@ -489,5 +489,62 @@
   "Couldn't start the installer.": "Не удалось запустить установщик.",
   "Missing Supabase configuration.\n\nCreate a .env file next to the executable (see .env.example) with SUPABASE_URL and SUPABASE_ANON_KEY.": "Нет настроек Supabase.\n\nСоздайте файл .env рядом с программой (см. .env.example) со значениями SUPABASE_URL и SUPABASE_ANON_KEY.",
   "Your session ended. Please sign in again.": "Сеанс завершён. Пожалуйста, войдите снова.",
-  "Update failed": "Не удалось обновить"
+  "Update failed": "Не удалось обновить",
+  "Contact form messages": "Сообщения из формы связи",
+  "\"Let me know when it's back\" requests": "Запросы «сообщите о поступлении»",
+  "Custom order requests": "Индивидуальные заказы",
+  "New candidates": "Новые заявки на работу",
+  "Paid online orders": "Оплаченные онлайн-заказы",
+  "New message": "Новое сообщение",
+  "%n new messages": {
+    "one": "%n новое сообщение",
+    "few": "%n новых сообщения",
+    "many": "%n новых сообщений"
+  },
+  "Someone is waiting for a product": "Покупатель ждёт поступления товара",
+  "%n new stock requests": {
+    "one": "%n новый запрос о наличии",
+    "few": "%n новых запроса о наличии",
+    "many": "%n новых запросов о наличии"
+  },
+  "New custom order": "Новый индивидуальный заказ",
+  "%n new custom orders": {
+    "one": "%n новый индивидуальный заказ",
+    "few": "%n новых индивидуальных заказа",
+    "many": "%n новых индивидуальных заказов"
+  },
+  "New candidate": "Новая заявка на работу",
+  "%n new candidates": {
+    "one": "%n новая заявка на работу",
+    "few": "%n новые заявки на работу",
+    "many": "%n новых заявок на работу"
+  },
+  "New paid online order": "Новый оплаченный онлайн-заказ",
+  "%n new paid online orders": {
+    "one": "%n новый оплаченный онлайн-заказ",
+    "few": "%n новых оплаченных онлайн-заказа",
+    "many": "%n новых оплаченных онлайн-заказов"
+  },
+  "Open the console to see it.": "Подробности в Shop Console.",
+  "Notifications": "Уведомления",
+  "Alerts for what customers send through the website.": "Оповещения о том, что покупатели отправляют через сайт.",
+  "Pop-ups on this computer": "Всплывающие уведомления на этом компьютере",
+  "Shown in the corner of the screen while the console is open, for your account on this computer.": "Появляются в углу экрана, пока консоль открыта. Действует для вашей учётной записи на этом компьютере.",
+  "Telegram": "Telegram",
+  "The same alerts on your phone, even when the console is closed.": "Те же оповещения на телефоне, даже когда консоль закрыта.",
+  "Telegram isn't set up for this console.": "Telegram для этой консоли не настроен.",
+  "Connect a phone": "Подключить телефон",
+  "Scan this code with your phone's camera": "Отсканируйте этот код камерой телефона",
+  "Telegram opens on the %1 bot. Press Start, and this phone gets the alerts. The code works for 30 minutes.": "Telegram откроется на боте %1. Нажмите «Запустить» (Start), и этот телефон будет получать оповещения. Код действует 30 минут.",
+  "Cancel": "Отмена",
+  "The code ran out. Press Connect a phone for a new one.": "Срок действия кода истёк. Нажмите «Подключить телефон», чтобы получить новый.",
+  "Couldn't start: ": "Не удалось начать: ",
+  "No camera? <a href=\"%1\">Open the link on this computer</a>.": "Нет камеры? <a href=\"%1\">Откройте ссылку на этом компьютере</a>.",
+  "Couldn't load linked phones: ": "Не удалось загрузить подключённые телефоны: ",
+  "Connected: %1. Telegram sent a message to say so.": "Подключено: %1. В Telegram пришло подтверждение.",
+  "No phones connected yet.": "Пока ни один телефон не подключён.",
+  "Disconnect": "Отключить",
+  "Sends:": "Что приходит:",
+  "Stop sending alerts to %1 on Telegram?": "Перестать отправлять оповещения в Telegram (%1)?",
+  "Couldn't disconnect: ": "Не удалось отключить: "
 }
