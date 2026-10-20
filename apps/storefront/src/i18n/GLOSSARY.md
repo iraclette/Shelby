@@ -43,6 +43,7 @@ when a native speaker corrects something, add the lesson here.
 | მარაგი | inventory, stock |
 | დაბალი მარაგი | low stock (not მარაგი იწურება) |
 | კანდიდატი, კანდიდატები | job applicants, as the owner sees them (not განაცხადები); the applicant still sends a განაცხადი |
+| შეტყობინებები ამ კომპიუტერზე | desktop pop-ups (never ამომხტარი or ტივტივა: just say notification) |
 | შტრიხკოდი | barcode |
 | მომწოდებელი | supplier |
 | ფასდაკლება | discount |
