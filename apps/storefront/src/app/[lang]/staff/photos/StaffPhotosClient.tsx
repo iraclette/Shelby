@@ -6,6 +6,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import StaffAuthGate from "@/components/StaffAuthGate";
 import Skeleton from "@/components/Skeleton";
 import { randomId } from "@/lib/randomId";
+import { resizeImage } from "@/lib/resizeImage";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 
@@ -87,7 +88,8 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
     let hadExistingImage = images.length > 0;
     let failures = 0;
 
-    for (const file of Array.from(fileList)) {
+    for (const original of Array.from(fileList)) {
+      const file = await resizeImage(original);
       const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
       const storagePath = `${selected.id}/${randomId()}.${extension}`;
 

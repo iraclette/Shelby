@@ -1,8 +1,12 @@
 #include "SupabaseClient.h"
+#include <QBuffer>
 
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
+#include <QImageReader>
+#include <QPainter>
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -771,19 +775,48 @@ void SupabaseClient::fetchStockTransfers() {
     });
 }
 
+// Same limits as the storefront's lib/resizeImage.ts: the website serves
+// photos as-is, so full-size camera shots must not reach storage.
+static bool shrinkToJpeg(const QString &localFilePath, qint64 originalSize, QByteArray &out) {
+    QImageReader reader(localFilePath);
+    reader.setAutoTransform(true); // honour EXIF rotation
+    QImage image = reader.read();
+    if (image.isNull()) return false;
+
+    constexpr int maxSide = 1600;
+    if (image.width() > maxSide || image.height() > maxSide)
+        image = image.scaled(maxSide, maxSide, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+    // JPEG has no alpha; flatten transparent PNGs onto white.
+    QImage flat(image.size(), QImage::Format_RGB32);
+    flat.fill(Qt::white);
+    QPainter(&flat).drawImage(0, 0, image);
+
+    QBuffer buffer(&out);
+    buffer.open(QIODevice::WriteOnly);
+    return flat.save(&buffer, "JPG", 82) && out.size() < originalSize;
+}
+
 void SupabaseClient::uploadProductImage(const QString &productId, const QString &localFilePath, bool isPrimary) {
     QFile file(localFilePath);
     if (!file.open(QIODevice::ReadOnly)) {
         emit imageUploadFailed(tr("Could not open file: ") + localFilePath);
         return;
     }
-    const QByteArray fileBytes = file.readAll();
+    QByteArray fileBytes = file.readAll();
     file.close();
 
     const QFileInfo info(localFilePath);
+    QString suffix = info.suffix();
+    QString mimeType = QMimeDatabase().mimeTypeForFile(localFilePath).name();
+    QByteArray shrunk;
+    if (shrinkToJpeg(localFilePath, fileBytes.size(), shrunk)) {
+        fileBytes = shrunk;
+        suffix = "jpg";
+        mimeType = "image/jpeg";
+    }
     const QString storagePath = productId + "/" + QUuid::createUuid().toString(QUuid::WithoutBraces) +
-                                 "." + info.suffix();
-    const QString mimeType = QMimeDatabase().mimeTypeForFile(localFilePath).name();
+                                 "." + suffix;
 
     const QMap<QByteArray, QByteArray> headers{
         {"Content-Type", mimeType.toUtf8()},

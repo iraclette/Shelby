@@ -8,6 +8,7 @@ import StaffAuthGate from "@/components/StaffAuthGate";
 import CategoryOptions, { type StaffCategory } from "@/components/CategoryOptions";
 import Skeleton from "@/components/Skeleton";
 import { randomId } from "@/lib/randomId";
+import { resizeImage } from "@/lib/resizeImage";
 import { generateInternalSku, loadSkuPrefix } from "@/lib/sku";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
@@ -199,11 +200,12 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
 
     let failedPhotos = 0;
     for (const [i, photo] of photos.entries()) {
-      const extension = photo.file.name.includes(".") ? photo.file.name.split(".").pop() : "jpg";
+      const file = await resizeImage(photo.file);
+      const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
       const storagePath = `${product.id}/${randomId()}.${extension}`;
       const { error: uploadError } = await supabase.storage
         .from("product-images")
-        .upload(storagePath, photo.file, { contentType: photo.file.type || "image/jpeg" });
+        .upload(storagePath, file, { contentType: file.type || "image/jpeg" });
       const { error: rowError } = uploadError
         ? { error: uploadError }
         : await supabase

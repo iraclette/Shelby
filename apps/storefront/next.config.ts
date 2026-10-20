@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    // Photos are resized on upload (lib/resizeImage, shop-console) and served
+    // as-is; on-the-fly sharp resizing was OOM-killing the 512 MB Render box.
+    unoptimized: true,
     remotePatterns: [new URL("https://xlrvofdiqnuuafzwtefe.supabase.co/storage/v1/object/public/**")],
   },
 
