@@ -40,7 +40,7 @@ export const TELEGRAM_TEXT: Record<Locale, TelegramText> = {
       contact_message: "✉️ ახალი შეტყობინება — {name} ({contact}):\n\n{message}",
       stock_request: "🔔 მომხმარებელი ელოდება, რომ „{product}“ ისევ იქნება მარაგში.\nკონტაქტი: {contact}",
       custom_order: "🧵 ახალი შეკვეთა ტყავის ნაკეთობაზე — {name} ({contact}){shop}:\n\n{description}",
-      job_application: "📄 ახალი განაცხადი სამუშაოზე — {name} ({phone}){shop}. დეტალები Shop Console-შია.",
+      job_application: "📄 ახალი კანდიდატი — {name} ({phone}){shop}. დეტალები Shop Console-შია.",
       online_order: "🛒 ახალი გადახდილი ონლაინ შეკვეთა: GEL {total} — {customer} ({how}).",
     },
     preferredShop: ", სასურველი მაღაზია: {shop}",

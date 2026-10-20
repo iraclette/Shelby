@@ -41,6 +41,8 @@ when a native speaker corrects something, add the lesson here.
 |---|---|
 | სალარო | checkout / the till |
 | მარაგი | inventory, stock |
+| დაბალი მარაგი | low stock (not მარაგი იწურება) |
+| კანდიდატი, კანდიდატები | job applicants, as the owner sees them (not განაცხადები); the applicant still sends a განაცხადი |
 | შტრიხკოდი | barcode |
 | მომწოდებელი | supplier |
 | ფასდაკლება | discount |

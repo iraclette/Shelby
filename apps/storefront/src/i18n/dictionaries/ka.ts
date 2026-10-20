@@ -289,7 +289,7 @@ const ka: Dictionary = {
       contact_message: "საკონტაქტო ფორმის შეტყობინებები",
       stock_request: "„შემატყობინეთ, როცა დაბრუნდება“ მოთხოვნები",
       custom_order: "ტყავის ნაკეთობის შეკვეთები",
-      job_application: "განაცხადები სამუშაოზე",
+      job_application: "ახალი კანდიდატები",
       online_order: "გადახდილი ონლაინ შეკვეთები",
     },
   },
