@@ -1,4 +1,5 @@
 #include "PosWindow.h"
+#include "BusinessProfile.h"
 #include "DiscountDialog.h"
 #include "FlowLayout.h"
 #include "HeldSalesDialog.h"
@@ -50,9 +51,6 @@ void clearLayout(QLayout *layout) {
     }
 }
 
-QString money(double amount) {
-    return QString("GEL %1").arg(amount, 0, 'f', 2);
-}
 
 // A label that lets clicks fall through to the tile button it sits on.
 QLabel *tileLabel(const QString &text, const char *objectName, QWidget *parent) {

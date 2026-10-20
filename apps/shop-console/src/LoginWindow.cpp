@@ -1,4 +1,5 @@
 #include "LoginWindow.h"
+#include "BusinessProfile.h"
 #include "SessionStore.h"
 #include "SupabaseClient.h"
 
@@ -22,15 +23,32 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     auto *brandLayout = new QVBoxLayout(brandPanel);
     brandLayout->setContentsMargins(48, 0, 48, 0);
     brandLayout->addStretch();
-    auto *brandTitle = new QLabel("Shelby", brandPanel);
+    // The business's logo and name (Settings → Business), cached from the last time this
+    // computer was online, so they show before anyone signs in.
+    auto *brandLogo = new QLabel(brandPanel);
+    brandLogo->setFixedSize(96, 96);
+    brandLogo->setStyleSheet("background: transparent;");
+    auto *brandTitle = new QLabel(brandPanel);
     brandTitle->setStyleSheet("font-size: 32px; font-weight: 600; color: #f6f3ee; background: transparent;");
-    auto *brandSubtitle = new QLabel("Black Eye Beauty  ·  Shelby  ·  End", brandPanel);
+    auto *brandSubtitle = new QLabel("Shop Console", brandPanel);
     brandSubtitle->setStyleSheet(
         "font-size: 11px; letter-spacing: 2px; color: #c8963e; background: transparent; "
         "text-transform: uppercase; margin-top: 6px;");
+    brandLayout->addWidget(brandLogo);
+    brandLayout->addSpacing(14);
     brandLayout->addWidget(brandTitle);
     brandLayout->addWidget(brandSubtitle);
     brandLayout->addStretch();
+
+    auto refreshBrand = [brandLogo, brandTitle]() {
+        const BusinessProfile *business = BusinessProfile::instance();
+        brandTitle->setText(business->settings().name);
+        const QPixmap logo = business->roundLogo(96, brandLogo->devicePixelRatioF());
+        brandLogo->setPixmap(logo);
+        brandLogo->setVisible(!logo.isNull());
+    };
+    refreshBrand();
+    connect(BusinessProfile::instance(), &BusinessProfile::changed, this, refreshBrand);
 
     auto *formPanel = new QWidget(this);
     m_email = new QLineEdit(formPanel);

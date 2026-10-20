@@ -6,7 +6,6 @@
 #include "SupabaseClient.h"
 
 class QTableWidget;
-class QTableWidgetItem;
 
 // Contact Us submissions from the storefront's /contact form.
 class MessagesPage : public QWidget {
@@ -20,13 +19,12 @@ signals:
 
 private:
     void rebuildTable();
-    void handleItemChanged(QTableWidgetItem *item);
+    void openMessage(int row);
 
     SupabaseClient *m_client;
     QTableWidget *m_table;
 
     QVector<ContactMessage> m_messages;
-    bool m_populating = false;
 
     static constexpr int kColCreated = 0;
     static constexpr int kColName = 1;

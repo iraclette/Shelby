@@ -1,4 +1,5 @@
 #include "AdminWindow.h"
+#include "BusinessProfile.h"
 #include "AuditLogPage.h"
 #include "CategoriesPage.h"
 #include "CheckoutPage.h"
@@ -12,6 +13,7 @@
 #include "OnlineOrdersPage.h"
 #include "OverviewPage.h"
 #include "SalaryPage.h"
+#include "SettingsPage.h"
 #include "SoftwarePage.h"
 #include "SupabaseClient.h"
 #include "UpdateChecker.h"
@@ -27,6 +29,7 @@
 #include <QSize>
 #include <QStackedWidget>
 #include <QStatusBar>
+#include <QStyle>
 #include <QStyledItemDelegate>
 #include <QTableView>
 #include <QToolBar>
@@ -157,13 +160,13 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     auto *brandLayout = new QHBoxLayout(brand);
     brandLayout->setContentsMargins(18, 16, 18, 14);
     brandLayout->setSpacing(10);
-    auto *brandMark = new QLabel("S", brand);
+    auto *brandMark = new QLabel(brand);
     brandMark->setObjectName("brandMark");
     brandMark->setFixedSize(34, 34);
     brandMark->setAlignment(Qt::AlignCenter);
     auto *brandText = new QVBoxLayout;
     brandText->setSpacing(0);
-    auto *brandName = new QLabel("Shelby", brand);
+    auto *brandName = new QLabel(brand);
     brandName->setObjectName("brandName");
     auto *brandSub = new QLabel("Shop Console", brand);
     brandSub->setObjectName("brandSub");
@@ -172,6 +175,25 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     brandLayout->addWidget(brandMark);
     brandLayout->addLayout(brandText, 1);
     sidebarLayout->addWidget(brand);
+
+    // The business's name and logo (Settings → Business); the first letter when there's no logo.
+    auto refreshBrand = [brandMark, brandName]() {
+        const BusinessProfile *business = BusinessProfile::instance();
+        brandName->setText(business->settings().name);
+        const QPixmap logo = business->roundLogo(brandMark->width(), brandMark->devicePixelRatioF());
+        if (logo.isNull()) {
+            brandMark->setObjectName("brandMark");
+            brandMark->setPixmap({});
+            brandMark->setText(business->settings().name.left(1).toUpper());
+        } else {
+            brandMark->setObjectName("brandLogo");
+            brandMark->setPixmap(logo);
+        }
+        brandMark->style()->unpolish(brandMark);
+        brandMark->style()->polish(brandMark);
+    };
+    refreshBrand();
+    connect(BusinessProfile::instance(), &BusinessProfile::changed, brand, refreshBrand);
 
     auto *sidebar = new QListWidget(sidebarPanel);
     sidebar->setObjectName("adminSidebar");
@@ -259,7 +281,7 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     addGroup("System");
     addSection("audit-log", "Audit Log", forwardStatus(new AuditLogPage(client, this)));
     m_softwarePage = new SoftwarePage(updateChecker, this);
-    addSection("software", "Software", m_softwarePage);
+    addSection("settings", "Settings", forwardStatus(new SettingsPage(client, m_softwarePage, this)));
 
     connect(sidebar, &QListWidget::currentItemChanged, this, [pages, title](QListWidgetItem *item) {
         if (!item || item->data(kHeaderRole).toBool()) return;

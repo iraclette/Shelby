@@ -1,4 +1,5 @@
 #include "HeldSalesDialog.h"
+#include "BusinessProfile.h"
 
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
@@ -54,7 +55,7 @@ void HeldSalesDialog::rebuildTable() {
 
         m_table->setItem(row, 0, new QTableWidgetItem(held.heldAt.toString("hh:mm:ss")));
         m_table->setItem(row, 1, new QTableWidgetItem(QString::number(itemCount)));
-        m_table->setItem(row, 2, new QTableWidgetItem(QString("GEL %1").arg(total, 0, 'f', 2)));
+        m_table->setItem(row, 2, new QTableWidgetItem(money(total)));
 
         auto *actionsWidget = new QWidget(this);
         auto *actionsLayout = new QHBoxLayout(actionsWidget);

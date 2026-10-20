@@ -1,4 +1,5 @@
 #include "OnlineOrdersPage.h"
+#include "BusinessProfile.h"
 #include "ShopTime.h"
 
 #include <QComboBox>
@@ -44,9 +45,6 @@ QColor statusColor(const QString &status) {
     return QColor("#f59e0b");
 }
 
-QString money(double amount) {
-    return QString("GEL %1").arg(amount, 0, 'f', 2);
-}
 
 // First 8 characters of the UUID: what the customer sees as "Order #…" on the website.
 QString shortId(const QString &id) {

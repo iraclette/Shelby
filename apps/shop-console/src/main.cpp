@@ -1,4 +1,5 @@
 #include "AdminWindow.h"
+#include "BusinessProfile.h"
 #include "Config.h"
 #include "LoginWindow.h"
 #include "PosWindow.h"
@@ -30,6 +31,14 @@ int main(int argc, char *argv[]) {
     }
 
     auto *client = new SupabaseClient(config.supabaseUrl, config.supabaseAnonKey, &app);
+
+    // The business's name, logo, currency and time zone: cached from last time, refreshed now
+    // (no sign-in needed) and whenever someone saves them in Settings.
+    QObject::connect(client, &SupabaseClient::businessSettingsFetched, BusinessProfile::instance(),
+                     &BusinessProfile::apply);
+    QObject::connect(client, &SupabaseClient::businessSettingsSaved, BusinessProfile::instance(),
+                     &BusinessProfile::apply);
+    client->fetchBusinessSettings();
 
     auto *login = new LoginWindow(client);
     QMainWindow *activeWindow = nullptr;

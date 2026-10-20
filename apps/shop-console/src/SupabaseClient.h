@@ -8,6 +8,8 @@
 #include <QVector>
 #include <functional>
 
+#include "BusinessProfile.h"
+
 class QNetworkAccessManager;
 class QNetworkReply;
 class QUrlQuery;
@@ -355,6 +357,16 @@ public:
     // The bucket is public, so this is just a URL — no auth needed to load it.
     QString publicImageUrl(const QString &storagePath) const;
 
+    // business_settings (Settings → Business). The fetch needs no sign-in: the login screen
+    // shows the business's name and logo.
+    void fetchBusinessSettings();
+    // fields are business_settings column names (name, currency_code, timezone, logo_path…).
+    void updateBusinessSettings(const QJsonObject &fields);
+    // Uploads to the branding bucket; businessLogoUploaded gives the new storage path.
+    void uploadBusinessLogo(const QString &localFilePath);
+    void deleteBusinessLogoFile(const QString &storagePath); // best-effort, no signal
+    QString businessLogoUrl(const QString &storagePath) const; // empty for an empty path
+
     void lookupProductBySku(const QString &sku);
 
     // Queued locally if the server can't be reached; synced by flushPendingSales().
@@ -404,6 +416,12 @@ signals:
     void customLeatherOrderUpdateFailed(const QString &message);
 
     void contactMessagesFetched(const QVector<ContactMessage> &messages);
+    void businessSettingsFetched(const BusinessSettings &settings, const QString &logoUrl);
+    void businessSettingsFetchFailed(const QString &message);
+    void businessSettingsSaved(const BusinessSettings &settings, const QString &logoUrl);
+    void businessSettingsSaveFailed(const QString &message);
+    void businessLogoUploaded(const QString &storagePath);
+    void businessLogoUploadFailed(const QString &message);
     void jobApplicationsFetched(const QVector<JobApplication> &applications);
     void jobApplicationsFetchFailed(const QString &message);
     void jobApplicationUpdated();

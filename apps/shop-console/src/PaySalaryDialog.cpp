@@ -1,4 +1,5 @@
 #include "PaySalaryDialog.h"
+#include "BusinessProfile.h"
 #include "SupabaseClient.h"
 
 #include <QDialogButtonBox>
@@ -24,7 +25,8 @@ PaySalaryDialog::PaySalaryDialog(SupabaseClient *client, QString staffId, QStrin
     m_amountSpin = new QDoubleSpinBox(this);
     m_amountSpin->setRange(0, 1000000);
     m_amountSpin->setDecimals(2);
-    m_amountSpin->setSuffix(" GEL");
+    m_amountSpin->setPrefix(moneyPrefix());
+    m_amountSpin->setSuffix(moneySuffix());
     m_amountSpin->setValue(qMax(0.0, suggestedAmount));
 
     m_noteInput = new QLineEdit(this);

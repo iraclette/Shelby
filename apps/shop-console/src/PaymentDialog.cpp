@@ -1,4 +1,5 @@
 #include "PaymentDialog.h"
+#include "BusinessProfile.h"
 
 #include <QButtonGroup>
 #include <QDoubleValidator>
@@ -17,9 +18,6 @@ namespace {
 // Georgian lari banknotes — the quick-cash buttons, like Aronium's.
 constexpr int kBanknotes[] = {5, 10, 20, 50, 100, 200};
 
-QString money(double amount) {
-    return QString("GEL %1").arg(amount, 0, 'f', 2);
-}
 } // namespace
 
 PaymentDialog::PaymentDialog(double total, QWidget *parent)

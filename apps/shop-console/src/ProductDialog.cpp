@@ -1,4 +1,5 @@
 #include "ProductDialog.h"
+#include "BusinessProfile.h"
 #include "CategoriesPage.h"
 
 #include "Config.h"
@@ -45,11 +46,13 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     m_costPrice = new QDoubleSpinBox(this);
     m_costPrice->setRange(0, 999999);
     m_costPrice->setDecimals(2);
-    m_costPrice->setPrefix("GEL ");
+    m_costPrice->setPrefix(moneyPrefix());
+    m_costPrice->setSuffix(moneySuffix());
     m_sellPrice = new QDoubleSpinBox(this);
     m_sellPrice->setRange(0, 999999);
     m_sellPrice->setDecimals(2);
-    m_sellPrice->setPrefix("GEL ");
+    m_sellPrice->setPrefix(moneyPrefix());
+    m_sellPrice->setSuffix(moneySuffix());
     m_lowStockThreshold = new QSpinBox(this);
     m_lowStockThreshold->setRange(0, 999999);
     m_lowStockThreshold->setSpecialValueText("Disabled");

@@ -1,4 +1,5 @@
 #include "DailySummaryPage.h"
+#include "BusinessProfile.h"
 #include "ShopTime.h"
 #include "SupabaseClient.h"
 
@@ -138,12 +139,12 @@ void DailySummaryPage::rebuildTable() {
         m_table->setItem(row, 1, new QTableWidgetItem(shopName));
         m_table->setItem(row, 2, new QTableWidgetItem(staffName));
         m_table->setItem(row, 3, new QTableWidgetItem(QString::number(itemCount)));
-        m_table->setItem(row, 4, new QTableWidgetItem(QString("GEL %1").arg(sale.total, 0, 'f', 2)));
+        m_table->setItem(row, 4, new QTableWidgetItem(money(sale.total)));
     }
 
-    m_statsLabel->setText(QString("%1 sale%2 · GEL %3 total")
+    m_statsLabel->setText(QString("%1 sale%2 · %3 total")
                                .arg(m_sales.size())
                                .arg(m_sales.size() == 1 ? "" : "s")
-                               .arg(total, 0, 'f', 2));
+                               .arg(money(total)));
     emit statusMessage(QString("Loaded %1 sale(s) for %2.").arg(m_sales.size()).arg(m_day.toString(Qt::ISODate)));
 }

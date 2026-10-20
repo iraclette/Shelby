@@ -123,5 +123,5 @@ private:
     QVector<CartLine> m_cart;
     QVector<HeldSale> m_heldSales;
     bool m_practiceMode = false;
-    QString m_lastPaymentNote; // " Change: GEL 4.50", appended to the sale-recorded message
+    QString m_lastPaymentNote; // " Change: GEL 4.50" (in the business's currency), appended to the sale-recorded message
 };

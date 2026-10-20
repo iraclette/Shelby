@@ -866,6 +866,105 @@ QString SupabaseClient::publicImageUrl(const QString &storagePath) const {
     return m_baseUrl + "/storage/v1/object/public/product-images/" + storagePath;
 }
 
+namespace {
+BusinessSettings parseBusinessSettings(const QJsonObject &row) {
+    BusinessSettings settings;
+    settings.name = row.value("name").toString();
+    settings.logoPath = row.value("logo_path").toString();
+    settings.currencyCode = row.value("currency_code").toString();
+    settings.currencySymbol = row.value("currency_symbol").toString();
+    settings.currencyStyle = row.value("currency_style").toString();
+    settings.timezone = row.value("timezone").toString();
+    return settings;
+}
+} // namespace
+
+QString SupabaseClient::businessLogoUrl(const QString &storagePath) const {
+    return storagePath.isEmpty() ? QString() : m_baseUrl + "/storage/v1/object/public/branding/" + storagePath;
+}
+
+void SupabaseClient::fetchBusinessSettings() {
+    // Public read (0032), so the anon key alone is enough, signed in or not.
+    QUrl url(m_baseUrl + "/rest/v1/business_settings");
+    QUrlQuery query;
+    query.addQueryItem("select", "name,logo_path,currency_code,currency_symbol,currency_style,timezone");
+    url.setQuery(query);
+    QNetworkRequest request(url);
+    request.setRawHeader("apikey", m_anonKey.toUtf8());
+
+    QNetworkReply *reply = m_network->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        const QByteArray data = reply->readAll();
+        const QJsonArray rows = QJsonDocument::fromJson(data).array();
+        if (reply->error() != QNetworkReply::NoError || rows.isEmpty()) {
+            emit businessSettingsFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        const BusinessSettings settings = parseBusinessSettings(rows.first().toObject());
+        emit businessSettingsFetched(settings, businessLogoUrl(settings.logoPath));
+    });
+}
+
+void SupabaseClient::updateBusinessSettings(const QJsonObject &fields) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq.true");
+    QJsonObject body = fields;
+    body["updated_at"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
+    body["updated_by"] = m_userId;
+    const QMap<QByteArray, QByteArray> headers{
+        {"Content-Type", "application/json"},
+        {"Prefer", "return=representation"},
+    };
+
+    authorizedWrite("PATCH", "/rest/v1/business_settings", query, QJsonDocument(body).toJson(), headers,
+                    [this](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        const QJsonArray rows = QJsonDocument::fromJson(data).array();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit businessSettingsSaveFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        // RLS hides the row from non-admins, so an empty result means "not allowed".
+        if (rows.isEmpty()) {
+            emit businessSettingsSaveFailed("Only owners and admins can change these.");
+            return;
+        }
+        const BusinessSettings settings = parseBusinessSettings(rows.first().toObject());
+        emit businessSettingsSaved(settings, businessLogoUrl(settings.logoPath));
+    });
+}
+
+void SupabaseClient::uploadBusinessLogo(const QString &localFilePath) {
+    QFile file(localFilePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        emit businessLogoUploadFailed("Could not open file: " + localFilePath);
+        return;
+    }
+    const QByteArray fileBytes = file.readAll();
+    // A fresh name each time, so tills that cached the old logo notice it changed.
+    const QString storagePath =
+        "logo-" + QUuid::createUuid().toString(QUuid::WithoutBraces) + "." + QFileInfo(localFilePath).suffix().toLower();
+    const QMap<QByteArray, QByteArray> headers{
+        {"Content-Type", QMimeDatabase().mimeTypeForFile(localFilePath).name().toUtf8()},
+    };
+
+    authorizedWrite("POST", "/storage/v1/object/branding/" + storagePath, {}, fileBytes, headers,
+                    [this, storagePath](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit businessLogoUploadFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit businessLogoUploaded(storagePath);
+    });
+}
+
+void SupabaseClient::deleteBusinessLogoFile(const QString &storagePath) {
+    if (storagePath.isEmpty()) return;
+    authorizedWrite("DELETE", "/storage/v1/object/branding/" + storagePath, {}, {}, {}, [](QNetworkReply *) {});
+}
+
 void SupabaseClient::lookupProductBySku(const QString &sku) {
     // Step 1: a variant's own barcode, which skips the variant picker.
     QUrlQuery variantQuery;

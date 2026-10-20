@@ -433,6 +433,11 @@ QWidget#sidebarFooter {
     border-top: 1px solid #2f323d;
 }
 
+/* The business's logo in place of the letter mark (already cut round). */
+QLabel#brandLogo {
+    background: transparent;
+}
+
 QLabel#brandMark {
     background-color: #c8963e;
     color: #14151a;

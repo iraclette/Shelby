@@ -1,4 +1,5 @@
 #include "DiscountDialog.h"
+#include "BusinessProfile.h"
 
 #include <QButtonGroup>
 #include <QDialogButtonBox>
@@ -15,11 +16,11 @@ DiscountDialog::DiscountDialog(const QString &productName, double listPrice, dou
 
     auto *layout = new QVBoxLayout(this);
     layout->addWidget(new QLabel(
-        QString("<b>%1</b><br>List price: GEL %2").arg(productName).arg(listPrice, 0, 'f', 2), this));
+        QString("<b>%1</b><br>List price: %2").arg(productName, money(listPrice)), this));
 
     auto *modeRow = new QHBoxLayout;
     m_percentRadio = new QRadioButton("% off", this);
-    m_amountRadio = new QRadioButton("GEL off", this);
+    m_amountRadio = new QRadioButton(currencyLabel() + " off", this);
     auto *modeGroup = new QButtonGroup(this);
     modeGroup->addButton(m_percentRadio);
     modeGroup->addButton(m_amountRadio);
@@ -41,13 +42,15 @@ DiscountDialog::DiscountDialog(const QString &productName, double listPrice, dou
 
     connect(m_percentRadio, &QRadioButton::toggled, this, [this](bool checked) {
         if (!checked) return;
+        m_valueSpin->setPrefix({});
         m_valueSpin->setSuffix(" %");
         m_valueSpin->setRange(0, 100);
         updatePreview();
     });
     connect(m_amountRadio, &QRadioButton::toggled, this, [this](bool checked) {
         if (!checked) return;
-        m_valueSpin->setSuffix(" GEL");
+        m_valueSpin->setPrefix(moneyPrefix());
+        m_valueSpin->setSuffix(moneySuffix());
         m_valueSpin->setRange(0, m_listPrice);
         updatePreview();
     });
@@ -77,7 +80,7 @@ double DiscountDialog::computePrice() const {
 }
 
 void DiscountDialog::updatePreview() {
-    m_previewLabel->setText(QString("New price: GEL %1").arg(computePrice(), 0, 'f', 2));
+    m_previewLabel->setText("New price: " + money(computePrice()));
 }
 
 void DiscountDialog::accept() {

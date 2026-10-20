@@ -1,4 +1,5 @@
 #include "OverviewPage.h"
+#include "BusinessProfile.h"
 #include "ShopTime.h"
 
 #include <QDate>
@@ -20,9 +21,6 @@
 #include <algorithm>
 
 namespace {
-QString money(double amount) {
-    return QString("GEL %1").arg(amount, 0, 'f', 2);
-}
 
 // A rounded panel with a muted caption on top; content goes in the returned layout.
 QVBoxLayout *addCard(QWidget *parent, QGridLayout *grid, int row, int column, const QString &caption,
@@ -163,7 +161,7 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
     itemsDetail->setText("across all shops");
     averageDetail->setText("today");
 
-    QVBoxLayout *chartCard = addCard(content, grid, 1, 0, "Sales — last 7 days (GEL)", 1, 3);
+    QVBoxLayout *chartCard = addCard(content, grid, 1, 0, "Sales — last 7 days (" + currencyLabel() + ")", 1, 3);
     m_chart = new SalesChart(content);
     chartCard->addWidget(m_chart, 1);
 

@@ -1,4 +1,5 @@
 #include "ReturnDialog.h"
+#include "BusinessProfile.h"
 #include "ShopTime.h"
 #include "SupabaseClient.h"
 
@@ -41,9 +42,9 @@ ReturnDialog::ReturnDialog(SupabaseClient *client, QString shopId, QWidget *pare
         m_sales = sales;
         m_saleList->clear();
         for (const SaleSummary &sale : m_sales) {
-            m_saleList->addItem(QString("%1 — GEL %2 (%3 item%4)")
+            m_saleList->addItem(QString("%1 — %2 (%3 item%4)")
                                      .arg(shoptime::format(sale.soldAt, "yyyy-MM-dd HH:mm"))
-                                     .arg(sale.total, 0, 'f', 2)
+                                     .arg(money(sale.total))
                                      .arg(sale.items.size())
                                      .arg(sale.items.size() == 1 ? "" : "s"));
         }
@@ -84,10 +85,10 @@ void ReturnDialog::showItemPicker() {
         const QString itemLabel = item.productName.isEmpty() ? item.productId : item.productName;
         const QString displayName =
             item.variantName.isEmpty() ? itemLabel : QString("%1 (%2)").arg(itemLabel, item.variantName);
-        auto *label = new QLabel(QString("%1 (bought %2, GEL %3 each)")
+        auto *label = new QLabel(QString("%1 (bought %2, %3 each)")
                                       .arg(displayName)
                                       .arg(item.quantity)
-                                      .arg(item.unitPrice, 0, 'f', 2));
+                                      .arg(money(item.unitPrice)));
         auto *spin = new QSpinBox;
         spin->setRange(0, item.quantity);
         row->addWidget(label, 1);

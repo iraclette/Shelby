@@ -3,18 +3,24 @@
 #include <QDateTime>
 #include <QTimeZone>
 
-// Supabase stores timestamps in UTC; the shops run on Georgian time (UTC+4).
-// Day boundaries, "today" and every time shown on screen go through here, so a
-// sale at 01:30 belongs to the day it happened, not the previous UTC day.
-// Pinned to Asia/Tbilisi rather than the PC's clock settings, which may be wrong.
+#include "BusinessProfile.h"
+
+// Supabase stores timestamps in UTC; the shops run on the business's time zone
+// (Settings → Business). Day boundaries, "today" and every time shown on screen go
+// through here, so a sale at 01:30 belongs to the day it happened, not the previous
+// UTC day. Deliberately not the PC's own clock settings, which may be wrong.
 namespace shoptime {
 
 inline QTimeZone zone() {
-    static const QTimeZone tz = [] {
-        const QTimeZone tbilisi("Asia/Tbilisi");
-        return tbilisi.isValid() ? tbilisi : QTimeZone::systemTimeZone();
-    }();
-    return tz;
+    static QByteArray cachedId;
+    static QTimeZone cached;
+    const QByteArray id = BusinessProfile::instance()->settings().timezone.toUtf8();
+    if (id != cachedId) {
+        cachedId = id;
+        const QTimeZone business(id);
+        cached = business.isValid() ? business : QTimeZone::systemTimeZone();
+    }
+    return cached;
 }
 
 inline QDate today() {
