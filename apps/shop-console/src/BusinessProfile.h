@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QPixmap>
 #include <QString>
+#include <QList>
 #include <QStringList>
 
 class QNetworkAccessManager;
@@ -25,6 +26,7 @@ struct BusinessSettings {
     QString defaultPaymentMethod = "cash";      // selected when the payment window opens
     int defaultLowStockThreshold = 0;           // for new products; 0 = off
     QString skuPrefix = "INT";                  // codes for products without a barcode: INT-XXXXXX
+    QList<double> quickCashAmounts{5, 10, 20, 50, 100, 200}; // one-tap buttons in the cash payment window
 };
 
 // The console sections a business can switch off, in sidebar order: key, name, what it's for.

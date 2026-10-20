@@ -555,5 +555,9 @@
   "Code prefix": "Префикс кода",
   "For products without a barcode, made here and on the website. Existing codes stay as they are.": "Для товаров без штрихкода, здесь и на сайте. Существующие коды не меняются.",
   "New codes look like %1": "Пример нового кода: %1",
-  "The code prefix can't be empty.": "Префикс кода не может быть пустым."
+  "The code prefix can't be empty.": "Префикс кода не может быть пустым.",
+  "Quick cash buttons": "Кнопки быстрой суммы",
+  "The amounts the cash payment window offers as one-tap buttons, separated by commas. Up to 11; leave it empty for none.": "Суммы, которые окно оплаты наличными предлагает одной кнопкой, через запятую. До 11; оставьте пустым, чтобы кнопок не было.",
+  "\"%1\" isn't an amount. Use numbers like 5, 10, 20.": "«%1» — не сумма. Используйте числа, например 5, 10, 20.",
+  "There's room for 11 quick cash buttons at most.": "Кнопок быстрой суммы может быть не больше 11."
 }

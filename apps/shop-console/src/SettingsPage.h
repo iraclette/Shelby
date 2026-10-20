@@ -118,7 +118,7 @@ private:
     bool m_saving = false;
 };
 
-// Settings → Checkout: the payment methods the till offers, and the defaults new products get
+// Settings → Checkout: the payment methods the till offers, its quick-cash buttons, and the defaults new products get
 // (low stock alert, the prefix of codes made for products without a barcode). Every till.
 class CheckoutSettingsSection : public QWidget {
     Q_OBJECT
@@ -136,6 +136,7 @@ private:
     QCheckBox *m_cash;
     QCheckBox *m_card;
     QComboBox *m_defaultMethod;
+    QLineEdit *m_quickCash;
     QSpinBox *m_lowStock;
     QLineEdit *m_prefix;
     QLabel *m_prefixPreview;

@@ -41,6 +41,10 @@ BusinessProfile::BusinessProfile() {
     m_settings.defaultPaymentMethod = s.value("defaultPaymentMethod", m_settings.defaultPaymentMethod).toString();
     m_settings.defaultLowStockThreshold = s.value("defaultLowStockThreshold", 0).toInt();
     m_settings.skuPrefix = s.value("skuPrefix", m_settings.skuPrefix).toString();
+    if (s.contains("quickCashAmounts")) {
+        m_settings.quickCashAmounts.clear();
+        for (const QVariant &amount : s.value("quickCashAmounts").toList()) m_settings.quickCashAmounts << amount.toDouble();
+    }
     s.endGroup();
     if (!m_settings.logoPath.isEmpty()) m_logo.load(logoCacheFile());
 }
@@ -89,6 +93,9 @@ void BusinessProfile::saveCache() const {
     s.setValue("defaultPaymentMethod", m_settings.defaultPaymentMethod);
     s.setValue("defaultLowStockThreshold", m_settings.defaultLowStockThreshold);
     s.setValue("skuPrefix", m_settings.skuPrefix);
+    QVariantList amounts;
+    for (double amount : m_settings.quickCashAmounts) amounts << amount;
+    s.setValue("quickCashAmounts", amounts);
     s.endGroup();
 }
 

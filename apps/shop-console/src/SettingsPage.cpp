@@ -40,6 +40,9 @@
 
 #include "qrcodegen.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 namespace {
 // Common currencies and their symbols; anything else can be typed in.
 const QList<QPair<QString, QString>> kCurrencies{
@@ -852,6 +855,10 @@ CheckoutSettingsSection::CheckoutSettingsSection(SupabaseClient *client, QWidget
     defaultRow->addWidget(m_defaultMethod);
     defaultRow->addStretch();
 
+    m_quickCash = new QLineEdit(this);
+    m_quickCash->setPlaceholderText("5, 10, 20, 50, 100, 200");
+    m_quickCash->setMaximumWidth(320);
+
     m_lowStock = new QSpinBox(this);
     m_lowStock->setRange(0, 999999);
     m_lowStock->setSpecialValueText(tr("Disabled"));
@@ -874,6 +881,10 @@ CheckoutSettingsSection::CheckoutSettingsSection(SupabaseClient *client, QWidget
     form->setSpacing(12);
     form->addRow(tr("Payment methods"), methodsRow);
     form->addRow(tr("Selected first"), defaultRow);
+    form->addRow(tr("Quick cash buttons"), m_quickCash);
+    form->addRow("", hintLabel(tr("The amounts the cash payment window offers as one-tap buttons, separated by commas. "
+                                  "Up to 11; leave it empty for none."),
+                               this));
     form->addRow(tr("Low stock alert for new products"), lowStockRow);
     form->addRow("", hintLabel(tr("Each product can still have its own; products you already have keep theirs."), this));
     form->addRow(tr("Code prefix"), prefixRow);
@@ -934,6 +945,9 @@ void CheckoutSettingsSection::loadFromProfile() {
     m_card->setChecked(settings.paymentMethods.contains("card"));
     refreshDefaultMethods();
     m_defaultMethod->setCurrentIndex(qMax(0, m_defaultMethod->findData(settings.defaultPaymentMethod)));
+    QStringList amounts;
+    for (double amount : settings.quickCashAmounts) amounts << QLocale::c().toString(amount, 'g', 12);
+    m_quickCash->setText(amounts.join(", "));
     m_lowStock->setValue(settings.defaultLowStockThreshold);
     m_prefix->setText(settings.skuPrefix);
     refreshPrefixPreview();
@@ -960,6 +974,26 @@ void CheckoutSettingsSection::save() {
         m_status->setText(tr("The code prefix can't be empty."));
         return;
     }
+    // "5, 10 20;50" all work: any run of commas, semicolons or spaces separates amounts.
+    QList<double> amounts;
+    for (const QString &part : m_quickCash->text().split(QRegularExpression("[,;\\s]+"), Qt::SkipEmptyParts)) {
+        bool ok = false;
+        const double amount = QLocale::c().toDouble(part, &ok);
+        if (!ok || amount <= 0 || amount >= 1e10) {
+            m_status->setText(tr("\"%1\" isn't an amount. Use numbers like 5, 10, 20.").arg(part));
+            return;
+        }
+        const double rounded = std::round(amount * 100) / 100;
+        if (!amounts.contains(rounded)) amounts << rounded;
+    }
+    if (amounts.size() > 11) {
+        m_status->setText(tr("There's room for 11 quick cash buttons at most."));
+        return;
+    }
+    std::sort(amounts.begin(), amounts.end());
+    QJsonArray quickCash;
+    for (double amount : amounts) quickCash.append(amount);
+
     QJsonArray methods;
     if (m_cash->isChecked()) methods.append("cash");
     if (m_card->isChecked()) methods.append("card");
@@ -971,5 +1005,6 @@ void CheckoutSettingsSection::save() {
         {"default_payment_method", m_defaultMethod->currentData().toString()},
         {"default_low_stock_threshold", m_lowStock->value()},
         {"sku_prefix", m_prefix->text()},
+        {"quick_cash_amounts", quickCash},
     });
 }

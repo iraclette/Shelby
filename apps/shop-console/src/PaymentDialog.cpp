@@ -16,9 +16,10 @@
 #include <cmath>
 
 namespace {
-// Georgian lari banknotes — the quick-cash buttons, like Aronium's.
-constexpr int kBanknotes[] = {5, 10, 20, 50, 100, 200};
-
+// "50" for whole amounts, "2.50" otherwise.
+QString amountText(double amount) {
+    return std::fmod(amount, 1.0) == 0 ? QString::number(amount, 'f', 0) : QString::number(amount, 'f', 2);
+}
 } // namespace
 
 PaymentDialog::PaymentDialog(double total, QWidget *parent)
@@ -89,8 +90,9 @@ PaymentDialog::PaymentDialog(double total, QWidget *parent)
     quickGrid->addWidget(exactButton, 0, 0);
     connect(exactButton, &QPushButton::clicked, this, [this]() { setReceived(m_total); });
     int index = 1;
-    for (int note : kBanknotes) {
-        auto *noteButton = new QPushButton(QString::number(note), this);
+    // The quick-cash buttons, like Aronium's (Settings → Checkout).
+    for (double note : BusinessProfile::instance()->settings().quickCashAmounts) {
+        auto *noteButton = new QPushButton(amountText(note), this);
         // A note smaller than the bill can't be "the" payment on its own.
         noteButton->setEnabled(note >= total);
         connect(noteButton, &QPushButton::clicked, this, [this, note]() { setReceived(note); });

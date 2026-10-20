@@ -517,5 +517,9 @@
   "Code prefix": "კოდის პრეფიქსი",
   "For products without a barcode, made here and on the website. Existing codes stay as they are.": "შტრიხკოდის არმქონე პროდუქტებისთვის, აქაც და საიტზეც. არსებული კოდები უცვლელი რჩება.",
   "New codes look like %1": "ახალი კოდის მაგალითი: %1",
-  "The code prefix can't be empty.": "კოდის პრეფიქსი ცარიელი ვერ იქნება."
+  "The code prefix can't be empty.": "კოდის პრეფიქსი ცარიელი ვერ იქნება.",
+  "Quick cash buttons": "სწრაფი თანხის ღილაკები",
+  "The amounts the cash payment window offers as one-tap buttons, separated by commas. Up to 11; leave it empty for none.": "თანხები, რომლებიც ნაღდით გადახდისას ერთი დაჭერით ირჩევა, მძიმით გამოყოფილი. მაქსიმუმ 11. ცარიელი ნიშნავს, რომ ღილაკები არ გამოჩნდება.",
+  "\"%1\" isn't an amount. Use numbers like 5, 10, 20.": "„%1“ თანხა არ არის. გამოიყენეთ რიცხვები, მაგალითად 5, 10, 20.",
+  "There's room for 11 quick cash buttons at most.": "სწრაფი თანხის ღილაკები მაქსიმუმ 11 შეიძლება იყოს."
 }

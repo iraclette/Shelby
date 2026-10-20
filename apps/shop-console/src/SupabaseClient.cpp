@@ -882,6 +882,10 @@ BusinessSettings parseBusinessSettings(const QJsonObject &row) {
     settings.defaultPaymentMethod = row.value("default_payment_method").toString(settings.defaultPaymentMethod);
     settings.defaultLowStockThreshold = row.value("default_low_stock_threshold").toInt();
     settings.skuPrefix = row.value("sku_prefix").toString(settings.skuPrefix);
+    if (row.contains("quick_cash_amounts")) {
+        settings.quickCashAmounts.clear();
+        for (const QJsonValue &amount : row.value("quick_cash_amounts").toArray()) settings.quickCashAmounts << amount.toDouble();
+    }
     return settings;
 }
 } // namespace
@@ -895,7 +899,7 @@ void SupabaseClient::fetchBusinessSettings() {
     QUrl url(m_baseUrl + "/rest/v1/business_settings");
     QUrlQuery query;
     query.addQueryItem("select", "name,logo_path,currency_code,currency_symbol,currency_style,timezone,disabled_modules,"
-                                  "payment_methods,default_payment_method,default_low_stock_threshold,sku_prefix");
+                                  "payment_methods,default_payment_method,default_low_stock_threshold,sku_prefix,quick_cash_amounts");
     url.setQuery(query);
     QNetworkRequest request(url);
     request.setRawHeader("apikey", m_anonKey.toUtf8());
