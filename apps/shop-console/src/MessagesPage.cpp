@@ -19,7 +19,7 @@
 MessagesPage::MessagesPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
     auto *toolbar = new QHBoxLayout;
-    auto *refreshButton = new QPushButton("Refresh", this);
+    auto *refreshButton = new QPushButton(tr("Refresh"), this);
     toolbar->addWidget(refreshButton);
     toolbar->addStretch();
 
@@ -27,7 +27,7 @@ MessagesPage::MessagesPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(5);
-    m_table->setHorizontalHeaderLabels({"Received", "Name", "Phone / email", "Message", "Status"});
+    m_table->setHorizontalHeaderLabels({tr("Received"), tr("Name"), tr("Phone / email"), tr("Message"), tr("Status")});
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(kColCreated, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(kColName, QHeaderView::ResizeToContents);
@@ -48,12 +48,12 @@ MessagesPage::MessagesPage(SupabaseClient *client, QWidget *parent)
         rebuildTable();
     });
     connect(m_client, &SupabaseClient::contactMessagesFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load messages: " + message);
+        emit statusMessage(tr("Failed to load messages: ") + message);
     });
     m_client->fetchContactMessages();
 
     connect(m_client, &SupabaseClient::contactMessageUpdateFailed, this, [this](const QString &message) {
-        emit statusMessage("Update failed: " + message);
+        emit statusMessage(tr("Update failed: ") + message);
         m_client->fetchContactMessages();
     });
     connect(m_client, &SupabaseClient::contactMessageUpdated, this, [this]() { m_client->fetchContactMessages(); });
@@ -85,8 +85,7 @@ void MessagesPage::rebuildTable() {
 
     const int unread = std::count_if(m_messages.begin(), m_messages.end(),
                                       [](const ContactMessage &m) { return m.status == "unread"; });
-    emit statusMessage(QString("%1 message(s), %2 unread. Click a message to open it.")
-                            .arg(m_messages.size())
+    emit statusMessage(tr("%n messages, %1 unread. Click a message to open it.", nullptr, int(m_messages.size()))
                             .arg(unread));
 }
 
@@ -97,7 +96,7 @@ void MessagesPage::openMessage(int row) {
     if (message.status == "unread") m_client->updateContactMessageField(message.id, "status", "read");
 
     QDialog dialog(this);
-    dialog.setWindowTitle("Message from " + message.name);
+    dialog.setWindowTitle(tr("Message from %1").arg(message.name));
     dialog.resize(560, 440);
 
     auto *name = new QLabel(message.name, &dialog);
@@ -107,17 +106,17 @@ void MessagesPage::openMessage(int row) {
     auto *contact = new QLabel(message.email, &dialog);
     contact->setStyleSheet("font-size: 14px;");
     contact->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    auto *copyButton = new QPushButton("Copy", &dialog);
+    auto *copyButton = new QPushButton(tr("Copy"), &dialog);
     connect(copyButton, &QPushButton::clicked, &dialog, [message, copyButton]() {
         QApplication::clipboard()->setText(message.email);
-        copyButton->setText("Copied");
+        copyButton->setText(tr("Copied"));
     });
     auto *contactRow = new QHBoxLayout;
     contactRow->addWidget(contact);
     contactRow->addWidget(copyButton);
     contactRow->addStretch();
 
-    auto *received = new QLabel("Received " + shoptime::format(message.createdAt, "d MMMM yyyy, HH:mm"), &dialog);
+    auto *received = new QLabel(tr("Received %1").arg(shoptime::format(message.createdAt, "d MMMM yyyy, HH:mm")), &dialog);
     received->setObjectName("brandSub");
 
     auto *body = new QPlainTextEdit(message.message, &dialog);
@@ -125,7 +124,7 @@ void MessagesPage::openMessage(int row) {
     body->setStyleSheet("font-size: 15px;");
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
-    auto *unreadButton = buttons->addButton("Mark as unread", QDialogButtonBox::ActionRole);
+    auto *unreadButton = buttons->addButton(tr("Mark as unread"), QDialogButtonBox::ActionRole);
     connect(unreadButton, &QPushButton::clicked, &dialog, [this, &dialog, message]() {
         m_client->updateContactMessageField(message.id, "status", "unread");
         dialog.accept();

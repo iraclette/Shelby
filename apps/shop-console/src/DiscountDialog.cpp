@@ -11,16 +11,16 @@
 
 DiscountDialog::DiscountDialog(const QString &productName, double listPrice, double currentPrice, QWidget *parent)
     : QDialog(parent), m_listPrice(listPrice), m_resultPrice(currentPrice) {
-    setWindowTitle("Apply Discount");
+    setWindowTitle(tr("Apply Discount"));
     resize(320, 200);
 
     auto *layout = new QVBoxLayout(this);
     layout->addWidget(new QLabel(
-        QString("<b>%1</b><br>List price: %2").arg(productName, money(listPrice)), this));
+        tr("<b>%1</b><br>List price: %2").arg(productName, money(listPrice)), this));
 
     auto *modeRow = new QHBoxLayout;
-    m_percentRadio = new QRadioButton("% off", this);
-    m_amountRadio = new QRadioButton(currencyLabel() + " off", this);
+    m_percentRadio = new QRadioButton(tr("% off"), this);
+    m_amountRadio = new QRadioButton(tr("%1 off").arg(currencyLabel()), this);
     auto *modeGroup = new QButtonGroup(this);
     modeGroup->addButton(m_percentRadio);
     modeGroup->addButton(m_amountRadio);
@@ -80,7 +80,7 @@ double DiscountDialog::computePrice() const {
 }
 
 void DiscountDialog::updatePreview() {
-    m_previewLabel->setText("New price: " + money(computePrice()));
+    m_previewLabel->setText(tr("New price: %1").arg(money(computePrice())));
 }
 
 void DiscountDialog::accept() {

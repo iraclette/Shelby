@@ -14,9 +14,9 @@
 CategoriesPage::CategoriesPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
     auto *toolbar = new QHBoxLayout;
-    auto *refreshButton = new QPushButton("Refresh", this);
+    auto *refreshButton = new QPushButton(tr("Refresh"), this);
     toolbar->addWidget(refreshButton);
-    auto *newCategoryButton = new QPushButton("New category", this);
+    auto *newCategoryButton = new QPushButton(tr("New category"), this);
     toolbar->addWidget(newCategoryButton);
     toolbar->addStretch();
 
@@ -26,7 +26,7 @@ CategoriesPage::CategoriesPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(2);
-    m_table->setHorizontalHeaderLabels({"Category", "Visible on storefront"});
+    m_table->setHorizontalHeaderLabels({tr("Category"), tr("Visible on storefront")});
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(kColName, QHeaderView::ResizeToContents);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -43,37 +43,37 @@ CategoriesPage::CategoriesPage(SupabaseClient *client, QWidget *parent)
         rebuildTable();
     });
     connect(m_client, &SupabaseClient::categoriesFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load categories: " + message);
+        emit statusMessage(tr("Failed to load categories: ") + message);
     });
     m_client->fetchCategories();
 
     connect(m_client, &SupabaseClient::categoryUpdateFailed, this, [this](const QString &message) {
-        emit statusMessage("Update failed: " + message);
+        emit statusMessage(tr("Update failed: ") + message);
         m_client->fetchCategories();
     });
     connect(m_client, &SupabaseClient::categoryUpdated, this, [this]() { m_client->fetchCategories(); });
 
     connect(m_client, &SupabaseClient::categoryCreated, this, [this]() { m_client->fetchCategories(); });
     connect(m_client, &SupabaseClient::categoryCreateFailed, this, [this](const QString &message) {
-        QMessageBox::warning(this, "Couldn't create category", message);
+        QMessageBox::warning(this, tr("Couldn't create category"), message);
     });
 }
 
 void CategoriesPage::promptForNewCategory(QWidget *parent, SupabaseClient *client,
                                           const QVector<Category> &categories) {
     bool ok = false;
-    const QString name = QInputDialog::getText(parent, "New category", "Category name:",
+    const QString name = QInputDialog::getText(parent, tr("New category"), tr("Category name:"),
                                                  QLineEdit::Normal, {}, &ok);
     if (!ok || name.trimmed().isEmpty()) return;
 
-    QStringList parentNames{"None (top-level category)"};
+    QStringList parentNames{tr("None (top-level category)")};
     QStringList parentIds{QString()};
     for (const Category &category : categories) {
         if (!category.parentId.isEmpty()) continue;
         parentNames.append(category.name);
         parentIds.append(category.id);
     }
-    const QString picked = QInputDialog::getItem(parent, "New category", "Subcategory of:", parentNames, 0, false, &ok);
+    const QString picked = QInputDialog::getItem(parent, tr("New category"), tr("Subcategory of:"), parentNames, 0, false, &ok);
     if (!ok) return;
 
     client->createCategory(name.trimmed(), parentIds.value(parentNames.indexOf(picked)));
@@ -100,7 +100,7 @@ void CategoriesPage::rebuildTable() {
     }
 
     m_populating = false;
-    emit statusMessage(QString("%1 categor%2.").arg(m_categories.size()).arg(m_categories.size() == 1 ? "y" : "ies"));
+    emit statusMessage(tr("%n categories.", nullptr, int(m_categories.size())));
 }
 
 void CategoriesPage::handleItemChanged(QTableWidgetItem *item) {

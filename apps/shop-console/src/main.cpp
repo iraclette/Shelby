@@ -6,6 +6,7 @@
 #include "SessionStore.h"
 #include "SupabaseClient.h"
 #include "Theme.h"
+#include "Translations.h"
 #include "UpdateChecker.h"
 
 #include <QApplication>
@@ -15,6 +16,7 @@
 int main(int argc, char *argv[]) {
     theme::applyScaleBeforeStartup(); // Settings → Appearance → interface size
     QApplication app(argc, argv);
+    translations::install(); // before any window, so everything is created in the chosen language
     theme::apply();
 
     // Started early so it overlaps with typing the login.
@@ -24,10 +26,10 @@ int main(int argc, char *argv[]) {
     const Config config = Config::load();
     if (!config.isValid()) {
         QMessageBox::critical(
-            nullptr, "Shop Console",
-            "Missing Supabase configuration.\n\n"
-            "Create a .env file next to the executable (see .env.example) "
-            "with SUPABASE_URL and SUPABASE_ANON_KEY.");
+            nullptr, QObject::tr("Shop Console"),
+            QObject::tr("Missing Supabase configuration.\n\n"
+                        "Create a .env file next to the executable (see .env.example) "
+                        "with SUPABASE_URL and SUPABASE_ANON_KEY."));
         return 1;
     }
 
@@ -102,10 +104,10 @@ int main(int argc, char *argv[]) {
         login->show();
     };
     QObject::connect(client, &SupabaseClient::sessionExpired, &app, [&]() {
-        if (activeWindow) backToLogin("Your session ended. Please sign in again.");
+        if (activeWindow) backToLogin(QObject::tr("Your session ended. Please sign in again."));
     });
     QObject::connect(updateChecker, &UpdateChecker::installFailed, &app, [&](const QString &message) {
-        QMessageBox::warning(activeWindow, "Update failed", message);
+        QMessageBox::warning(activeWindow, QObject::tr("Update failed"), message);
     });
 
     QObject::connect(login, &LoginWindow::authenticated, &app,

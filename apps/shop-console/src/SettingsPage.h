@@ -79,6 +79,22 @@ private:
     QPushButton *m_restartButton;
 };
 
+// Settings → Language: the console's language on this computer (applies after a restart).
+class LanguageSettingsSection : public QWidget {
+    Q_OBJECT
+
+public:
+    explicit LanguageSettingsSection(SupabaseClient *client, QWidget *parent = nullptr);
+
+private:
+    void refresh();
+
+    SupabaseClient *m_client;
+    QList<QPair<QString, QPushButton *>> m_languageButtons;
+    QLabel *m_note;
+    QPushButton *m_restartButton;
+};
+
 // Settings → Modules: switch off console sections the business doesn't use, on every till.
 class ModulesSettingsSection : public QWidget {
     Q_OBJECT

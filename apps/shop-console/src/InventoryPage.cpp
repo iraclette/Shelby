@@ -70,20 +70,20 @@ private:
 InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
     auto *toolbar = new QHBoxLayout;
-    auto *refreshButton = new QPushButton("Refresh", this);
+    auto *refreshButton = new QPushButton(tr("Refresh"), this);
     toolbar->addWidget(refreshButton);
-    auto *newProductButton = new QPushButton("New product", this);
+    auto *newProductButton = new QPushButton(tr("New product"), this);
     newProductButton->setObjectName("primaryButton");
     toolbar->addWidget(newProductButton);
-    auto *photosButton = new QPushButton("Photos…", this);
+    auto *photosButton = new QPushButton(tr("Photos…"), this);
     toolbar->addWidget(photosButton);
-    auto *addVariantButton = new QPushButton("Add variant…", this);
+    auto *addVariantButton = new QPushButton(tr("Add variant…"), this);
     toolbar->addWidget(addVariantButton);
-    auto *transferButton = new QPushButton("Transfer Stock", this);
+    auto *transferButton = new QPushButton(tr("Transfer Stock"), this);
     toolbar->addWidget(transferButton);
     toolbar->addStretch();
     m_searchInput = new QLineEdit(this);
-    m_searchInput->setPlaceholderText("Search name, SKU, variant…");
+    m_searchInput->setPlaceholderText(tr("Search name, SKU, variant…"));
     m_searchInput->setClearButtonEnabled(true);
     m_searchInput->setMinimumWidth(260);
     toolbar->addWidget(m_searchInput);
@@ -99,7 +99,7 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     connect(photosButton, &QPushButton::clicked, this, [this]() {
         const int row = m_table->currentRow();
         if (row < 0 || row >= m_rows.size()) {
-            emit statusMessage("Select a product row first.");
+            emit statusMessage(tr("Select a product row first."));
             return;
         }
         const Product &product = m_products[m_rows[row].productIndex];
@@ -109,22 +109,22 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     connect(addVariantButton, &QPushButton::clicked, this, [this]() {
         const int row = m_table->currentRow();
         if (row < 0 || row >= m_rows.size()) {
-            emit statusMessage("Select a product row first.");
+            emit statusMessage(tr("Select a product row first."));
             return;
         }
         const Product &product = m_products[m_rows[row].productIndex];
 
         QDialog dialog(this);
-        dialog.setWindowTitle("Add variant to " + product.name);
+        dialog.setWindowTitle(tr("Add variant to %1").arg(product.name));
         auto *nameInput = new QLineEdit(&dialog);
-        nameInput->setPlaceholderText("e.g. 212, Red, 50 ml");
+        nameInput->setPlaceholderText(tr("e.g. 212, Red, 50 ml"));
         auto *skuInput = new QLineEdit(&dialog);
-        skuInput->setPlaceholderText("Scan, or leave empty for an internal code");
+        skuInput->setPlaceholderText(tr("Scan, or leave empty for an internal code"));
         auto *form = new QFormLayout(&dialog);
-        form->addRow("Name", nameInput);
-        form->addRow("Barcode / SKU", skuInput);
+        form->addRow(tr("Name"), nameInput);
+        form->addRow(tr("Barcode / SKU"), skuInput);
         if (product.variants.isEmpty()) {
-            auto *note = new QLabel("The product's current stock moves to this first variant.", &dialog);
+            auto *note = new QLabel(tr("The product's current stock moves to this first variant."), &dialog);
             note->setWordWrap(true);
             form->addRow(note);
         }
@@ -140,16 +140,16 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
         m_client->logAuditEvent("product_updated", "product", product.id, QString("variant added: %1").arg(name));
     });
     connect(m_client, &SupabaseClient::variantAdded, this, [this]() {
-        emit statusMessage("Variant added.");
+        emit statusMessage(tr("Variant added."));
         m_client->fetchProducts();
     });
     connect(m_client, &SupabaseClient::variantAddFailed, this, [this](const QString &message) {
-        emit statusMessage("Couldn't add the variant: " + message);
+        emit statusMessage(tr("Couldn't add the variant: ") + message);
     });
 
     connect(transferButton, &QPushButton::clicked, this, [this]() {
         if (m_shops.size() < 2) {
-            emit statusMessage("Need at least two shops to transfer stock between.");
+            emit statusMessage(tr("Need at least two shops to transfer stock between."));
             return;
         }
         const int row = m_table->currentRow();
@@ -162,7 +162,7 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
         }
         TransferStockDialog dialog(m_client, m_products, m_shops, preselectedProductId, preselectedVariantId, this);
         if (dialog.exec() == QDialog::Accepted) {
-            emit statusMessage("Stock transferred.");
+            emit statusMessage(tr("Stock transferred."));
             m_client->fetchProducts();
         }
     });
@@ -206,7 +206,7 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
         m_pendingSupplierRow = -1;
     });
     connect(m_client, &SupabaseClient::supplierCreateFailed, this, [this](const QString &message) {
-        emit statusMessage("Couldn't create supplier: " + message);
+        emit statusMessage(tr("Couldn't create supplier: ") + message);
         m_pendingSupplierRow = -1;
         m_client->fetchProducts();
     });
@@ -216,20 +216,20 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
         rebuildTable();
     });
     connect(m_client, &SupabaseClient::productsFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load products: " + message);
+        emit statusMessage(tr("Failed to load products: ") + message);
     });
     m_client->fetchProducts();
 
     connect(m_client, &SupabaseClient::productUpdateFailed, this, [this](const QString &message) {
-        emit statusMessage("Update failed: " + message);
+        emit statusMessage(tr("Update failed: ") + message);
         m_client->fetchProducts();
     });
     connect(m_client, &SupabaseClient::inventoryLevelsUpsertFailed, this, [this](const QString &message) {
-        emit statusMessage("Stock update failed: " + message);
+        emit statusMessage(tr("Stock update failed: ") + message);
         m_client->fetchProducts();
     });
     connect(m_client, &SupabaseClient::variantUpdateFailed, this, [this](const QString &message) {
-        emit statusMessage("Variant update failed: " + message);
+        emit statusMessage(tr("Variant update failed: ") + message);
         m_client->fetchProducts();
     });
 }
@@ -254,7 +254,7 @@ void InventoryPage::rebuildTable() {
         }
     }
 
-    QStringList headers{"Name", "Variant", "Category", "Supplier", "SKU", "Sell price", "Cost price"};
+    QStringList headers{tr("Name"), tr("Variant"), tr("Category"), tr("Supplier"), tr("SKU"), tr("Sell price"), tr("Cost price")};
     for (const Shop &shop : m_shops) headers << shop.name;
     m_table->setColumnCount(headers.size());
     m_table->setHorizontalHeaderLabels(headers);
@@ -316,7 +316,7 @@ void InventoryPage::rebuildTable() {
     }
 
     m_populating = false;
-    emit statusMessage(QString("Connected to Supabase. %1 product(s) found.").arg(m_products.size()));
+    emit statusMessage(tr("%n products.", nullptr, int(m_products.size())));
 }
 
 void InventoryPage::applySupplierEdit(int row, const QString &typedName) {
@@ -399,7 +399,7 @@ void InventoryPage::handleItemChanged(QTableWidgetItem *item) {
         bool ok = false;
         const double value = text.toDouble(&ok);
         if (!ok || value < 0) {
-            emit statusMessage("Invalid price — must be a non-negative number.");
+            emit statusMessage(tr("Invalid price — must be a non-negative number."));
             m_client->fetchProducts();
             return;
         }
@@ -419,7 +419,7 @@ void InventoryPage::handleItemChanged(QTableWidgetItem *item) {
         bool ok = false;
         const int quantity = text.toInt(&ok);
         if (!ok || quantity < 0) {
-            emit statusMessage("Invalid quantity — must be a non-negative whole number.");
+            emit statusMessage(tr("Invalid quantity — must be a non-negative whole number."));
             m_client->fetchProducts();
             return;
         }

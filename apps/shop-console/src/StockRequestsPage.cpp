@@ -30,17 +30,17 @@ QColor statusColor(const QString &status) {
 StockRequestsPage::StockRequestsPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
     auto *toolbar = new QHBoxLayout;
-    auto *refreshButton = new QPushButton("Refresh", this);
+    auto *refreshButton = new QPushButton(tr("Refresh"), this);
     toolbar->addWidget(refreshButton);
     m_filter = new QComboBox(this);
-    m_filter->addItem("New", "new");
-    m_filter->addItem("All requests", "");
-    m_filter->addItem("Contacted", "contacted");
-    m_filter->addItem("Dismissed", "dismissed");
+    m_filter->addItem(tr("New"), "new");
+    m_filter->addItem(tr("All requests"), "");
+    m_filter->addItem(tr("Contacted"), "contacted");
+    m_filter->addItem(tr("Dismissed"), "dismissed");
     toolbar->addWidget(m_filter);
     toolbar->addStretch();
-    m_dismissButton = new QPushButton("Dismiss", this);
-    m_contactedButton = new QPushButton("Mark contacted", this);
+    m_dismissButton = new QPushButton(tr("Dismiss"), this);
+    m_contactedButton = new QPushButton(tr("Mark contacted"), this);
     m_contactedButton->setObjectName("primaryButton");
     for (QPushButton *button : {m_dismissButton, m_contactedButton}) {
         button->setEnabled(false);
@@ -49,7 +49,7 @@ StockRequestsPage::StockRequestsPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(4);
-    m_table->setHorizontalHeaderLabels({"Received", "Product", "Phone or email", "Status"});
+    m_table->setHorizontalHeaderLabels({tr("Received"), tr("Product"), tr("Phone or email"), tr("Status")});
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -73,14 +73,14 @@ StockRequestsPage::StockRequestsPage(SupabaseClient *client, QWidget *parent)
                                            [](const StockRequest &r) { return r.status == "new"; }));
     });
     connect(m_client, &SupabaseClient::stockRequestsFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load stock requests: " + message);
+        emit statusMessage(tr("Failed to load stock requests: ") + message);
     });
     connect(m_client, &SupabaseClient::stockRequestUpdated, this, [this]() {
-        emit statusMessage("Request updated.");
+        emit statusMessage(tr("Request updated."));
         m_client->fetchStockRequests();
     });
     connect(m_client, &SupabaseClient::stockRequestUpdateFailed, this, [this](const QString &message) {
-        emit statusMessage("Update failed: " + message);
+        emit statusMessage(tr("Update failed: ") + message);
         m_client->fetchStockRequests();
     });
     m_client->fetchStockRequests();

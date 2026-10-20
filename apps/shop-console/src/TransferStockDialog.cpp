@@ -17,7 +17,7 @@ TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product
     , m_products(std::move(products))
     , m_shops(std::move(shops))
     , m_preselectedVariantId(preselectedVariantId) {
-    setWindowTitle("Transfer Stock");
+    setWindowTitle(tr("Transfer Stock"));
     resize(360, 320);
 
     m_productCombo = new QComboBox(this);
@@ -46,12 +46,12 @@ TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product
     m_availableLabel->setObjectName("hint");
 
     auto *form = new QFormLayout;
-    form->addRow("Product", m_productCombo);
-    m_variantLabel = new QLabel("Variant", this);
+    form->addRow(tr("Product"), m_productCombo);
+    m_variantLabel = new QLabel(tr("Variant"), this);
     form->addRow(m_variantLabel, m_variantCombo);
-    form->addRow("From shop", m_fromShopCombo);
-    form->addRow("To shop", m_toShopCombo);
-    form->addRow("Quantity", m_quantitySpin);
+    form->addRow(tr("From shop"), m_fromShopCombo);
+    form->addRow(tr("To shop"), m_toShopCombo);
+    form->addRow(tr("Quantity"), m_quantitySpin);
     form->addRow("", m_availableLabel);
 
     m_statusLabel = new QLabel(this);
@@ -59,7 +59,7 @@ TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product
     m_statusLabel->setWordWrap(true);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    m_submitButton = buttons->addButton("Transfer", QDialogButtonBox::AcceptRole);
+    m_submitButton = buttons->addButton(tr("Transfer"), QDialogButtonBox::AcceptRole);
     m_submitButton->setObjectName("primaryButton");
 
     auto *layout = new QVBoxLayout(this);
@@ -136,7 +136,7 @@ void TransferStockDialog::updateAvailable() {
         break;
     }
 
-    m_availableLabel->setText(QString("%1 available at this shop").arg(available));
+    m_availableLabel->setText(tr("%1 available at this shop").arg(available));
     m_quantitySpin->setRange(1, qMax(available, 1));
     if (available == 0) m_quantitySpin->setValue(1);
 }
@@ -147,13 +147,13 @@ void TransferStockDialog::submit() {
     const QString fromShopId = m_fromShopCombo->currentData().toString();
     const QString toShopId = m_toShopCombo->currentData().toString();
     if (fromShopId == toShopId) {
-        m_statusLabel->setText("Pick two different shops.");
+        m_statusLabel->setText(tr("Pick two different shops."));
         return;
     }
 
     m_submitButton->setEnabled(false);
     m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
-    m_statusLabel->setText("Transferring…");
+    m_statusLabel->setText(tr("Transferring…"));
 
     const QString variantId = m_variantCombo->isVisible() ? m_variantCombo->currentData().toString() : QString();
     m_client->transferStock(m_productCombo->currentData().toString(), fromShopId, toShopId, m_quantitySpin->value(),

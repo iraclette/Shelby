@@ -11,11 +11,11 @@
 
 EmployeeDialog::EmployeeDialog(SupabaseClient *client, QVector<Shop> shops, QWidget *parent)
     : QDialog(parent), m_client(client), m_shops(std::move(shops)) {
-    setWindowTitle("New Employee");
+    setWindowTitle(tr("New Employee"));
     resize(360, 320);
 
     m_username = new QLineEdit(this);
-    m_username->setPlaceholderText("Short username, e.g. \"shelby\"");
+    m_username->setPlaceholderText(tr("Short username, e.g. \"shelby\""));
     m_password = new QLineEdit(this);
     m_password->setEchoMode(QLineEdit::Password);
     m_fullName = new QLineEdit(this);
@@ -30,18 +30,18 @@ EmployeeDialog::EmployeeDialog(SupabaseClient *client, QVector<Shop> shops, QWid
     }
 
     auto *form = new QFormLayout;
-    form->addRow("Username", m_username);
-    form->addRow("Password", m_password);
-    form->addRow("Full name", m_fullName);
-    form->addRow("Role", m_role);
-    form->addRow("Shop", m_shop);
+    form->addRow(tr("Username"), m_username);
+    form->addRow(tr("Password"), m_password);
+    form->addRow(tr("Full name"), m_fullName);
+    form->addRow(tr("Role"), m_role);
+    form->addRow(tr("Shop"), m_shop);
 
     m_statusLabel = new QLabel(this);
     m_statusLabel->setStyleSheet(theme::css(theme::palette().danger));
     m_statusLabel->setWordWrap(true);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    m_saveButton = buttons->addButton("Save", QDialogButtonBox::AcceptRole);
+    m_saveButton = buttons->addButton(tr("Save"), QDialogButtonBox::AcceptRole);
     m_saveButton->setObjectName("primaryButton");
 
     auto *layout = new QVBoxLayout(this);
@@ -66,17 +66,17 @@ void EmployeeDialog::save() {
     const QString username = m_username->text().trimmed();
     const QString password = m_password->text();
     if (username.isEmpty()) {
-        m_statusLabel->setText("Username is required.");
+        m_statusLabel->setText(tr("Username is required."));
         return;
     }
     if (password.size() < 6) {
-        m_statusLabel->setText("Password must be at least 6 characters.");
+        m_statusLabel->setText(tr("Password must be at least 6 characters."));
         return;
     }
 
     m_saveButton->setEnabled(false);
     m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
-    m_statusLabel->setText("Creating…");
+    m_statusLabel->setText(tr("Creating…"));
 
     m_client->createStaffAccount(username, password, m_fullName->text().trimmed(), m_role->currentText(),
                                   m_shop->currentData().toString());

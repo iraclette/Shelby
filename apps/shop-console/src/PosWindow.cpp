@@ -69,13 +69,13 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
     : QMainWindow(parent)
     , m_client(client)
     , m_shopId(std::move(shopId)) {
-    setWindowTitle("Shop Console — Checkout");
+    setWindowTitle(tr("Shop Console — Checkout"));
     resize(1280, 760);
 
     auto *toolbar = addToolBar("main");
     toolbar->setMovable(false);
     if (!embedded) {
-        auto *title = new QLabel("Checkout", this);
+        auto *title = new QLabel(tr("Checkout"), this);
         title->setObjectName("pageTitle");
         toolbar->addWidget(title);
     }
@@ -92,24 +92,26 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
     m_updateBanner->setStyleSheet("padding: 0 8px;");
     m_updateBanner->hide();
     toolbar->addWidget(m_updateBanner);
-    auto *returnsButton = new QPushButton("Returns  F7", this);
+    auto *returnsButton = new QPushButton(tr("Returns  F7"), this);
     toolbar->addWidget(returnsButton);
     if (!embedded) {
         // Cashiers don't get the Settings page, but how their till looks is theirs to choose.
-        auto *appearanceButton = new QPushButton("Appearance", this);
+        auto *appearanceButton = new QPushButton(tr("Appearance"), this);
         toolbar->addWidget(appearanceButton);
         connect(appearanceButton, &QPushButton::clicked, this, [this]() {
             QDialog dialog(this);
-            dialog.setWindowTitle("Appearance");
-            dialog.resize(640, 320);
+            dialog.setWindowTitle(tr("Appearance"));
+            dialog.resize(640, 440);
             auto *layout = new QVBoxLayout(&dialog);
             layout->addWidget(new AppearanceSettingsSection(m_client, &dialog));
+            layout->addSpacing(16);
+            layout->addWidget(new LanguageSettingsSection(m_client, &dialog));
             auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
             connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
             layout->addWidget(buttons);
             dialog.exec();
         });
-        auto *signOutButton = new QPushButton("Sign out", this);
+        auto *signOutButton = new QPushButton(tr("Sign out"), this);
         toolbar->addWidget(signOutButton);
         connect(signOutButton, &QPushButton::clicked, this, &PosWindow::signedOut);
     }
@@ -130,14 +132,14 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
     // types a name and the tiles on the right filter as they go.
     m_barcodeInput = new QLineEdit(this);
     m_barcodeInput->setObjectName("posSearch");
-    m_barcodeInput->setPlaceholderText("Scan barcode or search products…  (F3)");
+    m_barcodeInput->setPlaceholderText(tr("Scan barcode or search products…  (F3)"));
     m_barcodeInput->setClearButtonEnabled(true);
     receiptLayout->addWidget(m_barcodeInput);
 
     m_cartTable = new QTableWidget(this);
     m_cartTable->setObjectName("receiptTable");
     m_cartTable->setColumnCount(4);
-    m_cartTable->setHorizontalHeaderLabels({"Product", "Qty", "Price", "Total"});
+    m_cartTable->setHorizontalHeaderLabels({tr("Product"), tr("Qty"), tr("Price"), tr("Total")});
     m_cartTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_cartTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     m_cartTable->horizontalHeader()->setHighlightSections(false);
@@ -162,9 +164,9 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
         button->setObjectName("stepButton");
         button->setFixedWidth(44);
     }
-    m_quantityButton = new QPushButton("Qty  F4", this);
-    m_discountButton = new QPushButton("Discount  F2", this);
-    m_removeButton = new QPushButton("Delete  Del", this);
+    m_quantityButton = new QPushButton(tr("Qty  F4"), this);
+    m_discountButton = new QPushButton(tr("Discount  F2"), this);
+    m_removeButton = new QPushButton(tr("Delete  Del"), this);
     lineToolsRow->addWidget(m_minusButton);
     lineToolsRow->addWidget(m_plusButton);
     lineToolsRow->addWidget(m_quantityButton, 1);
@@ -191,13 +193,13 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
         totalsLayout->addWidget(row);
         return row;
     };
-    addTotalsRow("Items", m_itemsCountLabel);
-    addTotalsRow("Subtotal", m_subtotalLabel);
-    m_savingsRow = addTotalsRow("Discount", m_savingsLabel);
+    addTotalsRow(tr("Items"), m_itemsCountLabel);
+    addTotalsRow(tr("Subtotal"), m_subtotalLabel);
+    m_savingsRow = addTotalsRow(tr("Discount"), m_savingsLabel);
     m_savingsLabel->setStyleSheet(theme::css(theme::palette().success));
 
     auto *totalRow = new QHBoxLayout;
-    auto *totalKey = new QLabel("TOTAL", this);
+    auto *totalKey = new QLabel(tr("TOTAL"), this);
     totalKey->setObjectName("totalKey");
     m_totalLabel = new QLabel(this);
     m_totalLabel->setObjectName("totalValue");
@@ -214,16 +216,16 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
 
     auto *saleButtonsRow = new QHBoxLayout;
     saleButtonsRow->setSpacing(6);
-    m_holdButton = new QPushButton("Hold  F9", this);
+    m_holdButton = new QPushButton(tr("Hold  F9"), this);
     m_heldButton = new QPushButton(this);
-    m_voidButton = new QPushButton("Void  F8", this);
+    m_voidButton = new QPushButton(tr("Void  F8"), this);
     m_voidButton->setObjectName("dangerButton");
     saleButtonsRow->addWidget(m_holdButton, 1);
     saleButtonsRow->addWidget(m_heldButton, 1);
     saleButtonsRow->addWidget(m_voidButton, 1);
     receiptLayout->addLayout(saleButtonsRow);
 
-    m_completeSaleButton = new QPushButton("Pay  F12", this);
+    m_completeSaleButton = new QPushButton(tr("Pay  F12"), this);
     m_completeSaleButton->setObjectName("payButton");
     m_completeSaleButton->setMinimumHeight(56);
     receiptLayout->addWidget(m_completeSaleButton);
@@ -348,7 +350,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
         m_cart.clear();
         refreshCartTable();
         m_completeSaleButton->setEnabled(true);
-        showStatus("Sale recorded." + m_lastPaymentNote, theme::hex(theme::palette().success));
+        showStatus(tr("Sale recorded.") + m_lastPaymentNote, theme::hex(theme::palette().success));
         m_barcodeInput->setFocus();
     });
     connect(m_client, &SupabaseClient::saleRecordFailed, this, [this](const QString &message) {
@@ -361,7 +363,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
         m_cart.clear();
         refreshCartTable();
         m_completeSaleButton->setEnabled(true);
-        showStatus(QString("No connection — sale saved offline, will sync automatically (%1 pending).%2")
+        showStatus(tr("No connection — sale saved offline, will sync automatically (%1 pending).%2")
                        .arg(pendingCount)
                        .arg(m_lastPaymentNote),
                    theme::hex(theme::palette().warning));
@@ -384,7 +386,8 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
 
 void PosWindow::showUpdateBanner(const QString &version, const QString &releaseUrl) {
     m_updateBanner->setText(
-        QString("<a href=\"%1\" style=\"color:" + theme::hex(theme::palette().accent) + ";\">Update available — v%2</a>").arg(releaseUrl, version));
+        QString("<a href=\"%1\" style=\"color:%2;\">%3</a>")
+                .arg(releaseUrl, theme::hex(theme::palette().accent), tr("Update available — v%1").arg(version)));
     m_updateBanner->show();
 }
 
@@ -399,7 +402,7 @@ void PosWindow::updatePendingBadge(int count) {
         m_pendingBadge->hide();
         return;
     }
-    m_pendingBadge->setText(QString("⏳ %1 pending sync").arg(count));
+    m_pendingBadge->setText(tr("⏳ %1 pending sync").arg(count));
     m_pendingBadge->show();
 }
 
@@ -433,7 +436,7 @@ void PosWindow::rebuildCategoryChips() {
         layout->addWidget(chip);
     };
 
-    addChip(m_categoryChipsLayout, "All", "", m_selectedCategoryId.isEmpty());
+    addChip(m_categoryChipsLayout, tr("All"), "", m_selectedCategoryId.isEmpty());
     bool hasSubcategories = false;
     for (const Category &category : m_categories) {
         if (!category.parentId.isEmpty()) continue;
@@ -442,7 +445,7 @@ void PosWindow::rebuildCategoryChips() {
     for (const Category &category : m_categories) {
         if (selectedTop.isEmpty() || category.parentId != selectedTop) continue;
         if (!hasSubcategories) {
-            addChip(m_subcategoryChipsLayout, "All", selectedTop, m_selectedCategoryId == selectedTop);
+            addChip(m_subcategoryChipsLayout, tr("All"), selectedTop, m_selectedCategoryId == selectedTop);
             hasSubcategories = true;
         }
         addChip(m_subcategoryChipsLayout, category.name, category.id, category.id == m_selectedCategoryId);
@@ -523,7 +526,7 @@ void PosWindow::rebuildProductGrid() {
         tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         tile->setStyleSheet(
             QString("QPushButton#productTile { border-top: 4px solid %1; }").arg(categoryColor(product.categoryId)));
-        tile->setToolTip(product.sku.isEmpty() ? product.name : QString("%1\nSKU %2").arg(product.name, product.sku));
+        tile->setToolTip(product.sku.isEmpty() ? product.name : tr("%1\nSKU %2").arg(product.name, product.sku));
 
         auto *tileLayout = new QVBoxLayout(tile);
         tileLayout->setContentsMargins(10, 8, 10, 8);
@@ -537,8 +540,9 @@ void PosWindow::rebuildProductGrid() {
         footer->addWidget(tileLabel(money(product.sellPrice), "tilePrice", tile));
         footer->addStretch();
         const int stock = stockAtShop(product);
-        QString stockText = QString("%1 left").arg(stock);
-        if (!product.variants.isEmpty()) stockText = QString("%1 variants · %2").arg(product.variants.size()).arg(stockText);
+        QString stockText = tr("%n left", nullptr, stock);
+        if (!product.variants.isEmpty())
+            stockText = tr("%n variants · %1", nullptr, int(product.variants.size())).arg(stockText);
         auto *stockLabel = tileLabel(stockText, "tileStock", tile);
         if (product.lowStockThreshold > 0 && stock <= product.lowStockThreshold) {
             stockLabel->setStyleSheet(theme::css(theme::palette().warning));
@@ -559,8 +563,8 @@ void PosWindow::rebuildProductGrid() {
     }
 
     if (index == 0 && !m_allProducts.isEmpty()) {
-        auto *empty = new QLabel(search.isEmpty() ? "Nothing in stock in this category."
-                                                  : QString("No products match \"%1\".").arg(search),
+        auto *empty = new QLabel(search.isEmpty() ? tr("Nothing in stock in this category.")
+                                                  : tr("No products match \"%1\".").arg(search),
                                  this);
         empty->setObjectName("totalsKey");
         empty->setAlignment(Qt::AlignCenter);
@@ -615,7 +619,7 @@ void PosWindow::promptForVariant(const Product &product, QWidget *anchor) {
     for (const ProductVariant &variant : product.variants) {
         const int stock = variant.stockByShop.value(m_shopId, 0);
         if (stock <= 0) continue; // out of stock at this shop
-        QAction *action = menu.addAction(QString("%1   (%2 left)").arg(variant.name).arg(stock));
+        QAction *action = menu.addAction(tr("%1   (%2 left)").arg(variant.name).arg(stock));
         connect(action, &QAction::triggered, this, [this, product, variant]() {
             Product selected = product;
             selected.selectedVariantId = variant.id;
@@ -624,7 +628,7 @@ void PosWindow::promptForVariant(const Product &product, QWidget *anchor) {
         });
     }
     if (menu.isEmpty()) {
-        showStatus(product.name + " has no variants in stock at this shop.");
+        showStatus(tr("%1 has no variants in stock at this shop.").arg(product.name));
         return;
     }
     menu.exec(anchor->mapToGlobal(QPoint(0, anchor->height())));
@@ -693,7 +697,7 @@ void PosWindow::addToCart(const Product &product) {
     m_barcodeInput->setFocus();
 
     if (stock <= alreadyInCart) {
-        showStatus(product.name + " is out of stock at this shop.");
+        showStatus(tr("%1 is out of stock at this shop.").arg(product.name));
         return;
     }
     showStatus({});
@@ -739,7 +743,7 @@ void PosWindow::changeSelectedQuantity(int delta) {
         return;
     }
     if (delta > 0 && newQuantity > availableStock(line.productId, line.variantId)) {
-        showStatus(QString("Only %1 of %2 in stock at this shop.")
+        showStatus(tr("Only %1 of %2 in stock at this shop.")
                        .arg(availableStock(line.productId, line.variantId))
                        .arg(line.name));
         return;
@@ -756,7 +760,7 @@ void PosWindow::promptForQuantity() {
     const int maxQuantity = qMax(line.quantity, availableStock(line.productId, line.variantId));
     bool ok = false;
     const int quantity = QInputDialog::getInt(
-        this, "Quantity", QString("%1\n(%2 in stock)").arg(line.name).arg(maxQuantity), line.quantity, 1,
+        this, "Quantity", tr("%1\n(%2 in stock)").arg(line.name).arg(maxQuantity), line.quantity, 1,
         maxQuantity, 1, &ok);
     if (ok) {
         line.quantity = quantity;
@@ -779,11 +783,11 @@ void PosWindow::openDiscountDialog(int row) {
 
 void PosWindow::voidCart() {
     if (m_cart.isEmpty()) return;
-    const auto answer = QMessageBox::question(this, "Void sale", "Remove every item from this sale?");
+    const auto answer = QMessageBox::question(this, tr("Void sale"), tr("Remove every item from this sale?"));
     if (answer == QMessageBox::Yes) {
         m_cart.clear();
         refreshCartTable();
-        showStatus("Sale voided.", theme::hex(theme::palette().textMuted));
+        showStatus(tr("Sale voided."), theme::hex(theme::palette().textMuted));
     }
     m_barcodeInput->setFocus();
 }
@@ -841,7 +845,7 @@ void PosWindow::refreshCartTable(int selectRow) {
     const bool hasItems = !m_cart.isEmpty();
     m_holdButton->setEnabled(hasItems);
     m_voidButton->setEnabled(hasItems);
-    m_completeSaleButton->setText(hasItems ? QString("Pay  %1   ·   F12").arg(money(total)) : "Pay  F12");
+    m_completeSaleButton->setText(hasItems ? tr("Pay  %1   ·   F12").arg(money(total)) : tr("Pay  F12"));
     updateLineButtons();
 }
 
@@ -858,12 +862,12 @@ void PosWindow::holdCart() {
     m_cart.clear();
     refreshCartTable();
     updateHeldButton();
-    showStatus("Sale held.", theme::hex(theme::palette().textMuted));
+    showStatus(tr("Sale held."), theme::hex(theme::palette().textMuted));
     m_barcodeInput->setFocus();
 }
 
 void PosWindow::updateHeldButton() {
-    m_heldButton->setText(QString("Held (%1)  F10").arg(m_heldSales.size()));
+    m_heldButton->setText(tr("Held (%1)  F10").arg(m_heldSales.size()));
     m_heldButton->setEnabled(!m_heldSales.isEmpty());
 }
 
@@ -883,11 +887,11 @@ void PosWindow::completeSale() {
     showStatus({});
 
     if (m_cart.isEmpty()) {
-        showStatus("Cart is empty.");
+        showStatus(tr("Cart is empty."));
         return;
     }
     if (m_shopId.isEmpty()) {
-        showStatus("Your account isn't assigned to a shop yet — ask the owner to assign one.");
+        showStatus(tr("Your account isn't assigned to a shop yet — ask the owner to assign one."));
         return;
     }
 
@@ -902,14 +906,14 @@ void PosWindow::completeSale() {
     const bool paid = payment.exec() == QDialog::Accepted;
     m_barcodeInput->setFocus();
     if (!paid) return;
-    m_lastPaymentNote = payment.paidByCard()   ? QString(" Paid by card.")
-                        : payment.change() > 0 ? QString(" Change: %1").arg(money(payment.change()))
+    m_lastPaymentNote = payment.paidByCard()   ? " " + tr("Paid by card.")
+                        : payment.change() > 0 ? " " + tr("Change: %1").arg(money(payment.change()))
                                                : QString();
 
     if (m_practiceMode) {
         m_cart.clear();
         refreshCartTable();
-        showStatus("Practice sale — nothing recorded." + m_lastPaymentNote, theme::hex(theme::palette().info));
+        showStatus(tr("Practice sale — nothing recorded.") + m_lastPaymentNote, theme::hex(theme::palette().info));
         return;
     }
 

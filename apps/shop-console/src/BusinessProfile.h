@@ -23,18 +23,19 @@ struct BusinessSettings {
 };
 
 // The console sections a business can switch off, in sidebar order: key, name, what it's for.
+// The names are marked for translation and translated where they're shown (QObject::tr).
 struct OptionalModule {
     const char *key;
     const char *name;
     const char *description;
 };
 inline constexpr OptionalModule kOptionalModules[] = {
-    {"online_orders", "Online Orders", "Orders paid on the website, to prepare and hand over."},
-    {"salary", "Salary", "Track and pay employees' salaries."},
-    {"job_applications", "Job Applications", "Applications sent from the website's \"work with us\" page."},
-    {"custom_orders", "Custom Orders", "Made-to-order requests from the website (handmade leather)."},
-    {"messages", "Messages", "Messages sent through the website's contact form."},
-    {"stock_requests", "Stock Requests", "\"Let me know when it's back\" requests from the website."},
+    {"online_orders", QT_TR_NOOP("Online Orders"), QT_TR_NOOP("Orders paid on the website, to prepare and hand over.")},
+    {"salary", QT_TR_NOOP("Salary"), QT_TR_NOOP("Track and pay employees' salaries.")},
+    {"job_applications", QT_TR_NOOP("Job Applications"), QT_TR_NOOP("Applications sent from the website's \"work with us\" page.")},
+    {"custom_orders", QT_TR_NOOP("Custom Orders"), QT_TR_NOOP("Made-to-order requests from the website (handmade leather).")},
+    {"messages", QT_TR_NOOP("Messages"), QT_TR_NOOP("Messages sent through the website's contact form.")},
+    {"stock_requests", QT_TR_NOOP("Stock Requests"), QT_TR_NOOP("\"Let me know when it's back\" requests from the website.")},
 };
 
 class BusinessProfile : public QObject {

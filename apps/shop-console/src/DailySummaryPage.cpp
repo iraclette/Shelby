@@ -4,6 +4,7 @@
 #include "ShopTime.h"
 #include "SupabaseClient.h"
 
+#include <QLocale>
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -27,16 +28,16 @@ DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
     nextButton->setObjectName("compactButton");
     nextButton->setFixedWidth(32);
     toolbar->addWidget(nextButton);
-    auto *todayButton = new QPushButton("Today", this);
+    auto *todayButton = new QPushButton(tr("Today"), this);
     toolbar->addWidget(todayButton);
 
     toolbar->addSpacing(16);
-    toolbar->addWidget(new QLabel("Shop:", this));
+    toolbar->addWidget(new QLabel(tr("Shop:"), this));
     m_shopCombo = new QComboBox(this);
-    m_shopCombo->addItem("All shops", QString());
+    m_shopCombo->addItem(tr("All shops"), QString());
     toolbar->addWidget(m_shopCombo);
 
-    auto *refreshButton = new QPushButton("Refresh", this);
+    auto *refreshButton = new QPushButton(tr("Refresh"), this);
     toolbar->addWidget(refreshButton);
     toolbar->addStretch();
     m_statsLabel = new QLabel(this);
@@ -54,7 +55,7 @@ DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(5);
-    m_table->setHorizontalHeaderLabels({"Time", "Shop", "Staff", "Items", "Total"});
+    m_table->setHorizontalHeaderLabels({tr("Time"), tr("Shop"), tr("Staff"), tr("Items"), tr("Total")});
     m_table->horizontalHeader()->setStretchLastSection(false);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -70,7 +71,7 @@ DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
         // shopsFetched fires for every page's fetchShops(), so clear before re-adding.
         const QString previouslySelected = m_shopCombo->currentData().toString();
         m_shopCombo->clear();
-        m_shopCombo->addItem("All shops", QString());
+        m_shopCombo->addItem(tr("All shops"), QString());
         for (const Shop &shop : m_shops) m_shopCombo->addItem(shop.name, shop.id);
         const int index = m_shopCombo->findData(previouslySelected);
         if (index >= 0) m_shopCombo->setCurrentIndex(index);
@@ -89,7 +90,7 @@ DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
         rebuildTable();
     });
     connect(m_client, &SupabaseClient::dailySalesFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load sales: " + message);
+        emit statusMessage(tr("Failed to load sales: ") + message);
     });
 
     reload();
@@ -101,7 +102,7 @@ void DailySummaryPage::changeDay(int deltaDays) {
 }
 
 void DailySummaryPage::reload() {
-    m_dayLabel->setText(m_day.toString("dddd, MMMM d yyyy"));
+    m_dayLabel->setText(QLocale().toString(m_day, "dddd, d MMMM yyyy"));
 
     const QString startIso = shoptime::dayStartUtc(m_day);
     const QString endExclusiveIso = shoptime::dayStartUtc(m_day.addDays(1));
@@ -143,9 +144,6 @@ void DailySummaryPage::rebuildTable() {
         m_table->setItem(row, 4, new QTableWidgetItem(money(sale.total)));
     }
 
-    m_statsLabel->setText(QString("%1 sale%2 · %3 total")
-                               .arg(m_sales.size())
-                               .arg(m_sales.size() == 1 ? "" : "s")
-                               .arg(money(total)));
-    emit statusMessage(QString("Loaded %1 sale(s) for %2.").arg(m_sales.size()).arg(m_day.toString(Qt::ISODate)));
+    m_statsLabel->setText(tr("%n sales · %1 total", nullptr, int(m_sales.size())).arg(money(total)));
+    emit statusMessage(tr("Loaded %n sales for %1.", nullptr, int(m_sales.size())).arg(m_day.toString(Qt::ISODate)));
 }

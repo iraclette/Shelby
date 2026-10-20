@@ -23,7 +23,7 @@ constexpr int kBanknotes[] = {5, 10, 20, 50, 100, 200};
 
 PaymentDialog::PaymentDialog(double total, QWidget *parent)
     : QDialog(parent), m_total(total) {
-    setWindowTitle("Payment");
+    setWindowTitle(tr("Payment"));
     setMinimumWidth(460);
 
     auto *layout = new QVBoxLayout(this);
@@ -34,7 +34,7 @@ PaymentDialog::PaymentDialog(double total, QWidget *parent)
     dueFrame->setObjectName("totalsPanel");
     auto *dueLayout = new QHBoxLayout(dueFrame);
     dueLayout->setContentsMargins(14, 10, 14, 10);
-    auto *dueKey = new QLabel("TOTAL DUE", this);
+    auto *dueKey = new QLabel(tr("TOTAL DUE"), this);
     dueKey->setObjectName("totalKey");
     auto *dueValue = new QLabel(money(total), this);
     dueValue->setObjectName("totalValue");
@@ -45,8 +45,8 @@ PaymentDialog::PaymentDialog(double total, QWidget *parent)
 
     // Same chip look as the category filter: one filled = selected.
     auto *methodRow = new QHBoxLayout;
-    m_cashButton = new QPushButton("Cash", this);
-    m_cardButton = new QPushButton("Card", this);
+    m_cashButton = new QPushButton(tr("Cash"), this);
+    m_cardButton = new QPushButton(tr("Card"), this);
     auto *methodGroup = new QButtonGroup(this);
     for (QPushButton *button : {m_cashButton, m_cardButton}) {
         button->setObjectName("categoryChip");
@@ -63,7 +63,7 @@ PaymentDialog::PaymentDialog(double total, QWidget *parent)
     cashLayout->setContentsMargins(0, 0, 0, 0);
     cashLayout->setSpacing(8);
 
-    auto *receivedLabel = new QLabel("Cash received", this);
+    auto *receivedLabel = new QLabel(tr("Cash received"), this);
     receivedLabel->setObjectName("totalsKey");
     cashLayout->addWidget(receivedLabel);
     // A plain line edit, not a spin box: no arrows to fumble, and typing
@@ -79,7 +79,7 @@ PaymentDialog::PaymentDialog(double total, QWidget *parent)
 
     auto *quickGrid = new QGridLayout;
     quickGrid->setSpacing(6);
-    auto *exactButton = new QPushButton("Exact", this);
+    auto *exactButton = new QPushButton(tr("Exact"), this);
     quickGrid->addWidget(exactButton, 0, 0);
     connect(exactButton, &QPushButton::clicked, this, [this]() { setReceived(m_total); });
     int index = 1;
@@ -108,9 +108,9 @@ PaymentDialog::PaymentDialog(double total, QWidget *parent)
     layout->addWidget(changeFrame);
 
     auto *buttonsRow = new QHBoxLayout;
-    auto *cancelButton = new QPushButton("Cancel  Esc", this);
+    auto *cancelButton = new QPushButton(tr("Cancel  Esc"), this);
     cancelButton->setAutoDefault(false);
-    m_confirmButton = new QPushButton("Complete sale  Enter", this);
+    m_confirmButton = new QPushButton(tr("Complete sale  Enter"), this);
     m_confirmButton->setObjectName("payButton");
     m_confirmButton->setMinimumHeight(52);
     m_confirmButton->setDefault(true);
@@ -158,8 +158,8 @@ void PaymentDialog::setCard(bool card) {
 
 void PaymentDialog::updateChange() {
     if (m_card) {
-        m_changeKey->setText("CARD");
-        m_changeLabel->setText("No change");
+        m_changeKey->setText(tr("CARD"));
+        m_changeLabel->setText(tr("No change"));
         m_changeLabel->setStyleSheet(theme::css(theme::palette().textMuted));
         m_confirmButton->setEnabled(true);
         return;
@@ -169,7 +169,7 @@ void PaymentDialog::updateChange() {
     const qint64 receivedTetri = std::llround(received() * 100);
     const qint64 totalTetri = std::llround(m_total * 100);
     const bool enough = receivedTetri >= totalTetri;
-    m_changeKey->setText(enough ? "CHANGE" : "STILL DUE");
+    m_changeKey->setText(enough ? tr("CHANGE") : tr("STILL DUE"));
     m_changeLabel->setText(money((enough ? receivedTetri - totalTetri : totalTetri - receivedTetri) / 100.0));
     m_changeLabel->setStyleSheet(theme::css(enough ? theme::palette().success : theme::palette().danger));
     m_confirmButton->setEnabled(enough);

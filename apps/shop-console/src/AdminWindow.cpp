@@ -120,7 +120,7 @@ QString initials(const QString &name) {
 AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, const Profile &profile,
                          QWidget *parent)
     : QMainWindow(parent), m_updateChecker(updateChecker) {
-    setWindowTitle("Shop Console — Admin");
+    setWindowTitle(tr("Shop Console — Admin"));
     showMaximized();
 
     auto *toolbar = addToolBar("main");
@@ -133,21 +133,21 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     spacer->setStyleSheet("background: transparent;"); // the app-wide QWidget background would show as a box
     toolbar->addWidget(spacer);
-    m_updateButton = new QPushButton("Update now", this);
+    m_updateButton = new QPushButton(tr("Update now"), this);
     m_updateButton->setObjectName("primaryButton");
     m_updateButton->hide();
     toolbar->addWidget(m_updateButton);
     connect(m_updateButton, &QPushButton::clicked, this, [this]() {
         m_updateButton->setEnabled(false);
-        m_updateButton->setText("Updating…");
+        m_updateButton->setText(tr("Updating…"));
         m_updateChecker->downloadAndInstall(m_pendingAssetUrl);
     });
     connect(m_updateChecker, &UpdateChecker::installFailed, this, [this](const QString &) {
         m_updateButton->setEnabled(true);
-        m_updateButton->setText("Update now");
+        m_updateButton->setText(tr("Update now"));
     });
     connect(m_updateChecker, &UpdateChecker::downloadProgress, this, [this](int percent) {
-        m_updateButton->setText(QString("Updating… %1%").arg(percent));
+        m_updateButton->setText(tr("Updating… %1%").arg(percent));
     });
 
     // --- Sidebar: brand, grouped sections, signed-in user ---
@@ -171,7 +171,7 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     brandText->setSpacing(0);
     auto *brandName = new QLabel(brand);
     brandName->setObjectName("brandName");
-    auto *brandSub = new QLabel("Shop Console", brand);
+    auto *brandSub = new QLabel(tr("Shop Console"), brand);
     brandSub->setObjectName("brandSub");
     brandText->addWidget(brandName);
     brandText->addWidget(brandSub);
@@ -231,7 +231,7 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     userRow->addWidget(avatar);
     userRow->addLayout(userText, 1);
     footerLayout->addLayout(userRow);
-    auto *signOutButton = new QPushButton("Sign out", footer);
+    auto *signOutButton = new QPushButton(tr("Sign out"), footer);
     footerLayout->addWidget(signOutButton);
     sidebarLayout->addWidget(footer);
     connect(signOutButton, &QPushButton::clicked, this, &AdminWindow::signedOut);
@@ -264,37 +264,37 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
 
     const QString firstName = profile.fullName.section(' ', 0, 0);
     auto *overviewPage = forwardStatus(new OverviewPage(client, firstName, this));
-    QListWidgetItem *overviewItem = addSection("overview", "Overview", overviewPage);
-    addGroup("Sales");
+    QListWidgetItem *overviewItem = addSection("overview", tr("Overview"), overviewPage);
+    addGroup(tr("Sales"));
     auto *onlineOrdersPage = forwardStatus(new OnlineOrdersPage(client, this));
-    QListWidgetItem *onlineOrdersItem = addSection("online-orders", "Online Orders", onlineOrdersPage);
+    QListWidgetItem *onlineOrdersItem = addSection("online-orders", tr("Online Orders"), onlineOrdersPage);
     QHash<QString, QListWidgetItem *> moduleItems; // Settings → Modules key -> sidebar item
     moduleItems.insert("online_orders", onlineOrdersItem);
-    addSection("daily-summary", "Daily Summary", forwardStatus(new DailySummaryPage(client, this)));
-    if (profile.isDev) addSection("checkout", "Checkout", new CheckoutPage(client, this));
-    addGroup("Catalog");
-    addSection("inventory", "Inventory", forwardStatus(new InventoryPage(client, this)));
-    addSection("categories", "Categories", forwardStatus(new CategoriesPage(client, this)));
-    addGroup("People");
-    addSection("employees", "Employees", forwardStatus(new EmployeesPage(client, this)));
-    moduleItems.insert("salary", addSection("salary", "Salary", forwardStatus(new SalaryPage(client, this))));
+    addSection("daily-summary", tr("Daily Summary"), forwardStatus(new DailySummaryPage(client, this)));
+    if (profile.isDev) addSection("checkout", tr("Checkout"), new CheckoutPage(client, this));
+    addGroup(tr("Catalog"));
+    addSection("inventory", tr("Inventory"), forwardStatus(new InventoryPage(client, this)));
+    addSection("categories", tr("Categories"), forwardStatus(new CategoriesPage(client, this)));
+    addGroup(tr("People"));
+    addSection("employees", tr("Employees"), forwardStatus(new EmployeesPage(client, this)));
+    moduleItems.insert("salary", addSection("salary", tr("Salary"), forwardStatus(new SalaryPage(client, this))));
     auto *applicationsPage = forwardStatus(new ApplicationsPage(client, this));
-    QListWidgetItem *applicationsItem = addSection("applications", "Applications", applicationsPage);
+    QListWidgetItem *applicationsItem = addSection("applications", tr("Applications"), applicationsPage);
     moduleItems.insert("job_applications", applicationsItem);
-    addGroup("Storefront");
+    addGroup(tr("Storefront"));
     QListWidgetItem *ordersItem =
-        addSection("orders", "Custom Orders", forwardStatus(new CustomOrdersPage(client, this)));
+        addSection("orders", tr("Custom Orders"), forwardStatus(new CustomOrdersPage(client, this)));
     // Storefront "Contact us" submissions.
     moduleItems.insert("custom_orders", ordersItem);
-    QListWidgetItem *messagesItem = addSection("help", "Messages", forwardStatus(new MessagesPage(client, this)));
+    QListWidgetItem *messagesItem = addSection("help", tr("Messages"), forwardStatus(new MessagesPage(client, this)));
     moduleItems.insert("messages", messagesItem);
     auto *stockRequestsPage = forwardStatus(new StockRequestsPage(client, this));
-    QListWidgetItem *stockRequestsItem = addSection("stock-requests", "Stock Requests", stockRequestsPage);
+    QListWidgetItem *stockRequestsItem = addSection("stock-requests", tr("Stock Requests"), stockRequestsPage);
     moduleItems.insert("stock_requests", stockRequestsItem);
-    addGroup("System");
-    addSection("audit-log", "Audit Log", forwardStatus(new AuditLogPage(client, this)));
+    addGroup(tr("System"));
+    addSection("audit-log", tr("Audit Log"), forwardStatus(new AuditLogPage(client, this)));
     m_softwarePage = new SoftwarePage(updateChecker, this);
-    addSection("settings", "Settings", forwardStatus(new SettingsPage(client, m_softwarePage, this)));
+    addSection("settings", tr("Settings"), forwardStatus(new SettingsPage(client, m_softwarePage, this)));
 
     connect(sidebar, &QListWidget::currentItemChanged, this, [pages, title](QListWidgetItem *item) {
         if (!item || item->data(kHeaderRole).toBool()) return;
@@ -348,7 +348,7 @@ void AdminWindow::reportUpdateCheckResult(bool ok, bool isNewer, const QString &
                                            const QString &assetUrl, const QString &errorMessage) {
     m_pendingAssetUrl = assetUrl;
     if (ok && isNewer && !assetUrl.isEmpty()) {
-        m_updateButton->setText(QString("Update now — v%1").arg(version));
+        m_updateButton->setText(tr("Update now — v%1").arg(version));
         m_updateButton->setEnabled(true);
         m_updateButton->show();
     } else {

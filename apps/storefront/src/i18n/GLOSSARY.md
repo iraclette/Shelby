@@ -1,7 +1,8 @@
 # Georgian glossary
 
-How Shelby writes Georgian, on the website (`dictionaries/ka.ts`, `legal/ka.ts`, the Telegram
-bot's `lib/telegramText.ts`) and in the Shop Console. Follow it for every new Georgian string;
+How Shelby writes Georgian: on the website (`dictionaries/ka.ts`, `legal/ka.ts`, the Telegram
+bot's `lib/telegramText.ts`) and in the Shop Console
+(`apps/shop-console/resources/translations/ka.json`). Follow it for every new Georgian string;
 when a native speaker corrects something, add the lesson here.
 
 ## Tone
@@ -33,6 +34,28 @@ when a native speaker corrects something, add the lesson here.
 | მდგრადი | | long-lasting (perfume) |
 | ფლაკონი | | perfume bottle |
 | თვითღირებულება | | cost price |
+
+## Shop Console terms
+
+| Use | Meaning |
+|---|---|
+| სალარო | checkout / the till |
+| მარაგი | inventory, stock |
+| შტრიხკოდი | barcode |
+| მომწოდებელი | supplier |
+| ფასდაკლება | discount |
+| ხურდა | change (cash back) |
+| გადადება / გადადებული გაყიდვა | hold / held sale |
+| თანხის დაბრუნება | refund |
+| ინდივიდუალური შეკვეთა | custom (made-to-order) request |
+| მოქმედებების ჟურნალი | audit log |
+| პარამეტრები | settings |
+| განახლება | refresh; "update now" is ახლავე განახლება so the two never clash |
+
+## Numbers
+
+Georgian keeps the noun singular after a number: 5 გაყიდვა, 3 პროდუქტი (never 5 გაყიდვები). In the
+console's ka.json a plural only needs its "other" form.
 
 ## Formatting
 

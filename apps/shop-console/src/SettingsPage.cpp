@@ -3,7 +3,9 @@
 #include "SessionStore.h"
 #include "SupabaseClient.h"
 #include "Theme.h"
+#include "Translations.h"
 
+#include <QLocale>
 #include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -66,10 +68,11 @@ SettingsPage::SettingsPage(SupabaseClient *client, QWidget *softwareSection, QWi
 
     auto *business = new BusinessSettingsSection(client, this);
     connect(business, &BusinessSettingsSection::statusMessage, this, &SettingsPage::statusMessage);
-    addSection("Business", business);
-    addSection("Modules", new ModulesSettingsSection(client, this));
-    addSection("Appearance", new AppearanceSettingsSection(client, this));
-    addSection("Software", softwareSection);
+    addSection(tr("Business"), business);
+    addSection(tr("Modules"), new ModulesSettingsSection(client, this));
+    addSection(tr("Appearance"), new AppearanceSettingsSection(client, this));
+    addSection(tr("Language"), new LanguageSettingsSection(client, this));
+    addSection(tr("Software"), softwareSection);
 
     connect(sections, &QListWidget::currentRowChanged, stack, &QStackedWidget::setCurrentIndex);
     sections->setCurrentRow(0);
@@ -87,8 +90,8 @@ BusinessSettingsSection::BusinessSettingsSection(SupabaseClient *client, QWidget
     m_logoPreview->setObjectName("brandMark");
     m_logoPreview->setFixedSize(64, 64);
     m_logoPreview->setAlignment(Qt::AlignCenter);
-    auto *uploadLogoButton = new QPushButton("Upload logo…", this);
-    m_removeLogoButton = new QPushButton("Remove", this);
+    auto *uploadLogoButton = new QPushButton(tr("Upload logo…"), this);
+    m_removeLogoButton = new QPushButton(tr("Remove"), this);
     auto *logoButtons = new QVBoxLayout;
     logoButtons->addWidget(uploadLogoButton);
     logoButtons->addWidget(m_removeLogoButton);
@@ -110,7 +113,7 @@ BusinessSettingsSection::BusinessSettingsSection(SupabaseClient *client, QWidget
     m_symbol->setFixedWidth(70);
     auto *currencyRow = new QHBoxLayout;
     currencyRow->addWidget(m_currency, 1);
-    currencyRow->addWidget(new QLabel("Symbol", this));
+    currencyRow->addWidget(new QLabel(tr("Symbol"), this));
     currencyRow->addWidget(m_symbol);
 
     m_style = new QComboBox(this);
@@ -129,14 +132,14 @@ BusinessSettingsSection::BusinessSettingsSection(SupabaseClient *client, QWidget
 
     auto *form = new QFormLayout;
     form->setSpacing(12);
-    form->addRow("Logo", logoRow);
-    form->addRow("Business name", m_name);
-    form->addRow("Currency", currencyRow);
-    form->addRow("Amounts look like", m_style);
-    form->addRow("Time zone", m_timezone);
+    form->addRow(tr("Logo"), logoRow);
+    form->addRow(tr("Business name"), m_name);
+    form->addRow(tr("Currency"), currencyRow);
+    form->addRow(tr("Amounts look like"), m_style);
+    form->addRow(tr("Time zone"), m_timezone);
     form->addRow("", m_timePreview);
 
-    m_saveButton = new QPushButton("Save", this);
+    m_saveButton = new QPushButton(tr("Save"), this);
     m_saveButton->setObjectName("primaryButton");
     m_status = new QLabel(this);
     m_status->setObjectName("brandSub");
@@ -148,7 +151,7 @@ BusinessSettingsSection::BusinessSettingsSection(SupabaseClient *client, QWidget
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(sectionHeader(
-        "Business", "Shared by every till and shop. Only owners and admins can change these.", this));
+        tr("Business"), tr("Shared by every till and shop. Only owners and admins can change these."), this));
     layout->addLayout(form);
     layout->addSpacing(12);
     layout->addLayout(saveRow);
@@ -174,13 +177,13 @@ BusinessSettingsSection::BusinessSettingsSection(SupabaseClient *client, QWidget
         m_saveButton->setEnabled(true);
         m_client->deleteBusinessLogoFile(m_oldLogoPath);
         m_oldLogoPath.clear();
-        m_status->setText("Saved. Other tills pick it up the next time they start.");
+        m_status->setText(tr("Saved. Other tills pick it up the next time they start."));
     });
     connect(m_client, &SupabaseClient::businessSettingsSaveFailed, this, [this](const QString &message) {
         if (!m_saving) return;
         m_saving = false;
         m_saveButton->setEnabled(true);
-        m_status->setText("Couldn't save: " + message);
+        m_status->setText(tr("Couldn't save: ") + message);
     });
     connect(m_client, &SupabaseClient::businessLogoUploaded, this, [this](const QString &storagePath) {
         m_oldLogoPath = BusinessProfile::instance()->settings().logoPath;
@@ -190,7 +193,7 @@ BusinessSettingsSection::BusinessSettingsSection(SupabaseClient *client, QWidget
     connect(m_client, &SupabaseClient::businessLogoUploadFailed, this, [this](const QString &message) {
         m_saving = false;
         m_saveButton->setEnabled(true);
-        m_status->setText("Couldn't upload the logo: " + message);
+        m_status->setText(tr("Couldn't upload the logo: ") + message);
     });
 
     connect(BusinessProfile::instance(), &BusinessProfile::changed, this, &BusinessSettingsSection::refreshLogo);
@@ -244,8 +247,8 @@ void BusinessSettingsSection::refreshPreviews() {
 
     const QTimeZone zone(m_timezone->currentText().toUtf8());
     m_timePreview->setText(zone.isValid()
-                               ? "It's " + QDateTime::currentDateTimeUtc().toTimeZone(zone).toString("dddd HH:mm") + " there now."
-                               : "Pick a time zone from the list.");
+                               ? tr("It's %1 there now.").arg(QLocale().toString(QDateTime::currentDateTimeUtc().toTimeZone(zone), "dddd HH:mm"))
+                               : tr("Pick a time zone from the list."));
 }
 
 void BusinessSettingsSection::save() {
@@ -253,14 +256,14 @@ void BusinessSettingsSection::save() {
     const QString code = currencyCode(m_currency);
     const QString symbol = m_symbol->text().trimmed();
     const QString timezone = m_timezone->currentText().trimmed();
-    if (name.isEmpty()) return m_status->setText("The business needs a name.");
-    if (code.size() < 2 || code.size() > 4) return m_status->setText("Currency should be a code like GEL or USD.");
-    if (symbol.isEmpty()) return m_status->setText("Give the currency a symbol (it can be the code itself).");
-    if (!QTimeZone(timezone.toUtf8()).isValid()) return m_status->setText("Pick a time zone from the list.");
+    if (name.isEmpty()) return m_status->setText(tr("The business needs a name."));
+    if (code.size() < 2 || code.size() > 4) return m_status->setText(tr("Currency should be a code like GEL or USD."));
+    if (symbol.isEmpty()) return m_status->setText(tr("Give the currency a symbol (it can be the code itself)."));
+    if (!QTimeZone(timezone.toUtf8()).isValid()) return m_status->setText(tr("Pick a time zone from the list."));
 
     m_saving = true;
     m_saveButton->setEnabled(false);
-    m_status->setText("Saving…");
+    m_status->setText(tr("Saving…"));
     m_client->updateBusinessSettings({
         {"name", name},
         {"currency_code", code},
@@ -272,11 +275,11 @@ void BusinessSettingsSection::save() {
 
 void BusinessSettingsSection::chooseLogo() {
     const QString path =
-        QFileDialog::getOpenFileName(this, "Choose a logo", QString(), "Images (*.png *.jpg *.jpeg *.webp)");
+        QFileDialog::getOpenFileName(this, tr("Choose a logo"), QString(), tr("Images (*.png *.jpg *.jpeg *.webp)"));
     if (path.isEmpty()) return;
     m_saving = true;
     m_saveButton->setEnabled(false);
-    m_status->setText("Uploading the logo…");
+    m_status->setText(tr("Uploading the logo…"));
     m_client->uploadBusinessLogo(path);
 }
 
@@ -284,7 +287,7 @@ void BusinessSettingsSection::removeLogo() {
     m_oldLogoPath = BusinessProfile::instance()->settings().logoPath;
     m_saving = true;
     m_saveButton->setEnabled(false);
-    m_status->setText("Removing the logo…");
+    m_status->setText(tr("Removing the logo…"));
     m_client->updateBusinessSettings({{"logo_path", QJsonValue(QJsonValue::Null)}});
 }
 
@@ -293,15 +296,15 @@ ModulesSettingsSection::ModulesSettingsSection(SupabaseClient *client, QWidget *
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(sectionHeader(
-        "Modules",
-        "Switch off the parts of the console your business doesn't use; they disappear from the sidebar on "
-        "every till. Nothing is deleted, and switching one back on brings everything back.",
+        tr("Modules"),
+        tr("Switch off the parts of the console your business doesn't use; they disappear from the sidebar on "
+        "every till. Nothing is deleted, and switching one back on brings everything back."),
         this));
 
     for (const OptionalModule &module : kOptionalModules) {
-        auto *toggle = new QCheckBox(module.name, this);
+        auto *toggle = new QCheckBox(QObject::tr(module.name), this);
         toggle->setStyleSheet("font-weight: 600;");
-        auto *description = new QLabel(module.description, this);
+        auto *description = new QLabel(QObject::tr(module.description), this);
         description->setObjectName("brandSub");
         description->setContentsMargins(26, 0, 0, 6);
         layout->addWidget(toggle);
@@ -309,7 +312,7 @@ ModulesSettingsSection::ModulesSettingsSection(SupabaseClient *client, QWidget *
         m_switches.append({module.key, toggle});
     }
 
-    m_saveButton = new QPushButton("Save", this);
+    m_saveButton = new QPushButton(tr("Save"), this);
     m_saveButton->setObjectName("primaryButton");
     m_status = new QLabel(this);
     m_status->setObjectName("brandSub");
@@ -326,13 +329,13 @@ ModulesSettingsSection::ModulesSettingsSection(SupabaseClient *client, QWidget *
         if (!m_saving) return;
         m_saving = false;
         m_saveButton->setEnabled(true);
-        m_status->setText("Saved. Other tills pick it up the next time they start.");
+        m_status->setText(tr("Saved. Other tills pick it up the next time they start."));
     });
     connect(m_client, &SupabaseClient::businessSettingsSaveFailed, this, [this](const QString &message) {
         if (!m_saving) return;
         m_saving = false;
         m_saveButton->setEnabled(true);
-        m_status->setText("Couldn't save: " + message);
+        m_status->setText(tr("Couldn't save: ") + message);
     });
     connect(BusinessProfile::instance(), &BusinessProfile::changed, this, [this]() {
         if (!m_saving) loadFromProfile();
@@ -352,7 +355,7 @@ void ModulesSettingsSection::save() {
     }
     m_saving = true;
     m_saveButton->setEnabled(false);
-    m_status->setText("Saving…");
+    m_status->setText(tr("Saving…"));
     m_client->updateBusinessSettings({{"disabled_modules", disabled}});
 }
 
@@ -397,7 +400,7 @@ AppearanceSettingsSection::AppearanceSettingsSection(SupabaseClient *client, QWi
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(sectionHeader(
-        "Appearance", "How the console looks on this computer. Changes show straight away.", this));
+        tr("Appearance"), tr("How the console looks on this computer. Changes show straight away."), this));
 
     auto *themeRow = new QHBoxLayout;
     auto *themeGroup = new QButtonGroup(this);
@@ -421,7 +424,7 @@ AppearanceSettingsSection::AppearanceSettingsSection(SupabaseClient *client, QWi
 
     auto *accentRow = new QHBoxLayout;
     accentRow->setSpacing(8);
-    m_defaultAccentButton = new QPushButton("Theme default", this);
+    m_defaultAccentButton = new QPushButton(tr("Theme default"), this);
     m_defaultAccentButton->setObjectName("categoryChip");
     m_defaultAccentButton->setCheckable(true);
     accentRow->addWidget(m_defaultAccentButton);
@@ -434,11 +437,11 @@ AppearanceSettingsSection::AppearanceSettingsSection(SupabaseClient *client, QWi
         m_accentButtons.append({color, swatch});
         connect(swatch, &QPushButton::clicked, this, [this, color]() { setAccent(color); });
     }
-    m_customAccentButton = new QPushButton("Custom…", this);
+    m_customAccentButton = new QPushButton(tr("Custom…"), this);
     accentRow->addWidget(m_customAccentButton);
     connect(m_customAccentButton, &QPushButton::clicked, this, [this]() {
         const QColor start = theme::customAccent().isValid() ? theme::customAccent() : theme::palette().accent;
-        const QColor picked = QColorDialog::getColor(start, this, "Accent colour");
+        const QColor picked = QColorDialog::getColor(start, this, tr("Accent colour"));
         if (picked.isValid()) setAccent(picked);
     });
     accentRow->addStretch();
@@ -447,7 +450,7 @@ AppearanceSettingsSection::AppearanceSettingsSection(SupabaseClient *client, QWi
     for (int percent : {90, 100, 110, 125, 150}) m_scale->addItem(QString("%1%").arg(percent), percent);
     m_scaleNote = new QLabel(this);
     m_scaleNote->setObjectName("hint");
-    m_restartButton = new QPushButton("Restart now", this);
+    m_restartButton = new QPushButton(tr("Restart now"), this);
     auto *scaleRow = new QHBoxLayout;
     scaleRow->addWidget(m_scale);
     scaleRow->addWidget(m_scaleNote);
@@ -461,9 +464,9 @@ AppearanceSettingsSection::AppearanceSettingsSection(SupabaseClient *client, QWi
 
     auto *form = new QFormLayout;
     form->setSpacing(14);
-    form->addRow("Theme", themeRow);
-    form->addRow("Accent colour", accentRow);
-    form->addRow("Interface size", scaleRow);
+    form->addRow(tr("Theme"), themeRow);
+    form->addRow(tr("Accent colour"), accentRow);
+    form->addRow(tr("Interface size"), scaleRow);
     layout->addLayout(form);
     layout->addStretch();
 
@@ -488,10 +491,57 @@ void AppearanceSettingsSection::refresh() {
         swatch->setStyleSheet(QString("background-color: %1; border-radius: 15px; border: 2px solid %2;")
                                   .arg(color.name(), picked ? theme::hex(theme::palette().textStrong) : "transparent"));
     }
-    m_customAccentButton->setText(custom.isValid() && !presetPicked ? "Custom: " + custom.name() : "Custom…");
+    m_customAccentButton->setText(custom.isValid() && !presetPicked ? tr("Custom: %1").arg(custom.name()) : tr("Custom…"));
 
     m_scale->setCurrentIndex(qMax(0, m_scale->findData(theme::interfaceScale())));
     const bool needsRestart = theme::interfaceScale() != theme::startupInterfaceScale();
-    m_scaleNote->setText(needsRestart ? "Takes effect after a restart." : "");
+    m_scaleNote->setText(needsRestart ? tr("Takes effect after a restart.") : "");
+    m_restartButton->setVisible(needsRestart);
+}
+
+LanguageSettingsSection::LanguageSettingsSection(SupabaseClient *client, QWidget *parent)
+    : QWidget(parent), m_client(client) {
+    auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(sectionHeader(tr("Language"), tr("The console's language on this computer."), this));
+
+    // Each language named in itself, so whoever needs it can find it.
+    auto *row = new QHBoxLayout;
+    auto *group = new QButtonGroup(this);
+    for (const QString &code : translations::languageCodes()) {
+        auto *button = new QPushButton(translations::languageName(code), this);
+        button->setObjectName("categoryChip");
+        button->setCheckable(true);
+        button->setMinimumHeight(40);
+        group->addButton(button);
+        row->addWidget(button);
+        m_languageButtons.append({code, button});
+        connect(button, &QPushButton::clicked, this, [this, code]() {
+            translations::setLanguage(code);
+            refresh();
+        });
+    }
+    row->addStretch();
+    layout->addLayout(row);
+
+    m_note = new QLabel(this);
+    m_note->setObjectName("hint");
+    m_restartButton = new QPushButton(tr("Restart now"), this);
+    auto *restartRow = new QHBoxLayout;
+    restartRow->addWidget(m_note);
+    restartRow->addWidget(m_restartButton);
+    restartRow->addStretch();
+    layout->addSpacing(8);
+    layout->addLayout(restartRow);
+    layout->addStretch();
+    connect(m_restartButton, &QPushButton::clicked, this, [this]() { restartApp(m_client); });
+
+    refresh();
+}
+
+void LanguageSettingsSection::refresh() {
+    for (const auto &[code, button] : m_languageButtons) button->setChecked(code == translations::currentLanguage());
+    const bool needsRestart = translations::currentLanguage() != translations::startupLanguage();
+    m_note->setText(needsRestart ? tr("Takes effect after a restart.") : QString());
     m_restartButton->setVisible(needsRestart);
 }

@@ -3,6 +3,7 @@
 #include "PaySalaryDialog.h"
 #include "SupabaseClient.h"
 
+#include <QLocale>
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -31,12 +32,12 @@ SalaryPage::SalaryPage(SupabaseClient *client, QWidget *parent)
     toolbar->addWidget(nextButton);
 
     toolbar->addSpacing(16);
-    toolbar->addWidget(new QLabel("Shop:", this));
+    toolbar->addWidget(new QLabel(tr("Shop:"), this));
     m_shopCombo = new QComboBox(this);
-    m_shopCombo->addItem("All shops", QString());
+    m_shopCombo->addItem(tr("All shops"), QString());
     toolbar->addWidget(m_shopCombo);
 
-    auto *refreshButton = new QPushButton("Refresh", this);
+    auto *refreshButton = new QPushButton(tr("Refresh"), this);
     toolbar->addWidget(refreshButton);
     toolbar->addStretch();
 
@@ -47,8 +48,8 @@ SalaryPage::SalaryPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(11);
-    m_table->setHorizontalHeaderLabels({"Employee", "Shop", "Daily rate", "Bonus threshold", "Bonus amount",
-                                         "Days worked", "Bonus days", "Earned", "Paid", "Balance", ""});
+    m_table->setHorizontalHeaderLabels({tr("Employee"), tr("Shop"), tr("Daily rate"), tr("Bonus threshold"), tr("Bonus amount"),
+                                         tr("Days worked"), tr("Bonus days"), tr("Earned"), tr("Paid"), tr("Balance"), ""});
     m_table->horizontalHeader()->setStretchLastSection(false);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
@@ -65,7 +66,7 @@ SalaryPage::SalaryPage(SupabaseClient *client, QWidget *parent)
         // shopsFetched fires for every page's fetchShops(), so clear before re-adding.
         const QString previouslySelected = m_shopCombo->currentData().toString();
         m_shopCombo->clear();
-        m_shopCombo->addItem("All shops", QString());
+        m_shopCombo->addItem(tr("All shops"), QString());
         for (const Shop &shop : m_shops) m_shopCombo->addItem(shop.name, shop.id);
         const int index = m_shopCombo->findData(previouslySelected);
         if (index >= 0) m_shopCombo->setCurrentIndex(index);
@@ -78,7 +79,7 @@ SalaryPage::SalaryPage(SupabaseClient *client, QWidget *parent)
         recompute();
     });
     connect(m_client, &SupabaseClient::profilesFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load employees: " + message);
+        emit statusMessage(tr("Failed to load employees: ") + message);
     });
 
     connect(m_client, &SupabaseClient::salesForPeriodFetched, this, [this](const QVector<SaleAttribution> &sales) {
@@ -86,7 +87,7 @@ SalaryPage::SalaryPage(SupabaseClient *client, QWidget *parent)
         recompute();
     });
     connect(m_client, &SupabaseClient::salesForPeriodFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load sales: " + message);
+        emit statusMessage(tr("Failed to load sales: ") + message);
     });
 
     connect(m_client, &SupabaseClient::salaryPaymentsFetched, this, [this](const QVector<SalaryPayment> &payments) {
@@ -94,11 +95,11 @@ SalaryPage::SalaryPage(SupabaseClient *client, QWidget *parent)
         recompute();
     });
     connect(m_client, &SupabaseClient::salaryPaymentsFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load payments: " + message);
+        emit statusMessage(tr("Failed to load payments: ") + message);
     });
 
     connect(m_client, &SupabaseClient::profileUpdateFailed, this, [this](const QString &message) {
-        emit statusMessage("Update failed: " + message);
+        emit statusMessage(tr("Update failed: ") + message);
         m_client->fetchProfiles();
     });
     connect(m_client, &SupabaseClient::profileUpdated, this, [this]() { m_client->fetchProfiles(); });
@@ -112,7 +113,7 @@ void SalaryPage::changeMonth(int delta) {
 }
 
 void SalaryPage::reload() {
-    m_periodLabel->setText(m_periodStart.toString("MMMM yyyy"));
+    m_periodLabel->setText(QLocale().toString(m_periodStart, "LLLL yyyy"));
 
     const QString startIso = m_periodStart.toString(Qt::ISODate);
     const QString endInclusiveIso = m_periodStart.addMonths(1).addDays(-1).toString(Qt::ISODate);
@@ -206,14 +207,14 @@ void SalaryPage::rebuildTable() {
         addReadOnly(kColPaid, QString::number(earnings.paid, 'f', 2));
         addReadOnly(kColBalance, QString::number(balance, 'f', 2));
 
-        auto *payButton = new QPushButton(balance > 0 ? "Pay" : "Record", this);
+        auto *payButton = new QPushButton(balance > 0 ? tr("Pay") : tr("Record"), this);
         payButton->setObjectName("compactButton");
         connect(payButton, &QPushButton::clicked, this, [this, row]() { openPayDialog(row); });
         m_table->setCellWidget(row, kColPayButton, payButton);
     }
 
     m_populating = false;
-    emit statusMessage(QString("%1 employee(s) for %2.").arg(m_visibleProfiles.size()).arg(m_periodLabel->text()));
+    emit statusMessage(tr("%n employees for %1.", nullptr, int(m_visibleProfiles.size())).arg(m_periodLabel->text()));
 }
 
 void SalaryPage::handleItemChanged(QTableWidgetItem *item) {
@@ -231,7 +232,7 @@ void SalaryPage::handleItemChanged(QTableWidgetItem *item) {
     bool ok = false;
     const double value = text.isEmpty() ? 0.0 : text.toDouble(&ok);
     if (!text.isEmpty() && (!ok || value < 0)) {
-        emit statusMessage("Invalid amount — must be a non-negative number.");
+        emit statusMessage(tr("Invalid amount — must be a non-negative number."));
         m_client->fetchProfiles();
         return;
     }
@@ -246,7 +247,7 @@ void SalaryPage::openPayDialog(int row) {
     if (row < 0 || row >= m_visibleProfiles.size()) return;
     const Profile &profile = m_visibleProfiles[row];
     if (profile.shopId.isEmpty()) {
-        emit statusMessage("Assign this employee to a shop before recording a payment.");
+        emit statusMessage(tr("Assign this employee to a shop before recording a payment."));
         return;
     }
 
@@ -259,7 +260,7 @@ void SalaryPage::openPayDialog(int row) {
     PaySalaryDialog dialog(m_client, profile.id, profile.shopId, profile.fullName, periodStartIso, periodEndIso,
                             balance, this);
     if (dialog.exec() == QDialog::Accepted) {
-        emit statusMessage("Payment recorded.");
+        emit statusMessage(tr("Payment recorded."));
         reload();
     }
 }

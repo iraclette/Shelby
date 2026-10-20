@@ -3,6 +3,7 @@
 #include "BusinessProfile.h"
 #include "ShopTime.h"
 
+#include <QLocale>
 #include <QDate>
 #include <QFrame>
 #include <QGridLayout>
@@ -84,7 +85,7 @@ protected:
         for (const auto &day : m_days) peak = qMax(peak, day.second);
         if (peak <= 0) {
             painter.setPen(theme::palette().textDisabled);
-            painter.drawText(rect(), Qt::AlignCenter, "No sales in the last 7 days yet.");
+            painter.drawText(rect(), Qt::AlignCenter, tr("No sales in the last 7 days yet."));
             return;
         }
         const double slot = area.width() / m_days.size();
@@ -108,7 +109,7 @@ protected:
             const QRectF valueRect(area.left() + slot * i, bar.top() - 18, slot, 16);
             if (value > 0) painter.drawText(valueRect, Qt::AlignCenter, QString::number(value, 'f', 0));
             const QRectF labelRect(area.left() + slot * i, area.bottom() + 6, slot, 16);
-            painter.drawText(labelRect, Qt::AlignCenter, today ? "Today" : m_days[i].first.toString("ddd"));
+            painter.drawText(labelRect, Qt::AlignCenter, today ? tr("Today") : QLocale().toString(m_days[i].first, "ddd"));
         }
     }
 
@@ -127,16 +128,16 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
     auto *headerText = new QVBoxLayout;
     headerText->setSpacing(2);
     const int hour = QTime::currentTime().hour();
-    const QString partOfDay = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    const QString partOfDay = hour < 12 ? tr("Good morning") : hour < 18 ? tr("Good afternoon") : tr("Good evening");
     m_greeting = new QLabel(userName.isEmpty() ? partOfDay : QString("%1, %2").arg(partOfDay, userName), content);
     m_greeting->setObjectName("greeting");
-    auto *dateLabel = new QLabel(shoptime::today().toString("dddd, d MMMM yyyy"), content);
+    auto *dateLabel = new QLabel(QLocale().toString(shoptime::today(), "dddd, d MMMM yyyy"), content);
     dateLabel->setObjectName("totalsKey");
     headerText->addWidget(m_greeting);
     headerText->addWidget(dateLabel);
     headerRow->addLayout(headerText);
     headerRow->addStretch();
-    auto *refreshButton = new QPushButton("Refresh", content);
+    auto *refreshButton = new QPushButton(tr("Refresh"), content);
     headerRow->addWidget(refreshButton, 0, Qt::AlignTop);
     contentLayout->addLayout(headerRow);
 
@@ -155,18 +156,18 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
     };
     QLabel *itemsDetail = nullptr;
     QLabel *averageDetail = nullptr;
-    addKpi(0, "Revenue today", m_todayRevenue, m_todaySalesCount);
-    addKpi(1, "Items sold today", m_itemsSold, itemsDetail);
-    addKpi(2, "Average sale", m_averageSale, averageDetail);
-    addKpi(3, "Last 7 days", m_weekRevenue, m_weekSalesCount);
-    itemsDetail->setText("across all shops");
-    averageDetail->setText("today");
+    addKpi(0, tr("Revenue today"), m_todayRevenue, m_todaySalesCount);
+    addKpi(1, tr("Items sold today"), m_itemsSold, itemsDetail);
+    addKpi(2, tr("Average sale"), m_averageSale, averageDetail);
+    addKpi(3, tr("Last 7 days"), m_weekRevenue, m_weekSalesCount);
+    itemsDetail->setText(tr("across all shops"));
+    averageDetail->setText(tr("today"));
 
-    QVBoxLayout *chartCard = addCard(content, grid, 1, 0, "Sales — last 7 days (" + currencyLabel() + ")", 1, 3);
+    QVBoxLayout *chartCard = addCard(content, grid, 1, 0, tr("Sales — last 7 days (%1)").arg(currencyLabel()), 1, 3);
     m_chart = new SalesChart(content);
     chartCard->addWidget(m_chart, 1);
 
-    QVBoxLayout *attentionCard = addCard(content, grid, 1, 3, "Needs attention");
+    QVBoxLayout *attentionCard = addCard(content, grid, 1, 3, tr("Needs attention"));
     auto addAttention = [&](const QString &label, const QString &section, QLabel *&count) {
         auto *row = new QPushButton(content);
         row->setObjectName("attentionRow");
@@ -184,18 +185,19 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
         attentionCard->addWidget(row);
         connect(row, &QPushButton::clicked, this, [this, section]() { emit openSection(section); });
     };
-    addAttention("Online orders", "Online Orders", m_toPrepareCount);
-    addAttention("Messages", "Messages", m_unreadCount);
-    addAttention("Custom orders", "Custom Orders", m_newOrdersCount);
-    addAttention("Low stock", "Inventory", m_lowStockCount);
+    // The second name is the sidebar section to open, so it's translated exactly like the sidebar.
+    addAttention(tr("Online orders"), tr("Online Orders"), m_toPrepareCount);
+    addAttention(tr("Messages"), tr("Messages"), m_unreadCount);
+    addAttention(tr("Custom orders"), tr("Custom Orders"), m_newOrdersCount);
+    addAttention(tr("Low stock"), tr("Inventory"), m_lowStockCount);
     attentionCard->addStretch();
 
-    QVBoxLayout *lowStockCard = addCard(content, grid, 2, 0, "Low stock", 1, 2);
-    m_lowStockTable = makeTable({"Product", "Shop", "In stock", "Alert at"}, content);
+    QVBoxLayout *lowStockCard = addCard(content, grid, 2, 0, tr("Low stock"), 1, 2);
+    m_lowStockTable = makeTable({tr("Product"), tr("Shop"), tr("In stock"), tr("Alert at")}, content);
     lowStockCard->addWidget(m_lowStockTable);
 
-    QVBoxLayout *topCard = addCard(content, grid, 2, 2, "Best sellers — last 7 days", 1, 2);
-    m_topProductsTable = makeTable({"Product", "Sold", "Revenue"}, content);
+    QVBoxLayout *topCard = addCard(content, grid, 2, 2, tr("Best sellers — last 7 days"), 1, 2);
+    m_topProductsTable = makeTable({tr("Product"), tr("Sold"), tr("Revenue")}, content);
     topCard->addWidget(m_topProductsTable);
 
     contentLayout->addLayout(grid);
@@ -258,7 +260,7 @@ void OverviewPage::reload() {
                                                                      const QString &error) {
         if (!self) return; // signed out while the request was in flight
         if (!error.isEmpty()) {
-            emit self->statusMessage("Couldn't load sales for the overview: " + error);
+            emit self->statusMessage(tr("Couldn't load sales for the overview: ") + error);
             return;
         }
         self->applySales(sales);
@@ -298,11 +300,11 @@ void OverviewPage::applySales(const QVector<SaleSummary> &sales) {
     }
 
     m_todayRevenue->setText(money(todayRevenue));
-    m_todaySalesCount->setText(todaySales == 1 ? "1 sale" : QString("%1 sales").arg(todaySales));
+    m_todaySalesCount->setText(tr("%n sales", nullptr, todaySales));
     m_itemsSold->setText(QString::number(todayItems));
     m_averageSale->setText(todaySales > 0 ? money(todayRevenue / todaySales) : "—");
     m_weekRevenue->setText(money(weekRevenue));
-    m_weekSalesCount->setText(QString("%1 sales").arg(sales.size()));
+    m_weekSalesCount->setText(tr("%n sales", nullptr, int(sales.size())));
 
     QVector<QPair<QDate, double>> days;
     for (int offset = 6; offset >= 0; --offset) {

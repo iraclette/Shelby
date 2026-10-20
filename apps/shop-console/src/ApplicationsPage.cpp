@@ -17,10 +17,10 @@
 
 namespace {
 QString statusLabel(const QString &status) {
-    if (status == "new") return "New";
-    if (status == "contacted") return "Contacted";
-    if (status == "hired") return "Hired";
-    if (status == "rejected") return "Not a fit";
+    if (status == "new") return QObject::tr("New");
+    if (status == "contacted") return QObject::tr("Contacted");
+    if (status == "hired") return QObject::tr("Hired");
+    if (status == "rejected") return QObject::tr("Not a fit");
     return status;
 }
 
@@ -32,17 +32,17 @@ QColor statusColor(const QString &status) {
 }
 
 QString availabilityLabel(const QString &availability) {
-    if (availability == "full_time") return "Full time";
-    if (availability == "part_time") return "Part time";
-    return "Full or part time";
+    if (availability == "full_time") return QObject::tr("Full time");
+    if (availability == "part_time") return QObject::tr("Part time");
+    return QObject::tr("Full or part time");
 }
 
 QString languagesLabel(const QStringList &languages) {
     QStringList names;
     for (const QString &lang : languages) {
-        if (lang == "ka") names << "Georgian";
-        else if (lang == "ru") names << "Russian";
-        else if (lang == "en") names << "English";
+        if (lang == "ka") names << QObject::tr("Georgian");
+        else if (lang == "ru") names << QObject::tr("Russian");
+        else if (lang == "en") names << QObject::tr("English");
     }
     return names.isEmpty() ? "—" : names.join(", ");
 }
@@ -51,19 +51,19 @@ QString languagesLabel(const QStringList &languages) {
 ApplicationsPage::ApplicationsPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
     auto *toolbar = new QHBoxLayout;
-    auto *refreshButton = new QPushButton("Refresh", this);
+    auto *refreshButton = new QPushButton(tr("Refresh"), this);
     toolbar->addWidget(refreshButton);
     m_filter = new QComboBox(this);
-    m_filter->addItem("New", "new");
-    m_filter->addItem("All applications", "");
-    m_filter->addItem("Contacted", "contacted");
-    m_filter->addItem("Hired", "hired");
-    m_filter->addItem("Not a fit", "rejected");
+    m_filter->addItem(tr("New"), "new");
+    m_filter->addItem(tr("All applications"), "");
+    m_filter->addItem(tr("Contacted"), "contacted");
+    m_filter->addItem(tr("Hired"), "hired");
+    m_filter->addItem(tr("Not a fit"), "rejected");
     toolbar->addWidget(m_filter);
     toolbar->addStretch();
-    m_rejectedButton = new QPushButton("Not a fit", this);
-    m_hiredButton = new QPushButton("Hired", this);
-    m_contactedButton = new QPushButton("Mark contacted", this);
+    m_rejectedButton = new QPushButton(tr("Not a fit"), this);
+    m_hiredButton = new QPushButton(tr("Hired"), this);
+    m_contactedButton = new QPushButton(tr("Mark contacted"), this);
     m_contactedButton->setObjectName("primaryButton");
     for (QPushButton *button : {m_rejectedButton, m_hiredButton, m_contactedButton}) {
         button->setEnabled(false);
@@ -72,7 +72,7 @@ ApplicationsPage::ApplicationsPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(4); // shop, hours and languages are in the details panel
-    m_table->setHorizontalHeaderLabels({"Received", "Name", "Phone", "Status"});
+    m_table->setHorizontalHeaderLabels({tr("Received"), tr("Name"), tr("Phone"), tr("Status")});
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -119,21 +119,21 @@ ApplicationsPage::ApplicationsPage(SupabaseClient *client, QWidget *parent)
                                            [](const JobApplication &a) { return a.status == "new"; }));
     });
     connect(m_client, &SupabaseClient::jobApplicationsFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load applications: " + message);
+        emit statusMessage(tr("Failed to load applications: ") + message);
     });
     connect(m_client, &SupabaseClient::jobApplicationUpdated, this, [this]() {
-        emit statusMessage("Application updated.");
+        emit statusMessage(tr("Application updated."));
         m_client->fetchJobApplications();
     });
     connect(m_client, &SupabaseClient::jobApplicationUpdateFailed, this, [this](const QString &message) {
-        emit statusMessage("Update failed: " + message);
+        emit statusMessage(tr("Update failed: ") + message);
         m_client->fetchJobApplications();
     });
     m_client->fetchJobApplications();
 }
 
 QString ApplicationsPage::shopName(const QString &shopId) const {
-    if (shopId.isEmpty()) return "Any shop";
+    if (shopId.isEmpty()) return tr("Any shop");
     for (const Shop &shop : m_shops) {
         if (shop.id == shopId) return shop.name;
     }
@@ -180,22 +180,24 @@ void ApplicationsPage::showDetails() {
     m_hiredButton->setEnabled(application && application->status != "hired");
     m_rejectedButton->setEnabled(application && application->status != "rejected");
     if (!application) {
-        m_details->setText(m_visible.isEmpty() ? "No applications here." : "Select an application to read it.");
+        m_details->setText(m_visible.isEmpty() ? tr("No applications here.") : tr("Select an application to read it."));
         return;
     }
 
-    QString html = QString("<p style='font-size:16px; font-weight:700; color:" + theme::hex(theme::palette().textStrong) + ";'>%1</p>"
-                           "<p style='color:%2; font-weight:600;'>%3</p>")
-                       .arg(application->name.toHtmlEscaped(), statusColor(application->status).name(),
-                            statusLabel(application->status));
-    html += QString("<p><b style='color:" + theme::hex(theme::palette().text) + ";'>%1</b>%2</p>")
-                .arg(application->phone.toHtmlEscaped(),
+    const QString strong = theme::hex(theme::palette().text);
+    QString html = QString("<p style='font-size:16px; font-weight:700; color:%1;'>%2</p>"
+                           "<p style='color:%3; font-weight:600;'>%4</p>")
+                       .arg(theme::hex(theme::palette().textStrong), application->name.toHtmlEscaped(),
+                            statusColor(application->status).name(), statusLabel(application->status));
+    html += QString("<p><b style='color:%1;'>%2</b>%3</p>")
+                .arg(strong, application->phone.toHtmlEscaped(),
                      application->email.isEmpty() ? QString() : "<br>" + application->email.toHtmlEscaped());
-    html += QString("<p>Shop: <b style='color:" + theme::hex(theme::palette().text) + ";'>%1</b><br>Hours: <b style='color:" + theme::hex(theme::palette().text) + ";'>%2</b><br>"
-                    "Languages: <b style='color:" + theme::hex(theme::palette().text) + ";'>%3</b></p>")
-                .arg(shopName(application->preferredShopId), availabilityLabel(application->availability),
+    html += QString("<p>%1 <b style='color:%2;'>%3</b><br>%4 <b style='color:%2;'>%5</b><br>"
+                    "%6 <b style='color:%2;'>%7</b></p>")
+                .arg(tr("Shop:"), strong, shopName(application->preferredShopId), tr("Hours:"),
+                     availabilityLabel(application->availability), tr("Languages:"),
                      languagesLabel(application->languages));
-    html += QString("<p style='color:" + theme::hex(theme::palette().text) + ";'>%1</p>")
-                .arg(application->about.toHtmlEscaped().replace('\n', "<br>"));
+    html += QString("<p style='color:%1;'>%2</p>")
+                .arg(strong, application->about.toHtmlEscaped().replace('\n', "<br>"));
     m_details->setText(html);
 }

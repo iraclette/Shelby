@@ -19,7 +19,7 @@
 ProductPhotosDialog::ProductPhotosDialog(SupabaseClient *client, QString productId,
                                           const QString &productName, QWidget *parent)
     : QDialog(parent), m_client(client), m_productId(std::move(productId)) {
-    setWindowTitle("Photos — " + productName);
+    setWindowTitle(tr("Photos — %1").arg(productName));
     resize(520, 420);
 
     m_list = new QListWidget(this);
@@ -29,9 +29,9 @@ ProductPhotosDialog::ProductPhotosDialog(SupabaseClient *client, QString product
     m_list->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_list->setSpacing(8);
 
-    auto *addButton = new QPushButton("Add photos…", this);
-    auto *removeButton = new QPushButton("Remove selected", this);
-    auto *closeButton = new QPushButton("Close", this);
+    auto *addButton = new QPushButton(tr("Add photos…"), this);
+    auto *removeButton = new QPushButton(tr("Remove selected"), this);
+    auto *closeButton = new QPushButton(tr("Close"), this);
     auto *buttonRow = new QHBoxLayout;
     buttonRow->addWidget(addButton);
     buttonRow->addWidget(removeButton);
@@ -57,16 +57,16 @@ ProductPhotosDialog::ProductPhotosDialog(SupabaseClient *client, QString product
         populateList(images);
     });
     connect(m_client, &SupabaseClient::productImagesFetchFailed, this, [this](const QString &message) {
-        m_statusLabel->setText("Couldn't load photos: " + message);
+        m_statusLabel->setText(tr("Couldn't load photos: ") + message);
     });
     connect(m_client, &SupabaseClient::imageUploaded, this, [this]() { refresh(); });
     connect(m_client, &SupabaseClient::imageUploadFailed, this, [this](const QString &message) {
-        m_statusLabel->setText("Upload failed: " + message);
+        m_statusLabel->setText(tr("Upload failed: ") + message);
         refresh();
     });
     connect(m_client, &SupabaseClient::imageDeleted, this, [this]() { refresh(); });
     connect(m_client, &SupabaseClient::imageDeleteFailed, this, [this](const QString &message) {
-        m_statusLabel->setText("Couldn't remove photo: " + message);
+        m_statusLabel->setText(tr("Couldn't remove photo: ") + message);
         refresh();
     });
 
@@ -82,14 +82,14 @@ void ProductPhotosDialog::populateList(const QVector<ProductImage> &images) {
     m_list->clear();
 
     for (const ProductImage &image : images) {
-        auto *item = new QListWidgetItem(image.isPrimary ? "★ primary" : "");
+        auto *item = new QListWidgetItem(image.isPrimary ? tr("★ primary") : "");
         item->setData(Qt::UserRole, image.id);
         item->setData(Qt::UserRole + 1, image.storagePath);
         m_list->addItem(item);
         loadThumbnail(item, m_client->publicImageUrl(image.storagePath), m_generation);
     }
 
-    m_statusLabel->setText(images.isEmpty() ? "No photos yet." : QString());
+    m_statusLabel->setText(images.isEmpty() ? tr("No photos yet.") : QString());
 }
 
 void ProductPhotosDialog::loadThumbnail(QListWidgetItem *item, const QString &url, int generation) {
@@ -111,7 +111,7 @@ void ProductPhotosDialog::loadThumbnail(QListWidgetItem *item, const QString &ur
 
 void ProductPhotosDialog::addPhotos() {
     const QStringList files = QFileDialog::getOpenFileNames(
-        this, "Select photos", Config::load().photosSyncDir, "Images (*.png *.jpg *.jpeg *.webp)");
+        this, tr("Select photos"), Config::load().photosSyncDir, tr("Images (*.png *.jpg *.jpeg *.webp)"));
     for (const QString &path : files) {
         m_client->uploadProductImage(m_productId, path, /*isPrimary=*/false);
     }
@@ -122,7 +122,7 @@ void ProductPhotosDialog::removeSelected() {
     if (selected.isEmpty()) return;
 
     const auto confirm = QMessageBox::question(
-        this, "Remove photos", QString("Remove %1 photo(s)? This can't be undone.").arg(selected.size()));
+        this, tr("Remove photos"), tr("Remove %n photos? This can't be undone.", nullptr, int(selected.size())));
     if (confirm != QMessageBox::Yes) return;
 
     for (QListWidgetItem *item : selected) {

@@ -207,7 +207,7 @@ void SupabaseClient::requestTokens(const QString &grantType, const QJsonObject &
             return;
         }
         if (!storeTokens(data)) {
-            emit signInFailed("Unexpected response from Supabase Auth.");
+            emit signInFailed(tr("Unexpected response from Supabase Auth."));
             return;
         }
 
@@ -247,7 +247,7 @@ void SupabaseClient::fetchProfile(const QString &userId) {
 
         const QJsonArray rows = QJsonDocument::fromJson(data).array();
         if (rows.isEmpty()) {
-            emit profileFetchFailed("No profile found for this account.");
+            emit profileFetchFailed(tr("No profile found for this account."));
             return;
         }
 
@@ -426,7 +426,7 @@ void SupabaseClient::createProduct(const ProductInput &input) {
 
         const QJsonArray rows = QJsonDocument::fromJson(data).array();
         if (rows.isEmpty()) {
-            emit productCreateFailed("Product was created but no id was returned.");
+            emit productCreateFailed(tr("Product was created but no id was returned."));
             return;
         }
 
@@ -533,7 +533,7 @@ void SupabaseClient::createCategory(const QString &name, const QString &parentId
 
         const QJsonArray rows = QJsonDocument::fromJson(data).array();
         if (rows.isEmpty()) {
-            emit categoryCreateFailed("Category was created but no id was returned.");
+            emit categoryCreateFailed(tr("Category was created but no id was returned."));
             return;
         }
 
@@ -584,7 +584,7 @@ void SupabaseClient::createSupplier(const QString &name) {
 
         const QJsonArray rows = QJsonDocument::fromJson(data).array();
         if (rows.isEmpty()) {
-            emit supplierCreateFailed("Supplier was created but no id was returned.");
+            emit supplierCreateFailed(tr("Supplier was created but no id was returned."));
             return;
         }
 
@@ -774,7 +774,7 @@ void SupabaseClient::fetchStockTransfers() {
 void SupabaseClient::uploadProductImage(const QString &productId, const QString &localFilePath, bool isPrimary) {
     QFile file(localFilePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        emit imageUploadFailed("Could not open file: " + localFilePath);
+        emit imageUploadFailed(tr("Could not open file: ") + localFilePath);
         return;
     }
     const QByteArray fileBytes = file.readAll();
@@ -928,7 +928,7 @@ void SupabaseClient::updateBusinessSettings(const QJsonObject &fields) {
         }
         // RLS hides the row from non-admins, so an empty result means "not allowed".
         if (rows.isEmpty()) {
-            emit businessSettingsSaveFailed("Only owners and admins can change these.");
+            emit businessSettingsSaveFailed(tr("Only owners and admins can change these."));
             return;
         }
         const BusinessSettings settings = parseBusinessSettings(rows.first().toObject());
@@ -939,7 +939,7 @@ void SupabaseClient::updateBusinessSettings(const QJsonObject &fields) {
 void SupabaseClient::uploadBusinessLogo(const QString &localFilePath) {
     QFile file(localFilePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        emit businessLogoUploadFailed("Could not open file: " + localFilePath);
+        emit businessLogoUploadFailed(tr("Could not open file: ") + localFilePath);
         return;
     }
     const QByteArray fileBytes = file.readAll();
@@ -1022,7 +1022,7 @@ void SupabaseClient::lookupProductBySku(const QString &sku) {
 
             const QJsonArray rows = QJsonDocument::fromJson(data).array();
             if (rows.isEmpty()) {
-                emit productLookupFailed("No product found with that barcode.");
+                emit productLookupFailed(tr("No product found with that barcode."));
                 return;
             }
 

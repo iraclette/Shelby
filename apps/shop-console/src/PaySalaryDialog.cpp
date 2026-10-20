@@ -16,12 +16,12 @@ PaySalaryDialog::PaySalaryDialog(SupabaseClient *client, QString staffId, QStrin
                                   double suggestedAmount, QWidget *parent)
     : QDialog(parent), m_client(client), m_staffId(std::move(staffId)), m_shopId(std::move(shopId)),
       m_periodStartIso(std::move(periodStartIso)), m_periodEndIso(std::move(periodEndIso)) {
-    setWindowTitle("Record Salary Payment");
+    setWindowTitle(tr("Record Salary Payment"));
     resize(360, 220);
 
     auto *layout = new QVBoxLayout(this);
     layout->addWidget(new QLabel(
-        QString("<b>%1</b><br>Period: %2 – %3").arg(employeeName, m_periodStartIso, m_periodEndIso), this));
+        tr("<b>%1</b><br>Period: %2 – %3").arg(employeeName, m_periodStartIso, m_periodEndIso), this));
 
     m_amountSpin = new QDoubleSpinBox(this);
     m_amountSpin->setRange(0, 1000000);
@@ -31,11 +31,11 @@ PaySalaryDialog::PaySalaryDialog(SupabaseClient *client, QString staffId, QStrin
     m_amountSpin->setValue(qMax(0.0, suggestedAmount));
 
     m_noteInput = new QLineEdit(this);
-    m_noteInput->setPlaceholderText("Note (optional)");
+    m_noteInput->setPlaceholderText(tr("Note (optional)"));
 
     auto *form = new QFormLayout;
-    form->addRow("Amount", m_amountSpin);
-    form->addRow("Note", m_noteInput);
+    form->addRow(tr("Amount"), m_amountSpin);
+    form->addRow(tr("Note"), m_noteInput);
     layout->addLayout(form);
 
     m_statusLabel = new QLabel(this);
@@ -45,7 +45,7 @@ PaySalaryDialog::PaySalaryDialog(SupabaseClient *client, QString staffId, QStrin
     layout->addStretch();
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
-    m_submitButton = buttons->addButton("Record Payment", QDialogButtonBox::AcceptRole);
+    m_submitButton = buttons->addButton(tr("Record Payment"), QDialogButtonBox::AcceptRole);
     m_submitButton->setObjectName("primaryButton");
     layout->addWidget(buttons);
 
@@ -63,7 +63,7 @@ void PaySalaryDialog::submit() {
     m_statusLabel->clear();
 
     if (m_amountSpin->value() <= 0) {
-        m_statusLabel->setText("Enter an amount greater than zero.");
+        m_statusLabel->setText(tr("Enter an amount greater than zero."));
         return;
     }
 

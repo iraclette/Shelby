@@ -14,21 +14,21 @@
 
 namespace {
 QString categoryForEntityType(const QString &entityType) {
-    if (entityType == "product") return "Product";
-    if (entityType == "profile") return "Staff";
-    if (entityType == "inventory_levels") return "Inventory";
-    if (entityType == "sale" || entityType == "return") return "Sales"; // written by DB triggers (0030)
-    return "Other";
+    if (entityType == "product") return QObject::tr("Product");
+    if (entityType == "profile") return QObject::tr("Staff");
+    if (entityType == "inventory_levels") return QObject::tr("Inventory");
+    if (entityType == "sale" || entityType == "return") return QObject::tr("Sales"); // written by DB triggers (0030)
+    return QObject::tr("Other");
 }
 
 QString prettyAction(const QString &action) {
-    if (action == "product_updated") return "Product edited";
-    if (action == "inventory_adjusted") return "Stock adjusted";
-    if (action == "staff_updated") return "Staff updated";
-    if (action == "staff_created") return "Staff created";
-    if (action == "staff_deleted") return "Staff removed";
-    if (action == "sale_discounted") return "Discount given";
-    if (action == "refund") return "Refund";
+    if (action == "product_updated") return QObject::tr("Product edited");
+    if (action == "inventory_adjusted") return QObject::tr("Stock adjusted");
+    if (action == "staff_updated") return QObject::tr("Staff updated");
+    if (action == "staff_created") return QObject::tr("Staff created");
+    if (action == "staff_deleted") return QObject::tr("Staff removed");
+    if (action == "sale_discounted") return QObject::tr("Discount given");
+    if (action == "refund") return QObject::tr("Refund");
     return action;
 }
 } // namespace
@@ -36,12 +36,12 @@ QString prettyAction(const QString &action) {
 AuditLogPage::AuditLogPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
     auto *toolbar = new QHBoxLayout;
-    auto *refreshButton = new QPushButton("Refresh", this);
+    auto *refreshButton = new QPushButton(tr("Refresh"), this);
     toolbar->addWidget(refreshButton);
     toolbar->addSpacing(16);
-    toolbar->addWidget(new QLabel("Show:", this));
+    toolbar->addWidget(new QLabel(tr("Show:"), this));
     m_categoryFilter = new QComboBox(this);
-    m_categoryFilter->addItems({"All", "Sales", "Product", "Staff", "Inventory", "Stock transfer"});
+    m_categoryFilter->addItems({tr("All"), tr("Sales"), tr("Product"), tr("Staff"), tr("Inventory"), tr("Stock transfer")});
     toolbar->addWidget(m_categoryFilter);
     toolbar->addStretch();
 
@@ -53,7 +53,7 @@ AuditLogPage::AuditLogPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(4);
-    m_table->setHorizontalHeaderLabels({"Time", "Actor", "Action", "Detail"});
+    m_table->setHorizontalHeaderLabels({tr("Time"), tr("Actor"), tr("Action"), tr("Detail")});
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
@@ -83,7 +83,7 @@ AuditLogPage::AuditLogPage(SupabaseClient *client, QWidget *parent)
         rebuildTable();
     });
     connect(m_client, &SupabaseClient::auditLogFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load activity log: " + message);
+        emit statusMessage(tr("Failed to load activity log: ") + message);
     });
     m_client->fetchAuditLog();
 
@@ -93,7 +93,7 @@ AuditLogPage::AuditLogPage(SupabaseClient *client, QWidget *parent)
         rebuildTable();
     });
     connect(m_client, &SupabaseClient::stockTransfersFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load stock transfers: " + message);
+        emit statusMessage(tr("Failed to load stock transfers: ") + message);
     });
     m_client->fetchStockTransfers();
 }
@@ -136,18 +136,20 @@ void AuditLogPage::rebuildTable() {
         QString productLabel = transfer.variantName.isEmpty()
             ? transfer.productName
             : QString("%1 (%2)").arg(transfer.productName, transfer.variantName);
-        rows.append({transfer.createdAt, actorName, "Stock transferred",
+        rows.append({transfer.createdAt, actorName, tr("Stock transferred"),
                       QString("%1x %2: %3 → %4").arg(transfer.quantity).arg(productLabel, fromShop, toShop),
-                      "Stock transfer"});
+                      tr("Stock transfer")});
     }
 
     std::sort(rows.begin(), rows.end(),
               [](const Row &a, const Row &b) { return a.timestamp > b.timestamp; });
 
+    // The first entry is "All"; the others are category names, translated like Row::category.
+    const bool showAll = m_categoryFilter->currentIndex() == 0;
     const QString filter = m_categoryFilter->currentText();
     QVector<Row> filtered;
     for (const Row &row : rows) {
-        if (filter == "All" || row.category == filter) filtered.append(row);
+        if (showAll || row.category == filter) filtered.append(row);
     }
 
     m_table->setRowCount(filtered.size());
@@ -159,5 +161,5 @@ void AuditLogPage::rebuildTable() {
         m_table->setItem(i, 3, new QTableWidgetItem(row.detail));
     }
 
-    emit statusMessage(QString("%1 activity entr%2.").arg(filtered.size()).arg(filtered.size() == 1 ? "y" : "ies"));
+    emit statusMessage(tr("%n activity entries.", nullptr, int(filtered.size())));
 }

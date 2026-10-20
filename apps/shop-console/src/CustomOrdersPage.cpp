@@ -16,7 +16,7 @@ const QStringList kValidStatuses{"new", "reviewed", "quoted", "in_progress", "co
 CustomOrdersPage::CustomOrdersPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
     auto *toolbar = new QHBoxLayout;
-    auto *refreshButton = new QPushButton("Refresh", this);
+    auto *refreshButton = new QPushButton(tr("Refresh"), this);
     toolbar->addWidget(refreshButton);
     toolbar->addStretch();
 
@@ -24,7 +24,7 @@ CustomOrdersPage::CustomOrdersPage(SupabaseClient *client, QWidget *parent)
 
     m_table = new QTableWidget(this);
     m_table->setColumnCount(6);
-    m_table->setHorizontalHeaderLabels({"Received", "Customer", "Contact", "Preferred shop", "Description", "Status"});
+    m_table->setHorizontalHeaderLabels({tr("Received"), tr("Customer"), tr("Contact"), tr("Preferred shop"), tr("Description"), tr("Status")});
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(kColCreated, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(kColCustomer, QHeaderView::ResizeToContents);
@@ -52,12 +52,12 @@ CustomOrdersPage::CustomOrdersPage(SupabaseClient *client, QWidget *parent)
         rebuildTable();
     });
     connect(m_client, &SupabaseClient::customLeatherOrdersFetchFailed, this, [this](const QString &message) {
-        emit statusMessage("Failed to load custom orders: " + message);
+        emit statusMessage(tr("Failed to load custom orders: ") + message);
     });
     m_client->fetchCustomLeatherOrders();
 
     connect(m_client, &SupabaseClient::customLeatherOrderUpdateFailed, this, [this](const QString &message) {
-        emit statusMessage("Update failed: " + message);
+        emit statusMessage(tr("Update failed: ") + message);
         m_client->fetchCustomLeatherOrders();
     });
     connect(m_client, &SupabaseClient::customLeatherOrderUpdated, this,
@@ -108,7 +108,7 @@ void CustomOrdersPage::rebuildTable() {
     }
 
     m_populating = false;
-    emit statusMessage(QString("%1 custom order request(s).").arg(m_orders.size()));
+    emit statusMessage(tr("%n custom order requests.", nullptr, int(m_orders.size())));
 }
 
 void CustomOrdersPage::handleItemChanged(QTableWidgetItem *item) {
@@ -121,7 +121,7 @@ void CustomOrdersPage::handleItemChanged(QTableWidgetItem *item) {
 
     const QString status = item->text().trimmed().toLower();
     if (!kValidStatuses.contains(status)) {
-        emit statusMessage("Invalid status — must be one of: " + kValidStatuses.join(", "));
+        emit statusMessage(tr("Invalid status — must be one of: ") + kValidStatuses.join(", "));
         m_client->fetchCustomLeatherOrders();
         return;
     }

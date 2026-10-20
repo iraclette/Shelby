@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDateTime>
+#include <QLocale>
 #include <QTimeZone>
 
 #include "BusinessProfile.h"
@@ -44,7 +45,7 @@ inline QDate dayOf(const QString &timestamp) {
 // e.g. format(order.createdAt, "yyyy-MM-dd HH:mm"); falls back to the raw text if it doesn't parse.
 inline QString format(const QString &timestamp, const QString &pattern) {
     const QDateTime local = fromDb(timestamp);
-    return local.isValid() ? local.toString(pattern) : timestamp;
+    return local.isValid() ? QLocale().toString(local, pattern) : timestamp; // day/month names in the console's language
 }
 
 } // namespace shoptime

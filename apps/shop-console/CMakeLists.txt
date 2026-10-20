@@ -78,6 +78,8 @@ qt_add_executable(ShopConsole WIN32
     src/SettingsPage.cpp
     src/Theme.h
     src/Theme.cpp
+    src/Translations.h
+    src/Translations.cpp
 )
 
 qt_add_resources(ShopConsole "icons"
@@ -140,3 +142,13 @@ qt_generate_deploy_app_script(
     NO_UNSUPPORTED_PLATFORM_ERROR
 )
 install(SCRIPT ${deploy_script})
+
+# Interface translations (see src/Translations.h): {"English text": "translation"} per language.
+qt_add_resources(ShopConsole "translations"
+    PREFIX "/translations"
+    BASE "resources/translations"
+    FILES
+        resources/translations/en.json
+        resources/translations/ka.json
+        resources/translations/ru.json
+)

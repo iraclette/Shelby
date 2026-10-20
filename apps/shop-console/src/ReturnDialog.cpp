@@ -17,7 +17,7 @@
 
 ReturnDialog::ReturnDialog(SupabaseClient *client, QString shopId, QWidget *parent)
     : QDialog(parent), m_client(client), m_shopId(std::move(shopId)) {
-    setWindowTitle("Process Return");
+    setWindowTitle(tr("Process Return"));
     resize(420, 480);
 
     m_stack = new QStackedWidget(this);
@@ -27,7 +27,7 @@ ReturnDialog::ReturnDialog(SupabaseClient *client, QString shopId, QWidget *pare
     // --- Page 0: pick a sale ---
     auto *salePage = new QWidget(this);
     auto *salePageLayout = new QVBoxLayout(salePage);
-    salePageLayout->addWidget(new QLabel("<b>Select a sale to return from</b>", salePage));
+    salePageLayout->addWidget(new QLabel(tr("<b>Select a sale to return from</b>"), salePage));
     m_saleList = new QListWidget(salePage);
     salePageLayout->addWidget(m_saleList);
     m_stack->addWidget(salePage);
@@ -43,15 +43,13 @@ ReturnDialog::ReturnDialog(SupabaseClient *client, QString shopId, QWidget *pare
         m_sales = sales;
         m_saleList->clear();
         for (const SaleSummary &sale : m_sales) {
-            m_saleList->addItem(QString("%1 — %2 (%3 item%4)")
+            m_saleList->addItem(tr("%1 — %2 (%n items)", nullptr, int(sale.items.size()))
                                      .arg(shoptime::format(sale.soldAt, "yyyy-MM-dd HH:mm"))
-                                     .arg(money(sale.total))
-                                     .arg(sale.items.size())
-                                     .arg(sale.items.size() == 1 ? "" : "s"));
+                                     .arg(money(sale.total)));
         }
     });
     connect(m_client, &SupabaseClient::recentSalesFetchFailed, this, [this](const QString &message) {
-        QMessageBox::warning(this, "Couldn't load sales", message);
+        QMessageBox::warning(this, tr("Couldn't load sales"), message);
     });
     m_client->fetchRecentSales(m_shopId);
 
@@ -79,14 +77,14 @@ void ReturnDialog::showItemPicker() {
     m_itemSpinBoxes.clear();
 
     const SaleSummary &sale = m_sales[m_selectedSaleIndex];
-    m_itemsLayout->addWidget(new QLabel("<b>How many of each item are being returned?</b>", nullptr));
+    m_itemsLayout->addWidget(new QLabel(tr("<b>How many of each item are being returned?</b>"), nullptr));
 
     for (const SaleItemSummary &item : sale.items) {
         auto *row = new QHBoxLayout;
         const QString itemLabel = item.productName.isEmpty() ? item.productId : item.productName;
         const QString displayName =
             item.variantName.isEmpty() ? itemLabel : QString("%1 (%2)").arg(itemLabel, item.variantName);
-        auto *label = new QLabel(QString("%1 (bought %2, %3 each)")
+        auto *label = new QLabel(tr("%1 (bought %2, %3 each)")
                                       .arg(displayName)
                                       .arg(item.quantity)
                                       .arg(money(item.unitPrice)));
@@ -99,7 +97,7 @@ void ReturnDialog::showItemPicker() {
     }
 
     m_reasonInput = new QLineEdit;
-    m_reasonInput->setPlaceholderText("Reason (optional)");
+    m_reasonInput->setPlaceholderText(tr("Reason (optional)"));
     m_itemsLayout->addWidget(m_reasonInput);
 
     m_statusLabel = new QLabel;
@@ -110,9 +108,9 @@ void ReturnDialog::showItemPicker() {
     m_itemsLayout->addStretch();
 
     auto *buttons = new QDialogButtonBox;
-    auto *backButton = buttons->addButton("Back", QDialogButtonBox::ResetRole);
+    auto *backButton = buttons->addButton(tr("Back"), QDialogButtonBox::ResetRole);
     buttons->addButton(QDialogButtonBox::Cancel);
-    m_submitButton = buttons->addButton("Process Return", QDialogButtonBox::AcceptRole);
+    m_submitButton = buttons->addButton(tr("Process Return"), QDialogButtonBox::AcceptRole);
     m_submitButton->setObjectName("primaryButton");
     m_itemsLayout->addWidget(buttons);
 
@@ -134,12 +132,12 @@ void ReturnDialog::submit() {
     }
 
     if (items.isEmpty()) {
-        m_statusLabel->setText("Select at least one item to return.");
+        m_statusLabel->setText(tr("Select at least one item to return."));
         return;
     }
 
     m_submitButton->setEnabled(false);
     m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
-    m_statusLabel->setText("Processing…");
+    m_statusLabel->setText(tr("Processing…"));
     m_client->submitReturn(m_shopId, sale.id, m_reasonInput->text().trimmed(), items);
 }

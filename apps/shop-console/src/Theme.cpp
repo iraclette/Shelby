@@ -621,9 +621,9 @@ QStringList themeIds() {
 }
 
 QString themeName(const QString &id) {
-    if (id == "light") return "Light";
-    if (id == "oxblood") return "Oxblood";
-    return "Dark";
+    if (id == "light") return QObject::tr("Light");
+    if (id == "oxblood") return QObject::tr("Oxblood");
+    return QObject::tr("Dark");
 }
 
 QString currentThemeId() {

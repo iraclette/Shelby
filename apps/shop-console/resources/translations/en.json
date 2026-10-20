@@ -1,0 +1,58 @@
+{
+  "%n activity entries.": {
+    "one": "%n activity entry.",
+    "other": "%n activity entries."
+  },
+  "%n categories.": {
+    "one": "%n category.",
+    "other": "%n categories."
+  },
+  "%n custom order requests.": {
+    "one": "%n custom order request.",
+    "other": "%n custom order requests."
+  },
+  "%n sales · %1 total": {
+    "one": "%n sale · %1 total",
+    "other": "%n sales · %1 total"
+  },
+  "Loaded %n sales for %1.": {
+    "one": "Loaded %n sale for %1.",
+    "other": "Loaded %n sales for %1."
+  },
+  "%n employees.": {
+    "one": "%n employee.",
+    "other": "%n employees."
+  },
+  "%n products.": {
+    "one": "%n product.",
+    "other": "%n products."
+  },
+  "%n messages, %1 unread. Click a message to open it.": {
+    "one": "%n message, %1 unread. Click a message to open it.",
+    "other": "%n messages, %1 unread. Click a message to open it."
+  },
+  "%n sales": {
+    "one": "%n sale",
+    "other": "%n sales"
+  },
+  "%n left": {
+    "one": "%n left",
+    "other": "%n left"
+  },
+  "%n variants · %1": {
+    "one": "%n variant · %1",
+    "other": "%n variants · %1"
+  },
+  "Remove %n photos? This can't be undone.": {
+    "one": "Remove %n photo? This can't be undone.",
+    "other": "Remove %n photos? This can't be undone."
+  },
+  "%1 — %2 (%n items)": {
+    "one": "%1 — %2 (%n item)",
+    "other": "%1 — %2 (%n items)"
+  },
+  "%n employees for %1.": {
+    "one": "%n employee for %1.",
+    "other": "%n employees for %1."
+  }
+}

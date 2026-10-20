@@ -106,7 +106,7 @@ void UpdateChecker::checkLatestStable() {
         if (!target.isValid()) {
             const QString message = reply->error() != QNetworkReply::NoError
                                         ? reply->errorString()
-                                        : QString("GitHub didn't point to a latest release.");
+                                        : tr("GitHub didn't point to a latest release.");
             emit checkFinished(false, false, {}, {}, {}, message);
             return;
         }
@@ -114,7 +114,7 @@ void UpdateChecker::checkLatestStable() {
         const QString path = reply->url().resolved(target).path();
         const int markerIndex = path.indexOf(kTagMarker);
         if (markerIndex < 0) {
-            emit checkFinished(false, false, {}, {}, {}, "GitHub's response didn't include a release tag.");
+            emit checkFinished(false, false, {}, {}, {}, tr("GitHub's response didn't include a release tag."));
             return;
         }
         reportTag(path.mid(markerIndex + kTagMarker.size()));
@@ -151,7 +151,7 @@ void UpdateChecker::checkLatestIncludingPrereleases() {
         }
 
         if (tags.isEmpty()) {
-            emit checkFinished(false, false, {}, {}, {}, "GitHub's releases feed didn't list any releases.");
+            emit checkFinished(false, false, {}, {}, {}, tr("GitHub's releases feed didn't list any releases."));
             return;
         }
         std::sort(tags.begin(), tags.end(), [](const auto &a, const auto &b) { return isNewer(a.first, b.first); });
@@ -211,7 +211,7 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
     m_installing = true;
     if (assetUrl.isEmpty()) {
         m_installing = false;
-        emit installFailed("This release has no downloadable build attached.");
+        emit installFailed(tr("This release has no downloadable build attached."));
         return;
     }
 
@@ -233,13 +233,13 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
             const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
             QString message = reply->errorString();
             if (status == 404) {
-                message = "the installer isn't on GitHub yet (HTTP 404) — the release may still be building, "
-                          "try again in a few minutes";
+                message = tr("the installer isn't on GitHub yet (HTTP 404) — the release may still be building, "
+                             "try again in a few minutes");
             } else if (status > 0) {
-                message = QString("GitHub returned HTTP %1").arg(status);
+                message = tr("GitHub returned HTTP %1").arg(status);
             }
             m_installing = false;
-            emit installFailed("Download failed: " + message);
+            emit installFailed(tr("Download failed: %1").arg(message));
             return;
         }
 
@@ -248,7 +248,7 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
         QFile setupFile(setupPath);
         if (!setupFile.open(QIODevice::WriteOnly) || setupFile.write(reply->readAll()) < 0) {
             m_installing = false;
-            emit installFailed("Couldn't save the downloaded update to disk.");
+            emit installFailed(tr("Couldn't save the downloaded update to disk."));
             return;
         }
         setupFile.close();
@@ -264,7 +264,7 @@ void UpdateChecker::downloadAndInstall(const QString &assetUrl) {
 
         if (!started) {
             m_installing = false;
-            emit installFailed("Couldn't start the installer.");
+            emit installFailed(tr("Couldn't start the installer."));
             return;
         }
         emit installStarting();

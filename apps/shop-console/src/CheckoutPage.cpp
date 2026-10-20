@@ -22,17 +22,17 @@ CheckoutPage::CheckoutPage(SupabaseClient *client, QWidget *parent)
     bar->setObjectName("pageBar");
     auto *barLayout = new QHBoxLayout(bar);
     barLayout->setContentsMargins(12, 8, 12, 8);
-    barLayout->addWidget(new QLabel("Shop:", this));
+    barLayout->addWidget(new QLabel(tr("Shop:"), this));
     m_shopCombo = new QComboBox(this);
     m_shopCombo->setMinimumWidth(180);
     barLayout->addWidget(m_shopCombo);
     barLayout->addSpacing(16);
-    m_recordCheck = new QCheckBox("Record real sales", this);
+    m_recordCheck = new QCheckBox(tr("Record real sales"), this);
     barLayout->addWidget(m_recordCheck);
     m_modeLabel = new QLabel(this);
     barLayout->addWidget(m_modeLabel);
     barLayout->addStretch();
-    auto *returnsButton = new QPushButton("Returns  F7", this);
+    auto *returnsButton = new QPushButton(tr("Returns  F7"), this);
     barLayout->addWidget(returnsButton);
     layout->addWidget(bar);
 
@@ -42,8 +42,8 @@ CheckoutPage::CheckoutPage(SupabaseClient *client, QWidget *parent)
 
     auto updateModeLabel = [this]() {
         const bool practice = !m_recordCheck->isChecked();
-        m_modeLabel->setText(practice ? "Practice mode — sales aren't saved and stock isn't touched."
-                                      : "Live — sales are recorded and stock goes down.");
+        m_modeLabel->setText(practice ? tr("Practice mode — sales aren't saved and stock isn't touched.")
+                                      : tr("Live — sales are recorded and stock goes down."));
         m_modeLabel->setStyleSheet(practice ? theme::css(theme::palette().info)
                                              : theme::css(theme::palette().warning) + " font-weight: 600;");
         if (m_register) m_register->setPracticeMode(practice);
@@ -53,8 +53,8 @@ CheckoutPage::CheckoutPage(SupabaseClient *client, QWidget *parent)
     connect(m_recordCheck, &QCheckBox::toggled, this, [this, updateModeLabel](bool checked) {
         if (checked) {
             const auto answer = QMessageBox::question(
-                this, "Record real sales",
-                "Sales made here will be recorded for the selected shop and its stock will go down. Continue?");
+                this, tr("Record real sales"),
+                tr("Sales made here will be recorded for the selected shop and its stock will go down. Continue?"));
             if (answer != QMessageBox::Yes) {
                 const QSignalBlocker blocker(m_recordCheck);
                 m_recordCheck->setChecked(false);
