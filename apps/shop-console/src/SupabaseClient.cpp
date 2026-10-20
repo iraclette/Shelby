@@ -876,6 +876,12 @@ BusinessSettings parseBusinessSettings(const QJsonObject &row) {
     settings.currencyStyle = row.value("currency_style").toString();
     settings.timezone = row.value("timezone").toString();
     for (const QJsonValue &module : row.value("disabled_modules").toArray()) settings.disabledModules << module.toString();
+    QStringList methods;
+    for (const QJsonValue &method : row.value("payment_methods").toArray()) methods << method.toString();
+    if (!methods.isEmpty()) settings.paymentMethods = methods;
+    settings.defaultPaymentMethod = row.value("default_payment_method").toString(settings.defaultPaymentMethod);
+    settings.defaultLowStockThreshold = row.value("default_low_stock_threshold").toInt();
+    settings.skuPrefix = row.value("sku_prefix").toString(settings.skuPrefix);
     return settings;
 }
 } // namespace
@@ -888,7 +894,8 @@ void SupabaseClient::fetchBusinessSettings() {
     // Public read (0032), so the anon key alone is enough, signed in or not.
     QUrl url(m_baseUrl + "/rest/v1/business_settings");
     QUrlQuery query;
-    query.addQueryItem("select", "name,logo_path,currency_code,currency_symbol,currency_style,timezone,disabled_modules");
+    query.addQueryItem("select", "name,logo_path,currency_code,currency_symbol,currency_style,timezone,disabled_modules,"
+                                  "payment_methods,default_payment_method,default_low_stock_threshold,sku_prefix");
     url.setQuery(query);
     QNetworkRequest request(url);
     request.setRawHeader("apikey", m_anonKey.toUtf8());

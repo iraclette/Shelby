@@ -9,6 +9,7 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QSpinBox;
 class QTimer;
 class QVBoxLayout;
 class SupabaseClient;
@@ -112,6 +113,32 @@ private:
 
     SupabaseClient *m_client;
     QList<QPair<QString, QCheckBox *>> m_switches; // module key -> its checkbox (checked = on)
+    QPushButton *m_saveButton;
+    QLabel *m_status;
+    bool m_saving = false;
+};
+
+// Settings → Checkout: the payment methods the till offers, and the defaults new products get
+// (low stock alert, the prefix of codes made for products without a barcode). Every till.
+class CheckoutSettingsSection : public QWidget {
+    Q_OBJECT
+
+public:
+    explicit CheckoutSettingsSection(SupabaseClient *client, QWidget *parent = nullptr);
+
+private:
+    void loadFromProfile();
+    void refreshDefaultMethods();
+    void refreshPrefixPreview();
+    void save();
+
+    SupabaseClient *m_client;
+    QCheckBox *m_cash;
+    QCheckBox *m_card;
+    QComboBox *m_defaultMethod;
+    QSpinBox *m_lowStock;
+    QLineEdit *m_prefix;
+    QLabel *m_prefixPreview;
     QPushButton *m_saveButton;
     QLabel *m_status;
     bool m_saving = false;

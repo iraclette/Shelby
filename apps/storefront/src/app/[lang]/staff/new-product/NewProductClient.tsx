@@ -8,7 +8,7 @@ import StaffAuthGate from "@/components/StaffAuthGate";
 import CategoryOptions, { type StaffCategory } from "@/components/CategoryOptions";
 import Skeleton from "@/components/Skeleton";
 import { randomId } from "@/lib/randomId";
-import { generateInternalSku } from "@/lib/sku";
+import { generateInternalSku, loadSkuPrefix } from "@/lib/sku";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 
@@ -59,6 +59,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    loadSkuPrefix(supabase);
     Promise.all([
       supabase.from("shops").select("id, name").order("name"),
       supabase.from("categories").select("id, name, parent_id").order("name"),

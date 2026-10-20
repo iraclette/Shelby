@@ -7,7 +7,7 @@ import CategoryOptions, { type StaffCategory } from "@/components/CategoryOption
 import Skeleton from "@/components/Skeleton";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
-import { generateInternalSku } from "@/lib/sku";
+import { generateInternalSku, loadSkuPrefix } from "@/lib/sku";
 
 type Shop = { id: string; name: string };
 type Level = { shop_id: string; variant_id: string | null; quantity: number };
@@ -64,7 +64,8 @@ function Inventory({ onSignOut }: { onSignOut: () => void }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loads from Supabase once on mount
     load();
-  }, [load]);
+    loadSkuPrefix(supabase);
+  }, [load, supabase]);
 
   const filtered = products.filter((product) => {
     const text = query.trim().toLowerCase();

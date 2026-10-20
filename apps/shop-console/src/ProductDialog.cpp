@@ -31,7 +31,7 @@ QString generateInternalSku() {
     for (int i = 0; i < 6; ++i) {
         code += alphabet.at(QRandomGenerator::global()->bounded(alphabet.length()));
     }
-    return "INT-" + code;
+    return BusinessProfile::instance()->settings().skuPrefix + "-" + code;
 }
 
 ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
@@ -57,6 +57,7 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     m_lowStockThreshold = new QSpinBox(this);
     m_lowStockThreshold->setRange(0, 999999);
     m_lowStockThreshold->setSpecialValueText(tr("Disabled"));
+    m_lowStockThreshold->setValue(BusinessProfile::instance()->settings().defaultLowStockThreshold);
 
     m_sku = new QLineEdit(this);
     m_sku->setPlaceholderText(tr("Scan or type the barcode"));

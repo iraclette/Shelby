@@ -546,5 +546,14 @@
   "Disconnect": "Отключить",
   "Sends:": "Что приходит:",
   "Stop sending alerts to %1 on Telegram?": "Перестать отправлять оповещения в Telegram (%1)?",
-  "Couldn't disconnect: ": "Не удалось отключить: "
+  "Couldn't disconnect: ": "Не удалось отключить: ",
+  "How the till takes payment, and what new products start with. Applies to every till.": "Как касса принимает оплату и с какими настройками создаются новые товары. Для всех касс.",
+  "Payment methods": "Способы оплаты",
+  "Selected first": "Выбран по умолчанию",
+  "Low stock alert for new products": "Минимальный остаток для новых товаров",
+  "Each product can still have its own; products you already have keep theirs.": "У каждого товара может быть свой. У существующих товаров ничего не меняется.",
+  "Code prefix": "Префикс кода",
+  "For products without a barcode, made here and on the website. Existing codes stay as they are.": "Для товаров без штрихкода, здесь и на сайте. Существующие коды не меняются.",
+  "New codes look like %1": "Пример нового кода: %1",
+  "The code prefix can't be empty.": "Префикс кода не может быть пустым."
 }

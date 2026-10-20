@@ -55,8 +55,14 @@ PaymentDialog::PaymentDialog(double total, QWidget *parent)
         methodGroup->addButton(button);
         methodRow->addWidget(button, 1);
     }
-    m_cashButton->setChecked(true);
     layout->addLayout(methodRow);
+    // Settings → Checkout: only the methods the business takes; with just one there's nothing to pick.
+    const BusinessSettings &business = BusinessProfile::instance()->settings();
+    const bool takesCash = business.paymentMethods.contains("cash");
+    const bool takesCard = business.paymentMethods.contains("card");
+    m_cashButton->setVisible(takesCash && takesCard);
+    m_cardButton->setVisible(takesCash && takesCard);
+    const bool startWithCard = !takesCash || (takesCard && business.defaultPaymentMethod == "card");
 
     m_cashPanel = new QWidget(this);
     auto *cashLayout = new QVBoxLayout(m_cashPanel);
@@ -126,9 +132,8 @@ PaymentDialog::PaymentDialog(double total, QWidget *parent)
     // F12 again finishes the sale, so Pay → Pay works without the mouse.
     connect(new QShortcut(Qt::Key_F12, this), &QShortcut::activated, m_confirmButton, &QPushButton::click);
 
-    updateChange();
-    m_receivedEdit->setFocus();
-    m_receivedEdit->selectAll();
+    (startWithCard ? m_cardButton : m_cashButton)->setChecked(true);
+    setCard(startWithCard);
 }
 
 double PaymentDialog::change() const {

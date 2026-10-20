@@ -19,6 +19,7 @@ class QSpinBox;
 class QVBoxLayout;
 
 // "INT-XXXXXX" code for products and variants without a barcode (same format as the website's).
+// The prefix is the business's own (Settings → Checkout).
 QString generateInternalSku();
 
 // "New product" form. Image uploads finish in the background after it closes.

@@ -2,6 +2,7 @@
 #include "BusinessProfile.h"
 #include "Config.h"
 #include "DesktopNotifier.h"
+#include "ProductDialog.h"
 #include "SessionStore.h"
 #include "SupabaseClient.h"
 #include "Theme.h"
@@ -28,6 +29,8 @@
 #include <QPainter>
 #include <QProcess>
 #include <QRandomGenerator>
+#include <QRegularExpressionValidator>
+#include <QSpinBox>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTimeZone>
@@ -78,6 +81,7 @@ SettingsPage::SettingsPage(SupabaseClient *client, QWidget *softwareSection, QWi
     connect(business, &BusinessSettingsSection::statusMessage, this, &SettingsPage::statusMessage);
     addSection(tr("Business"), business);
     addSection(tr("Modules"), new ModulesSettingsSection(client, this));
+    addSection(tr("Checkout"), new CheckoutSettingsSection(client, this));
     addSection(tr("Appearance"), new AppearanceSettingsSection(client, this));
     addSection(tr("Language"), new LanguageSettingsSection(client, this));
     addSection(tr("Notifications"), new NotificationsSettingsSection(client, this));
@@ -827,5 +831,145 @@ void NotificationsSettingsSection::disconnectLink(const QString &linkId, const Q
     m_client->writeRows("DELETE", "telegram_links", query, QJsonValue(), [this](const QString &error) {
         m_telegramStatus->setText(error.isEmpty() ? QString() : tr("Couldn't disconnect: ") + error);
         loadLinks();
+    });
+}
+
+CheckoutSettingsSection::CheckoutSettingsSection(SupabaseClient *client, QWidget *parent)
+    : QWidget(parent), m_client(client) {
+    auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(sectionHeader(
+        tr("Checkout"), tr("How the till takes payment, and what new products start with. Applies to every till."), this));
+
+    m_cash = new QCheckBox(tr("Cash"), this);
+    m_card = new QCheckBox(tr("Card"), this);
+    auto *methodsRow = new QHBoxLayout;
+    methodsRow->addWidget(m_cash);
+    methodsRow->addWidget(m_card);
+    methodsRow->addStretch();
+    m_defaultMethod = new QComboBox(this);
+    auto *defaultRow = new QHBoxLayout;
+    defaultRow->addWidget(m_defaultMethod);
+    defaultRow->addStretch();
+
+    m_lowStock = new QSpinBox(this);
+    m_lowStock->setRange(0, 999999);
+    m_lowStock->setSpecialValueText(tr("Disabled"));
+    auto *lowStockRow = new QHBoxLayout;
+    lowStockRow->addWidget(m_lowStock);
+    lowStockRow->addStretch();
+
+    m_prefix = new QLineEdit(this);
+    m_prefix->setMaxLength(6);
+    m_prefix->setFixedWidth(110);
+    m_prefix->setValidator(new QRegularExpressionValidator(QRegularExpression("[A-Za-z0-9]{1,6}"), m_prefix));
+    m_prefixPreview = new QLabel(this);
+    m_prefixPreview->setObjectName("brandSub");
+    auto *prefixRow = new QHBoxLayout;
+    prefixRow->addWidget(m_prefix);
+    prefixRow->addWidget(m_prefixPreview);
+    prefixRow->addStretch();
+
+    auto *form = new QFormLayout;
+    form->setSpacing(12);
+    form->addRow(tr("Payment methods"), methodsRow);
+    form->addRow(tr("Selected first"), defaultRow);
+    form->addRow(tr("Low stock alert for new products"), lowStockRow);
+    form->addRow("", hintLabel(tr("Each product can still have its own; products you already have keep theirs."), this));
+    form->addRow(tr("Code prefix"), prefixRow);
+    form->addRow("", hintLabel(tr("For products without a barcode, made here and on the website. Existing codes stay as "
+                                  "they are."),
+                               this));
+    layout->addLayout(form);
+
+    m_saveButton = new QPushButton(tr("Save"), this);
+    m_saveButton->setObjectName("primaryButton");
+    m_status = new QLabel(this);
+    m_status->setObjectName("brandSub");
+    m_status->setWordWrap(true);
+    auto *saveRow = new QHBoxLayout;
+    saveRow->addWidget(m_saveButton);
+    saveRow->addWidget(m_status, 1);
+    layout->addSpacing(12);
+    layout->addLayout(saveRow);
+    layout->addStretch();
+
+    // At least one method stays ticked: unticking the last one ticks the other.
+    connect(m_cash, &QCheckBox::toggled, this, [this](bool on) {
+        if (!on && !m_card->isChecked()) m_card->setChecked(true);
+        refreshDefaultMethods();
+    });
+    connect(m_card, &QCheckBox::toggled, this, [this](bool on) {
+        if (!on && !m_cash->isChecked()) m_cash->setChecked(true);
+        refreshDefaultMethods();
+    });
+    connect(m_prefix, &QLineEdit::textEdited, this, [this](const QString &text) {
+        const int cursor = m_prefix->cursorPosition();
+        m_prefix->setText(text.toUpper());
+        m_prefix->setCursorPosition(cursor);
+        refreshPrefixPreview();
+    });
+    connect(m_saveButton, &QPushButton::clicked, this, &CheckoutSettingsSection::save);
+    connect(m_client, &SupabaseClient::businessSettingsSaved, this, [this]() {
+        if (!m_saving) return;
+        m_saving = false;
+        m_saveButton->setEnabled(true);
+        m_status->setText(tr("Saved. Other tills pick it up the next time they start."));
+    });
+    connect(m_client, &SupabaseClient::businessSettingsSaveFailed, this, [this](const QString &message) {
+        if (!m_saving) return;
+        m_saving = false;
+        m_saveButton->setEnabled(true);
+        m_status->setText(tr("Couldn't save: ") + message);
+    });
+    connect(BusinessProfile::instance(), &BusinessProfile::changed, this, [this]() {
+        if (!m_saving) loadFromProfile();
+    });
+    loadFromProfile();
+}
+
+void CheckoutSettingsSection::loadFromProfile() {
+    const BusinessSettings &settings = BusinessProfile::instance()->settings();
+    m_cash->setChecked(settings.paymentMethods.contains("cash"));
+    m_card->setChecked(settings.paymentMethods.contains("card"));
+    refreshDefaultMethods();
+    m_defaultMethod->setCurrentIndex(qMax(0, m_defaultMethod->findData(settings.defaultPaymentMethod)));
+    m_lowStock->setValue(settings.defaultLowStockThreshold);
+    m_prefix->setText(settings.skuPrefix);
+    refreshPrefixPreview();
+}
+
+// "Selected first" only lists the methods that are on; with one, there's no choice to make.
+void CheckoutSettingsSection::refreshDefaultMethods() {
+    const QString current = m_defaultMethod->currentData().toString();
+    m_defaultMethod->clear();
+    if (m_cash->isChecked()) m_defaultMethod->addItem(tr("Cash"), "cash");
+    if (m_card->isChecked()) m_defaultMethod->addItem(tr("Card"), "card");
+    m_defaultMethod->setCurrentIndex(qMax(0, m_defaultMethod->findData(current)));
+    m_defaultMethod->setEnabled(m_defaultMethod->count() > 1);
+}
+
+void CheckoutSettingsSection::refreshPrefixPreview() {
+    const QString prefix = m_prefix->text().isEmpty() ? "INT" : m_prefix->text();
+    const QString sample = generateInternalSku().section('-', 1);
+    m_prefixPreview->setText(tr("New codes look like %1").arg(prefix + "-" + sample));
+}
+
+void CheckoutSettingsSection::save() {
+    if (m_prefix->text().isEmpty()) {
+        m_status->setText(tr("The code prefix can't be empty."));
+        return;
+    }
+    QJsonArray methods;
+    if (m_cash->isChecked()) methods.append("cash");
+    if (m_card->isChecked()) methods.append("card");
+    m_saving = true;
+    m_saveButton->setEnabled(false);
+    m_status->setText(tr("Saving…"));
+    m_client->updateBusinessSettings({
+        {"payment_methods", methods},
+        {"default_payment_method", m_defaultMethod->currentData().toString()},
+        {"default_low_stock_threshold", m_lowStock->value()},
+        {"sku_prefix", m_prefix->text()},
     });
 }

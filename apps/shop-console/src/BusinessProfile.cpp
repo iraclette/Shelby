@@ -37,6 +37,10 @@ BusinessProfile::BusinessProfile() {
     m_settings.currencyStyle = s.value("currencyStyle", m_settings.currencyStyle).toString();
     m_settings.timezone = s.value("timezone", m_settings.timezone).toString();
     m_settings.disabledModules = s.value("disabledModules").toStringList();
+    m_settings.paymentMethods = s.value("paymentMethods", m_settings.paymentMethods).toStringList();
+    m_settings.defaultPaymentMethod = s.value("defaultPaymentMethod", m_settings.defaultPaymentMethod).toString();
+    m_settings.defaultLowStockThreshold = s.value("defaultLowStockThreshold", 0).toInt();
+    m_settings.skuPrefix = s.value("skuPrefix", m_settings.skuPrefix).toString();
     s.endGroup();
     if (!m_settings.logoPath.isEmpty()) m_logo.load(logoCacheFile());
 }
@@ -81,6 +85,10 @@ void BusinessProfile::saveCache() const {
     s.setValue("currencyStyle", m_settings.currencyStyle);
     s.setValue("timezone", m_settings.timezone);
     s.setValue("disabledModules", m_settings.disabledModules);
+    s.setValue("paymentMethods", m_settings.paymentMethods);
+    s.setValue("defaultPaymentMethod", m_settings.defaultPaymentMethod);
+    s.setValue("defaultLowStockThreshold", m_settings.defaultLowStockThreshold);
+    s.setValue("skuPrefix", m_settings.skuPrefix);
     s.endGroup();
 }
 

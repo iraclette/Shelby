@@ -20,6 +20,11 @@ struct BusinessSettings {
     QString timezone = "Asia/Tbilisi";
     // Settings → Modules: console sections this business switched off (see kOptionalModules).
     QStringList disabledModules;
+    // Settings → Checkout.
+    QStringList paymentMethods{"cash", "card"}; // what the till offers, at least one
+    QString defaultPaymentMethod = "cash";      // selected when the payment window opens
+    int defaultLowStockThreshold = 0;           // for new products; 0 = off
+    QString skuPrefix = "INT";                  // codes for products without a barcode: INT-XXXXXX
 };
 
 // The console sections a business can switch off, in sidebar order: key, name, what it's for.

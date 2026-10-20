@@ -508,5 +508,14 @@
   "Disconnect": "გათიშვა",
   "Sends:": "რას მიიღებთ:",
   "Stop sending alerts to %1 on Telegram?": "შევწყვიტოთ შეტყობინებები Telegram-ზე (%1)?",
-  "Couldn't disconnect: ": "გათიშვა ვერ მოხერხდა: "
+  "Couldn't disconnect: ": "გათიშვა ვერ მოხერხდა: ",
+  "How the till takes payment, and what new products start with. Applies to every till.": "როგორ იღებს სალარო გადახდას და რა პარამეტრებით იქმნება ახალი პროდუქტები. ეხება ყველა სალაროს.",
+  "Payment methods": "გადახდის მეთოდები",
+  "Selected first": "ავტომატურად არჩეული",
+  "Low stock alert for new products": "მარაგის მინიმუმი ახალი პროდუქტებისთვის",
+  "Each product can still have its own; products you already have keep theirs.": "თითოეულ პროდუქტს მაინც შეიძლება ჰქონდეს საკუთარი. არსებული პროდუქტები უცვლელი რჩება.",
+  "Code prefix": "კოდის პრეფიქსი",
+  "For products without a barcode, made here and on the website. Existing codes stay as they are.": "შტრიხკოდის არმქონე პროდუქტებისთვის, აქაც და საიტზეც. არსებული კოდები უცვლელი რჩება.",
+  "New codes look like %1": "ახალი კოდის მაგალითი: %1",
+  "The code prefix can't be empty.": "კოდის პრეფიქსი ცარიელი ვერ იქნება."
 }
