@@ -10,6 +10,10 @@ class QLineEdit;
 class QLabel;
 class QPushButton;
 
+// Account roles as stored (staff, admin, owner) and as people read them, translated.
+QStringList staffRoles();
+QString roleLabel(const QString &role);
+
 class EmployeeDialog : public QDialog {
     Q_OBJECT
 

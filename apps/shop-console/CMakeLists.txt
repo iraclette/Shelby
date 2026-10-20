@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 2.2.1 LANGUAGES CXX)
+project(ShopConsole VERSION 2.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -108,6 +108,8 @@ qt_add_resources(ShopConsole "icons"
         resources/icons/stock-requests.svg
         resources/icons/eye.svg
         resources/icons/eye-off.svg
+        resources/icons/chevron-down.svg
+        resources/icons/chevron-up.svg
 )
 
 target_link_libraries(ShopConsole PRIVATE Qt6::Widgets Qt6::Network Qt6::Svg)

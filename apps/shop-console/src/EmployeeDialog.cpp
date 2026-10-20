@@ -9,6 +9,17 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+QStringList staffRoles() {
+    return {"staff", "admin", "owner"};
+}
+
+QString roleLabel(const QString &role) {
+    if (role == "staff") return QObject::tr("Cashier");
+    if (role == "admin") return QObject::tr("Admin");
+    if (role == "owner") return QObject::tr("Owner");
+    return role;
+}
+
 EmployeeDialog::EmployeeDialog(SupabaseClient *client, QVector<Shop> shops, QWidget *parent)
     : QDialog(parent), m_client(client), m_shops(std::move(shops)) {
     setWindowTitle(tr("New Employee"));
@@ -21,10 +32,10 @@ EmployeeDialog::EmployeeDialog(SupabaseClient *client, QVector<Shop> shops, QWid
     m_fullName = new QLineEdit(this);
 
     m_role = new QComboBox(this);
-    m_role->addItems({"staff", "admin", "owner"});
+    for (const QString &role : staffRoles()) m_role->addItem(roleLabel(role), role);
 
     m_shop = new QComboBox(this);
-    m_shop->addItem("(none)", QString());
+    m_shop->addItem(tr("No shop"), QString());
     for (const Shop &shop : m_shops) {
         m_shop->addItem(shop.name, shop.id);
     }
@@ -78,6 +89,6 @@ void EmployeeDialog::save() {
     m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
     m_statusLabel->setText(tr("Creating…"));
 
-    m_client->createStaffAccount(username, password, m_fullName->text().trimmed(), m_role->currentText(),
+    m_client->createStaffAccount(username, password, m_fullName->text().trimmed(), m_role->currentData().toString(),
                                   m_shop->currentData().toString());
 }

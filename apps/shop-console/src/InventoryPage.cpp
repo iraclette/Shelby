@@ -85,7 +85,7 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     m_searchInput = new QLineEdit(this);
     m_searchInput->setPlaceholderText(tr("Search name, SKU, variant…"));
     m_searchInput->setClearButtonEnabled(true);
-    m_searchInput->setMinimumWidth(260);
+    m_searchInput->setMinimumWidth(200);
     toolbar->addWidget(m_searchInput);
     connect(m_searchInput, &QLineEdit::textChanged, this, &InventoryPage::rebuildTable);
 

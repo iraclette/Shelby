@@ -36,7 +36,7 @@
 #include <QWidget>
 
 namespace {
-constexpr int kMinTileWidth = 150;
+constexpr int kMinTileWidth = 160;
 constexpr int kTileSpacing = 8;
 
 // One accent per category, cycled — the tile's top stripe, so a cashier can
@@ -522,7 +522,7 @@ void PosWindow::rebuildProductGrid() {
 
         auto *tile = new QPushButton(this);
         tile->setObjectName("productTile");
-        tile->setMinimumSize(kMinTileWidth, 96);
+        tile->setMinimumSize(kMinTileWidth, 112);
         tile->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         tile->setStyleSheet(
             QString("QPushButton#productTile { border-top: 4px solid %1; }").arg(categoryColor(product.categoryId)));
@@ -536,19 +536,19 @@ void PosWindow::rebuildProductGrid() {
         nameLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
         tileLayout->addWidget(nameLabel, 1);
 
-        auto *footer = new QHBoxLayout;
-        footer->addWidget(tileLabel(money(product.sellPrice), "tilePrice", tile));
-        footer->addStretch();
-        const int stock = stockAtShop(product);
-        QString stockText = tr("%n left", nullptr, stock);
+        // Price and stock on lines of their own: side by side they collided in Georgian and Russian.
+        auto *priceRow = new QHBoxLayout;
+        priceRow->addWidget(tileLabel(money(product.sellPrice), "tilePrice", tile));
+        priceRow->addStretch();
         if (!product.variants.isEmpty())
-            stockText = tr("%n variants · %1", nullptr, int(product.variants.size())).arg(stockText);
-        auto *stockLabel = tileLabel(stockText, "tileStock", tile);
+            priceRow->addWidget(tileLabel(tr("%n variants", nullptr, int(product.variants.size())), "tileStock", tile));
+        tileLayout->addLayout(priceRow);
+        const int stock = stockAtShop(product);
+        auto *stockLabel = tileLabel(tr("%n left", nullptr, stock), "tileStock", tile);
         if (product.lowStockThreshold > 0 && stock <= product.lowStockThreshold) {
             stockLabel->setStyleSheet(theme::css(theme::palette().warning));
         }
-        footer->addWidget(stockLabel);
-        tileLayout->addLayout(footer);
+        tileLayout->addWidget(stockLabel);
 
         connect(tile, &QPushButton::clicked, this, [this, product, tile]() {
             if (product.variants.isEmpty()) {

@@ -56,7 +56,7 @@ DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
     m_table = new QTableWidget(this);
     m_table->setColumnCount(5);
     m_table->setHorizontalHeaderLabels({tr("Time"), tr("Shop"), tr("Staff"), tr("Items"), tr("Total")});
-    m_table->horizontalHeader()->setStretchLastSection(false);
+    m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);

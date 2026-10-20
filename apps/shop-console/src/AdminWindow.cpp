@@ -7,6 +7,7 @@
 #include "CustomOrdersPage.h"
 #include "DailySummaryPage.h"
 #include "DesktopNotifier.h"
+#include "EmployeeDialog.h"
 #include "EmployeesPage.h"
 #include "InventoryPage.h"
 #include "MessagesPage.h"
@@ -20,6 +21,7 @@
 #include "SupabaseClient.h"
 #include "UpdateChecker.h"
 
+#include <QApplication>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QIcon>
@@ -80,19 +82,29 @@ public:
             return;
         }
 
-        QStyledItemDelegate::paint(painter, option, index);
-
         const int badge = index.data(kBadgeRole).toInt();
+        QFont badgeFont = option.font;
+        badgeFont.setPixelSize(11);
+        badgeFont.setWeight(QFont::Bold);
+        const QString text = badge > 99 ? "99+" : QString::number(badge);
+        const int width = qMax(20, QFontMetrics(badgeFont).horizontalAdvance(text) + 12);
+        const QRect pill(option.rect.right() - 16 - width, option.rect.center().y() - 9, width, 18);
+
+        // A label too long for the row (Georgian, Russian) ends in "…" before the badge
+        // instead of running under it; the tooltip has the whole name.
+        QStyleOptionViewItem opt(option);
+        initStyleOption(&opt, index);
+        const QWidget *view = opt.widget;
+        QStyle *style = view ? view->style() : QApplication::style();
+        const QRect textRect = style->subElementRect(QStyle::SE_ItemViewItemText, &opt, view);
+        const int textRight = badge > 0 ? pill.left() - 6 : textRect.right();
+        opt.text = opt.fontMetrics.elidedText(opt.text, Qt::ElideRight, qMax(0, textRight - textRect.left()));
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, view);
+
         if (badge <= 0) return;
         painter->save();
         painter->setRenderHint(QPainter::Antialiasing);
-        QFont font = option.font;
-        font.setPixelSize(11);
-        font.setWeight(QFont::Bold);
-        painter->setFont(font);
-        const QString text = badge > 99 ? "99+" : QString::number(badge);
-        const int width = qMax(20, painter->fontMetrics().horizontalAdvance(text) + 12);
-        const QRect pill(option.rect.right() - 16 - width, option.rect.center().y() - 9, width, 18);
+        painter->setFont(badgeFont);
         const bool selected = option.state & QStyle::State_Selected;
         painter->setPen(Qt::NoPen);
         painter->setBrush((selected ? theme::palette().onAccent : theme::palette().accent));
@@ -154,7 +166,7 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     // --- Sidebar: brand, grouped sections, signed-in user ---
     auto *sidebarPanel = new QWidget(this);
     sidebarPanel->setObjectName("sidebarPanel");
-    sidebarPanel->setFixedWidth(220);
+    sidebarPanel->setFixedWidth(232);
     auto *sidebarLayout = new QVBoxLayout(sidebarPanel);
     sidebarLayout->setContentsMargins(0, 0, 0, 0);
     sidebarLayout->setSpacing(0);
@@ -223,7 +235,7 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     userText->setSpacing(0);
     auto *userName = new QLabel(displayName, footer);
     userName->setObjectName("userName");
-    QString roleText = profile.role.isEmpty() ? QString() : profile.role.front().toUpper() + profile.role.mid(1);
+    QString roleText = roleLabel(profile.role);
     if (profile.isDev) roleText += " · Dev";
     auto *userRole = new QLabel(roleText, footer);
     userRole->setObjectName("brandSub");
@@ -250,6 +262,7 @@ AdminWindow::AdminWindow(SupabaseClient *client, UpdateChecker *updateChecker, c
     };
     auto addSection = [&](const QString &icon, const QString &label, QWidget *page) {
         auto *item = new QListWidgetItem(QIcon(":/icons/" + icon + ".svg"), label);
+        item->setToolTip(label);
         item->setData(kPageRole, pages->count());
         sidebar->addItem(item);
         if (!groups.isEmpty()) groups.last().second.append(item);

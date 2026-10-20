@@ -182,6 +182,8 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
         count->setAttribute(Qt::WA_TransparentForMouseEvents);
         rowLayout->addWidget(text, 1);
         rowLayout->addWidget(count);
+        // Same for the width: room for the whole label (Georgian and Russian ones run long).
+        row->setMinimumWidth(rowLayout->sizeHint().width());
         attentionCard->addWidget(row);
         connect(row, &QPushButton::clicked, this, [this, section]() { emit openSection(section); });
     };
@@ -194,6 +196,8 @@ OverviewPage::OverviewPage(SupabaseClient *client, const QString &userName, QWid
 
     QVBoxLayout *lowStockCard = addCard(content, grid, 2, 0, tr("Low stock"), 1, 2);
     m_lowStockTable = makeTable({tr("Product"), tr("Shop"), tr("In stock"), tr("Alert at")}, content);
+    // Product and shop share the room, so a long shop name can't squeeze the product to nothing.
+    m_lowStockTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     lowStockCard->addWidget(m_lowStockTable);
 
     QVBoxLayout *topCard = addCard(content, grid, 2, 2, tr("Best sellers — last 7 days"), 1, 2);

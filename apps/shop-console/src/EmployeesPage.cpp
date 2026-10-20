@@ -2,6 +2,7 @@
 #include "EmployeeDialog.h"
 #include "SupabaseClient.h"
 
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QMessageBox>
@@ -9,10 +10,6 @@
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QVBoxLayout>
-
-namespace {
-const QStringList kValidRoles{"owner", "admin", "staff"};
-}
 
 EmployeesPage::EmployeesPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
@@ -37,7 +34,7 @@ EmployeesPage::EmployeesPage(SupabaseClient *client, QWidget *parent)
     m_table = new QTableWidget(this);
     m_table->setColumnCount(4);
     m_table->setHorizontalHeaderLabels({tr("Name"), tr("Email"), tr("Role"), tr("Shop")});
-    m_table->horizontalHeader()->setStretchLastSection(false);
+    m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -50,6 +47,7 @@ EmployeesPage::EmployeesPage(SupabaseClient *client, QWidget *parent)
 
     connect(m_client, &SupabaseClient::shopsFetched, this, [this](const QVector<Shop> &shops) {
         m_shops = shops;
+        rebuildTable();
     });
     m_client->fetchShops();
 
@@ -95,16 +93,37 @@ void EmployeesPage::rebuildTable() {
         emailItem->setFlags(emailItem->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(row, kColEmail, emailItem);
 
-        m_table->setItem(row, kColRole, new QTableWidgetItem(profile.role));
+        // Role and shop are picked from a list, in the console's language, not typed in.
+        auto *roleCombo = new QComboBox(m_table);
+        for (const QString &role : staffRoles()) roleCombo->addItem(roleLabel(role), role);
+        if (roleCombo->findData(profile.role) < 0) roleCombo->addItem(profile.role, profile.role);
+        roleCombo->setCurrentIndex(roleCombo->findData(profile.role));
+        connect(roleCombo, &QComboBox::activated, this, [this, profile, roleCombo]() {
+            const QString role = roleCombo->currentData().toString();
+            if (role == profile.role) return;
+            m_client->updateProfileField(profile.id, "role", role);
+            m_client->logAuditEvent("staff_updated", "profile", profile.id,
+                                    QString("%1 role: %2 -> %3").arg(profile.fullName, profile.role, role));
+        });
+        m_table->setCellWidget(row, kColRole, roleCombo);
+        // The column fits the longest role, not just the one showing (cell widgets aren't measured).
+        m_table->horizontalHeader()->setSectionResizeMode(kColRole, QHeaderView::Fixed);
+        m_table->setColumnWidth(kColRole, roleCombo->sizeHint().width() + 20);
 
-        QString shopName;
-        for (const Shop &shop : m_shops) {
-            if (shop.id == profile.shopId) {
-                shopName = shop.name;
-                break;
-            }
-        }
-        m_table->setItem(row, kColShop, new QTableWidgetItem(shopName));
+        auto *shopCombo = new QComboBox(m_table);
+        shopCombo->addItem(tr("No shop"), QString());
+        for (const Shop &shop : m_shops) shopCombo->addItem(shop.name, shop.id);
+        shopCombo->setCurrentIndex(qMax(0, shopCombo->findData(profile.shopId)));
+        connect(shopCombo, &QComboBox::activated, this, [this, profile, shopCombo]() {
+            const QString shopId = shopCombo->currentData().toString();
+            if (shopId == profile.shopId) return;
+            m_client->updateProfileField(profile.id, "shop_id",
+                                         shopId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(shopId));
+            m_client->logAuditEvent("staff_updated", "profile", profile.id,
+                                    shopId.isEmpty() ? QString("%1 shop: unassigned").arg(profile.fullName)
+                                                     : QString("%1 shop: %2").arg(profile.fullName, shopCombo->currentText()));
+        });
+        m_table->setCellWidget(row, kColShop, shopCombo);
     }
 
     m_populating = false;
@@ -121,43 +140,7 @@ void EmployeesPage::handleItemChanged(QTableWidgetItem *item) {
     if (profileId.isEmpty()) return;
 
     const QString text = item->text().trimmed();
-    const Profile &profile = m_profiles[row];
-
-    if (col == kColName) {
-        m_client->updateProfileField(profileId, "full_name", text);
-    } else if (col == kColRole) {
-        const QString role = text.toLower();
-        if (!kValidRoles.contains(role)) {
-            emit statusMessage(tr("Invalid role — must be owner, admin, or staff."));
-            m_client->fetchProfiles();
-            return;
-        }
-        m_client->updateProfileField(profileId, "role", role);
-        m_client->logAuditEvent("staff_updated", "profile", profileId,
-                                 QString("%1 role: %2 -> %3").arg(profile.fullName, profile.role, role));
-    } else if (col == kColShop) {
-        if (text.isEmpty()) {
-            m_client->updateProfileField(profileId, "shop_id", QJsonValue(QJsonValue::Null));
-            m_client->logAuditEvent("staff_updated", "profile", profileId,
-                                     QString("%1 shop: unassigned").arg(profile.fullName));
-            return;
-        }
-        QString shopId;
-        for (const Shop &shop : m_shops) {
-            if (shop.name.compare(text, Qt::CaseInsensitive) == 0) {
-                shopId = shop.id;
-                break;
-            }
-        }
-        if (shopId.isEmpty()) {
-            emit statusMessage(tr("Unknown shop — leave blank for none, or type an existing shop's name."));
-            m_client->fetchProfiles();
-            return;
-        }
-        m_client->updateProfileField(profileId, "shop_id", shopId);
-        m_client->logAuditEvent("staff_updated", "profile", profileId,
-                                 QString("%1 shop: %2").arg(profile.fullName, text));
-    }
+    if (col == kColName) m_client->updateProfileField(profileId, "full_name", text);
 }
 
 void EmployeesPage::removeSelected() {

@@ -2,6 +2,7 @@
 #include "ShopTime.h"
 #include "SupabaseClient.h"
 
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QPushButton>
@@ -10,8 +11,13 @@
 #include <QVBoxLayout>
 
 namespace {
-const QStringList kValidStatuses{"new", "reviewed", "quoted", "in_progress", "completed", "cancelled"};
+// Stored value and how it reads, in the order a request moves through them.
+QList<QPair<QString, QString>> statuses() {
+    return {{"new", QObject::tr("New")},           {"reviewed", QObject::tr("Reviewed")},
+            {"quoted", QObject::tr("Quoted")},     {"in_progress", QObject::tr("In progress")},
+            {"completed", QObject::tr("Completed")}, {"cancelled", QObject::tr("Cancelled")}};
 }
+} // namespace
 
 CustomOrdersPage::CustomOrdersPage(SupabaseClient *client, QWidget *parent)
     : QWidget(parent), m_client(client) {
@@ -25,11 +31,12 @@ CustomOrdersPage::CustomOrdersPage(SupabaseClient *client, QWidget *parent)
     m_table = new QTableWidget(this);
     m_table->setColumnCount(6);
     m_table->setHorizontalHeaderLabels({tr("Received"), tr("Customer"), tr("Contact"), tr("Preferred shop"), tr("Description"), tr("Status")});
-    m_table->horizontalHeader()->setStretchLastSection(true);
-    m_table->horizontalHeader()->setSectionResizeMode(kColCreated, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(kColCustomer, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(kColShop, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(kColStatus, QHeaderView::ResizeToContents);
+    // Contact and description share whatever room is left; the rest fit their contents.
+    m_table->horizontalHeader()->setStretchLastSection(false);
+    m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(kColContact, QHeaderView::Stretch);
+    m_table->horizontalHeader()->setSectionResizeMode(kColDescription, QHeaderView::Stretch);
+    m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setAlternatingRowColors(true);
     m_table->setWordWrap(true);
@@ -37,8 +44,6 @@ CustomOrdersPage::CustomOrdersPage(SupabaseClient *client, QWidget *parent)
     auto *layout = new QVBoxLayout(this);
     layout->addLayout(toolbar);
     layout->addWidget(m_table);
-
-    connect(m_table, &QTableWidget::itemChanged, this, &CustomOrdersPage::handleItemChanged);
 
     connect(m_client, &SupabaseClient::shopsFetched, this, [this](const QVector<Shop> &shops) {
         m_shops = shops;
@@ -65,7 +70,6 @@ CustomOrdersPage::CustomOrdersPage(SupabaseClient *client, QWidget *parent)
 }
 
 void CustomOrdersPage::rebuildTable() {
-    m_populating = true;
 
     m_table->setRowCount(m_orders.size());
     for (int row = 0; row < m_orders.size(); ++row) {
@@ -87,6 +91,7 @@ void CustomOrdersPage::rebuildTable() {
         const QString contact = contactParts.join(" / ");
         auto *contactItem = new QTableWidgetItem(contact);
         contactItem->setFlags(contactItem->flags() & ~Qt::ItemIsEditable);
+        contactItem->setToolTip(contact);
         m_table->setItem(row, kColContact, contactItem);
 
         QString shopName;
@@ -102,29 +107,22 @@ void CustomOrdersPage::rebuildTable() {
 
         auto *descriptionItem = new QTableWidgetItem(order.itemDescription);
         descriptionItem->setFlags(descriptionItem->flags() & ~Qt::ItemIsEditable);
+        descriptionItem->setToolTip(order.itemDescription);
         m_table->setItem(row, kColDescription, descriptionItem);
 
-        m_table->setItem(row, kColStatus, new QTableWidgetItem(order.status));
+        auto *statusCombo = new QComboBox(m_table);
+        for (const auto &[key, label] : statuses()) statusCombo->addItem(label, key);
+        if (statusCombo->findData(order.status) < 0) statusCombo->addItem(order.status, order.status);
+        statusCombo->setCurrentIndex(statusCombo->findData(order.status));
+        connect(statusCombo, &QComboBox::activated, this, [this, id = order.id, current = order.status, statusCombo]() {
+            const QString status = statusCombo->currentData().toString();
+            if (status != current) m_client->updateCustomLeatherOrderField(id, "status", status);
+        });
+        m_table->setCellWidget(row, kColStatus, statusCombo);
+        // The column fits the longest status, not just the one showing (cell widgets aren't measured).
+        m_table->horizontalHeader()->setSectionResizeMode(kColStatus, QHeaderView::Fixed);
+        m_table->setColumnWidth(kColStatus, statusCombo->sizeHint().width() + 20);
     }
 
-    m_populating = false;
     emit statusMessage(tr("%n custom order requests.", nullptr, int(m_orders.size())));
-}
-
-void CustomOrdersPage::handleItemChanged(QTableWidgetItem *item) {
-    if (m_populating || item->column() != kColStatus) return;
-
-    const int row = item->row();
-    const QTableWidgetItem *idItem = m_table->item(row, kColCreated);
-    const QString orderId = idItem ? idItem->data(Qt::UserRole).toString() : QString();
-    if (orderId.isEmpty()) return;
-
-    const QString status = item->text().trimmed().toLower();
-    if (!kValidStatuses.contains(status)) {
-        emit statusMessage(tr("Invalid status — must be one of: ") + kValidStatuses.join(", "));
-        m_client->fetchCustomLeatherOrders();
-        return;
-    }
-
-    m_client->updateCustomLeatherOrderField(orderId, "status", status);
 }

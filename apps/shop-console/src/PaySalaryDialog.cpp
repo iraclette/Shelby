@@ -7,6 +7,8 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QLabel>
+#include <QLocale>
+#include <QDate>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -21,7 +23,11 @@ PaySalaryDialog::PaySalaryDialog(SupabaseClient *client, QString staffId, QStrin
 
     auto *layout = new QVBoxLayout(this);
     layout->addWidget(new QLabel(
-        tr("<b>%1</b><br>Period: %2 – %3").arg(employeeName, m_periodStartIso, m_periodEndIso), this));
+        tr("<b>%1</b><br>Period: %2 – %3")
+            .arg(employeeName,
+                 QLocale().toString(QDate::fromString(m_periodStartIso, Qt::ISODate), "d MMMM yyyy"),
+                 QLocale().toString(QDate::fromString(m_periodEndIso, Qt::ISODate), "d MMMM yyyy")),
+        this));
 
     m_amountSpin = new QDoubleSpinBox(this);
     m_amountSpin->setRange(0, 1000000);

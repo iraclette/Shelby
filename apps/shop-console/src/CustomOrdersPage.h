@@ -20,14 +20,12 @@ signals:
 
 private:
     void rebuildTable();
-    void handleItemChanged(QTableWidgetItem *item);
 
     SupabaseClient *m_client;
     QTableWidget *m_table;
 
     QVector<CustomLeatherOrder> m_orders;
     QVector<Shop> m_shops;
-    bool m_populating = false;
 
     static constexpr int kColCreated = 0;
     static constexpr int kColCustomer = 1;

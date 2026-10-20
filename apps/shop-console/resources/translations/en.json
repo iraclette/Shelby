@@ -74,5 +74,9 @@
   "%n new paid online orders": {
     "one": "%n new paid online order",
     "other": "%n new paid online orders"
+  },
+  "%n variants": {
+    "one": "%n variant",
+    "other": "%n variants"
   }
 }

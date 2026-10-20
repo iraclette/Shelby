@@ -30,8 +30,8 @@ CheckoutPage::CheckoutPage(SupabaseClient *client, QWidget *parent)
     m_recordCheck = new QCheckBox(tr("Record real sales"), this);
     barLayout->addWidget(m_recordCheck);
     m_modeLabel = new QLabel(this);
-    barLayout->addWidget(m_modeLabel);
-    barLayout->addStretch();
+    m_modeLabel->setWordWrap(true); // wraps instead of making the whole window wider
+    barLayout->addWidget(m_modeLabel, 1);
     auto *returnsButton = new QPushButton(tr("Returns  F7"), this);
     barLayout->addWidget(returnsButton);
     layout->addWidget(bar);

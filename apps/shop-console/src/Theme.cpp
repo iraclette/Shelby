@@ -47,9 +47,59 @@ QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleS
     border: 1px solid @accent;
 }
 
+QComboBox {
+    padding-right: 26px;
+}
+
 QComboBox::drop-down {
     border: none;
-    width: 20px;
+    width: 24px;
+}
+
+/* Without an arrow a combo box reads as a text field. One grey arrow works on every theme. */
+QComboBox::down-arrow {
+    image: url(:/icons/chevron-down.svg);
+    width: 12px;
+    height: 12px;
+}
+
+QSpinBox, QDoubleSpinBox {
+    padding-right: 24px;
+}
+
+QSpinBox::up-button, QDoubleSpinBox::up-button,
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: border;
+    width: 22px;
+    border: none;
+    background: transparent;
+}
+
+QSpinBox::up-button, QDoubleSpinBox::up-button {
+    subcontrol-position: top right;
+    border-top-right-radius: 6px;
+}
+
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    subcontrol-position: bottom right;
+    border-bottom-right-radius: 6px;
+}
+
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
+    background-color: @control;
+}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+    image: url(:/icons/chevron-up.svg);
+    width: 10px;
+    height: 10px;
+}
+
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    image: url(:/icons/chevron-down.svg);
+    width: 10px;
+    height: 10px;
 }
 
 QComboBox QAbstractItemView {
@@ -278,6 +328,19 @@ QTableView QLineEdit, QTableView QSpinBox, QTableView QDoubleSpinBox, QTableView
     padding: 0 5px;
     min-height: 0;
     margin: 0;
+}
+
+/* Pickers that live in a table cell (status, role, shop): quiet until hovered. */
+QTableView QComboBox {
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background-color: transparent;
+    padding: 0 24px 0 5px;
+}
+
+QTableView QComboBox:hover, QTableView QComboBox:focus {
+    border: 1px solid @border;
+    background-color: @surface;
 }
 
 QHeaderView::section {

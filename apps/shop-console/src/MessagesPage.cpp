@@ -1,4 +1,5 @@
 #include "MessagesPage.h"
+#include "Theme.h"
 #include "ShopTime.h"
 #include "SupabaseClient.h"
 
@@ -28,10 +29,10 @@ MessagesPage::MessagesPage(SupabaseClient *client, QWidget *parent)
     m_table = new QTableWidget(this);
     m_table->setColumnCount(5);
     m_table->setHorizontalHeaderLabels({tr("Received"), tr("Name"), tr("Phone / email"), tr("Message"), tr("Status")});
-    m_table->horizontalHeader()->setStretchLastSection(true);
-    m_table->horizontalHeader()->setSectionResizeMode(kColCreated, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(kColName, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(kColStatus, QHeaderView::ResizeToContents);
+    // The message gets whatever room is left; the rest fit their contents.
+    m_table->horizontalHeader()->setStretchLastSection(false);
+    m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(kColMessage, QHeaderView::Stretch);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setAlternatingRowColors(true);
@@ -80,7 +81,10 @@ void MessagesPage::rebuildTable() {
         messageItem->setFlags(messageItem->flags() & ~Qt::ItemIsEditable);
         m_table->setItem(row, kColMessage, messageItem);
 
-        m_table->setItem(row, kColStatus, new QTableWidgetItem(message.status));
+        const bool unread = message.status == "unread";
+        auto *statusItem = new QTableWidgetItem(unread ? tr("Unread") : tr("Read"));
+        if (unread) statusItem->setForeground(theme::palette().accent);
+        m_table->setItem(row, kColStatus, statusItem);
     }
 
     const int unread = std::count_if(m_messages.begin(), m_messages.end(),

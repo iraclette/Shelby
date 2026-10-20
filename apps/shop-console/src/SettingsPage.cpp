@@ -29,6 +29,7 @@
 #include <QPainter>
 #include <QProcess>
 #include <QRandomGenerator>
+#include <QScrollArea>
 #include <QRegularExpressionValidator>
 #include <QSpinBox>
 #include <QPushButton>
@@ -42,6 +43,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <type_traits>
 
 namespace {
 // Common currencies and their symbols; anything else can be typed in.
@@ -75,9 +77,20 @@ SettingsPage::SettingsPage(SupabaseClient *client, QWidget *softwareSection, QWi
     sections->setFocusPolicy(Qt::NoFocus);
     auto *stack = new QStackedWidget(this);
 
+    // Each section scrolls on its own (short screens) and stops at a readable width on wide ones.
     auto addSection = [&](const QString &name, QWidget *widget) {
         sections->addItem(name);
-        stack->addWidget(widget);
+        widget->setMaximumWidth(760);
+        auto *holder = new QWidget;
+        auto *holderLayout = new QHBoxLayout(holder);
+        holderLayout->setContentsMargins(0, 0, 0, 0);
+        holderLayout->addWidget(widget, 1);
+        holderLayout->addStretch(0);
+        auto *scroll = new QScrollArea(stack);
+        scroll->setWidget(holder);
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        stack->addWidget(scroll);
     };
 
     auto *business = new BusinessSettingsSection(client, this);
@@ -94,7 +107,7 @@ SettingsPage::SettingsPage(SupabaseClient *client, QWidget *softwareSection, QWi
     sections->setCurrentRow(0);
 
     auto *layout = new QHBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setContentsMargins(0, 12, 12, 12);
     layout->setSpacing(24);
     layout->addWidget(sections);
     layout->addWidget(stack, 1);
@@ -862,6 +875,7 @@ CheckoutSettingsSection::CheckoutSettingsSection(SupabaseClient *client, QWidget
     m_lowStock = new QSpinBox(this);
     m_lowStock->setRange(0, 999999);
     m_lowStock->setSpecialValueText(tr("Disabled"));
+    m_lowStock->setMinimumWidth(140);
     auto *lowStockRow = new QHBoxLayout;
     lowStockRow->addWidget(m_lowStock);
     lowStockRow->addStretch();
@@ -881,16 +895,26 @@ CheckoutSettingsSection::CheckoutSettingsSection(SupabaseClient *client, QWidget
     form->setSpacing(12);
     form->addRow(tr("Payment methods"), methodsRow);
     form->addRow(tr("Selected first"), defaultRow);
-    form->addRow(tr("Quick cash buttons"), m_quickCash);
-    form->addRow("", hintLabel(tr("The amounts the cash payment window offers as one-tap buttons, separated by commas. "
-                                  "Up to 11; leave it empty for none."),
-                               this));
-    form->addRow(tr("Low stock alert for new products"), lowStockRow);
-    form->addRow("", hintLabel(tr("Each product can still have its own; products you already have keep theirs."), this));
-    form->addRow(tr("Code prefix"), prefixRow);
-    form->addRow("", hintLabel(tr("For products without a barcode, made here and on the website. Existing codes stay as "
-                                  "they are."),
-                               this));
+    // A field with its explanation under it, as one form row (a hint in a row of its own left big gaps).
+    // In a widget of its own: QFormLayout mis-measures wrapped text inside a nested layout.
+    auto withHint = [this](auto *field, const QString &hint) {
+        auto *holder = new QWidget(this);
+        auto *box = new QVBoxLayout(holder);
+        box->setContentsMargins(0, 0, 0, 0);
+        box->setSpacing(4);
+        if constexpr (std::is_base_of_v<QLayout, std::remove_pointer_t<decltype(field)>>) box->addLayout(field);
+        else box->addWidget(field);
+        box->addWidget(hintLabel(hint, holder));
+        return holder;
+    };
+    form->addRow(tr("Quick cash buttons"),
+                 withHint(m_quickCash, tr("The amounts the cash payment window offers as one-tap buttons, separated by "
+                                          "commas. Up to 11; leave it empty for none.")));
+    form->addRow(tr("Low stock alert for new products"),
+                 withHint(lowStockRow, tr("Each product can still have its own; products you already have keep theirs.")));
+    form->addRow(tr("Code prefix"),
+                 withHint(prefixRow, tr("For products without a barcode, made here and on the website. Existing codes "
+                                        "stay as they are.")));
     layout->addLayout(form);
 
     m_saveButton = new QPushButton(tr("Save"), this);

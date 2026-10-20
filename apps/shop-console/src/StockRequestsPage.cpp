@@ -14,9 +14,9 @@
 
 namespace {
 QString statusLabel(const QString &status) {
-    if (status == "new") return "New";
-    if (status == "contacted") return "Contacted";
-    if (status == "dismissed") return "Dismissed";
+    if (status == "new") return QObject::tr("New");
+    if (status == "contacted") return QObject::tr("Contacted");
+    if (status == "dismissed") return QObject::tr("Dismissed");
     return status;
 }
 

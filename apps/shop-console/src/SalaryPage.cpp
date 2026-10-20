@@ -50,7 +50,7 @@ SalaryPage::SalaryPage(SupabaseClient *client, QWidget *parent)
     m_table->setColumnCount(11);
     m_table->setHorizontalHeaderLabels({tr("Employee"), tr("Shop"), tr("Daily rate"), tr("Bonus threshold"), tr("Bonus amount"),
                                          tr("Days worked"), tr("Bonus days"), tr("Earned"), tr("Paid"), tr("Balance"), ""});
-    m_table->horizontalHeader()->setStretchLastSection(false);
+    m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_table->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -113,7 +113,10 @@ void SalaryPage::changeMonth(int delta) {
 }
 
 void SalaryPage::reload() {
-    m_periodLabel->setText(QLocale().toString(m_periodStart, "LLLL yyyy"));
+    // The month on its own ("October", Russian "Октябрь"); Qt date formats have no stand-alone month.
+    QString month = QLocale().standaloneMonthName(m_periodStart.month());
+    if (!month.isEmpty()) month[0] = month[0].toUpper();
+    m_periodLabel->setText(QString("%1 %2").arg(month).arg(m_periodStart.year()));
 
     const QString startIso = m_periodStart.toString(Qt::ISODate);
     const QString endInclusiveIso = m_periodStart.addMonths(1).addDays(-1).toString(Qt::ISODate);
