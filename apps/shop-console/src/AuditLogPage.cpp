@@ -17,6 +17,7 @@ QString categoryForEntityType(const QString &entityType) {
     if (entityType == "product") return "Product";
     if (entityType == "profile") return "Staff";
     if (entityType == "inventory_levels") return "Inventory";
+    if (entityType == "sale" || entityType == "return") return "Sales"; // written by DB triggers (0030)
     return "Other";
 }
 
@@ -26,6 +27,8 @@ QString prettyAction(const QString &action) {
     if (action == "staff_updated") return "Staff updated";
     if (action == "staff_created") return "Staff created";
     if (action == "staff_deleted") return "Staff removed";
+    if (action == "sale_discounted") return "Discount given";
+    if (action == "refund") return "Refund";
     return action;
 }
 } // namespace
@@ -38,7 +41,7 @@ AuditLogPage::AuditLogPage(SupabaseClient *client, QWidget *parent)
     toolbar->addSpacing(16);
     toolbar->addWidget(new QLabel("Show:", this));
     m_categoryFilter = new QComboBox(this);
-    m_categoryFilter->addItems({"All", "Product", "Staff", "Inventory", "Stock transfer"});
+    m_categoryFilter->addItems({"All", "Sales", "Product", "Staff", "Inventory", "Stock transfer"});
     toolbar->addWidget(m_categoryFilter);
     toolbar->addStretch();
 
