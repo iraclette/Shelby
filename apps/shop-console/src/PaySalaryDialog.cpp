@@ -1,4 +1,5 @@
 #include "PaySalaryDialog.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 #include "SupabaseClient.h"
 
@@ -38,7 +39,7 @@ PaySalaryDialog::PaySalaryDialog(SupabaseClient *client, QString staffId, QStrin
     layout->addLayout(form);
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet("color: #dc2626;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().danger));
     m_statusLabel->setWordWrap(true);
     layout->addWidget(m_statusLabel);
     layout->addStretch();

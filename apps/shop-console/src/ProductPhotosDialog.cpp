@@ -1,4 +1,5 @@
 #include "ProductPhotosDialog.h"
+#include "Theme.h"
 
 #include "Config.h"
 
@@ -38,7 +39,7 @@ ProductPhotosDialog::ProductPhotosDialog(SupabaseClient *client, QString product
     buttonRow->addWidget(closeButton);
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet("color: #dc2626;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().danger));
     m_statusLabel->setWordWrap(true);
 
     auto *layout = new QVBoxLayout(this);

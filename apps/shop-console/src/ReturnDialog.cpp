@@ -1,4 +1,5 @@
 #include "ReturnDialog.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 #include "ShopTime.h"
 #include "SupabaseClient.h"
@@ -102,7 +103,7 @@ void ReturnDialog::showItemPicker() {
     m_itemsLayout->addWidget(m_reasonInput);
 
     m_statusLabel = new QLabel;
-    m_statusLabel->setStyleSheet("color: #dc2626;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().danger));
     m_statusLabel->setWordWrap(true);
     m_itemsLayout->addWidget(m_statusLabel);
 
@@ -138,7 +139,7 @@ void ReturnDialog::submit() {
     }
 
     m_submitButton->setEnabled(false);
-    m_statusLabel->setStyleSheet("color: #737373;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
     m_statusLabel->setText("Processing…");
     m_client->submitReturn(m_shopId, sale.id, m_reasonInput->text().trimmed(), items);
 }

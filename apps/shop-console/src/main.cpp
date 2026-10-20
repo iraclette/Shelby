@@ -13,8 +13,9 @@
 #include <QMessageBox>
 
 int main(int argc, char *argv[]) {
+    theme::applyScaleBeforeStartup(); // Settings → Appearance → interface size
     QApplication app(argc, argv);
-    app.setStyleSheet(kAppStyleSheet);
+    theme::apply();
 
     // Started early so it overlaps with typing the login.
     auto *updateChecker = new UpdateChecker(&app);

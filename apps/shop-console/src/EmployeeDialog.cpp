@@ -1,4 +1,5 @@
 #include "EmployeeDialog.h"
+#include "Theme.h"
 
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -36,7 +37,7 @@ EmployeeDialog::EmployeeDialog(SupabaseClient *client, QVector<Shop> shops, QWid
     form->addRow("Shop", m_shop);
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet("color: #dc2626;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().danger));
     m_statusLabel->setWordWrap(true);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
@@ -74,7 +75,7 @@ void EmployeeDialog::save() {
     }
 
     m_saveButton->setEnabled(false);
-    m_statusLabel->setStyleSheet("color: #737373;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
     m_statusLabel->setText("Creating…");
 
     m_client->createStaffAccount(username, password, m_fullName->text().trimmed(), m_role->currentText(),

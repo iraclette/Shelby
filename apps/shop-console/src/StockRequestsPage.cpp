@@ -1,4 +1,5 @@
 #include "StockRequestsPage.h"
+#include "Theme.h"
 #include "ShopTime.h"
 
 #include <QComboBox>
@@ -20,9 +21,9 @@ QString statusLabel(const QString &status) {
 }
 
 QColor statusColor(const QString &status) {
-    if (status == "new") return QColor("#4f8cff");
-    if (status == "contacted") return QColor("#22c55e");
-    return QColor("#6b7280");
+    if (status == "new") return theme::palette().accent;
+    if (status == "contacted") return theme::palette().success;
+    return theme::palette().textDisabled;
 }
 } // namespace
 

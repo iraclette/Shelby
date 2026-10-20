@@ -1,4 +1,5 @@
 #include "CheckoutPage.h"
+#include "Theme.h"
 #include "PosWindow.h"
 #include "ReturnDialog.h"
 #include "SupabaseClient.h"
@@ -43,7 +44,8 @@ CheckoutPage::CheckoutPage(SupabaseClient *client, QWidget *parent)
         const bool practice = !m_recordCheck->isChecked();
         m_modeLabel->setText(practice ? "Practice mode — sales aren't saved and stock isn't touched."
                                       : "Live — sales are recorded and stock goes down.");
-        m_modeLabel->setStyleSheet(practice ? "color: #a855f7;" : "color: #f59e0b; font-weight: 600;");
+        m_modeLabel->setStyleSheet(practice ? theme::css(theme::palette().info)
+                                             : theme::css(theme::palette().warning) + " font-weight: 600;");
         if (m_register) m_register->setPracticeMode(practice);
     };
     updateModeLabel();

@@ -1,4 +1,5 @@
 #include "DailySummaryPage.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 #include "ShopTime.h"
 #include "SupabaseClient.h"
@@ -39,7 +40,7 @@ DailySummaryPage::DailySummaryPage(SupabaseClient *client, QWidget *parent)
     toolbar->addWidget(refreshButton);
     toolbar->addStretch();
     m_statsLabel = new QLabel(this);
-    m_statsLabel->setStyleSheet("color: #9aa0ac;");
+    m_statsLabel->setObjectName("hint");
     toolbar->addWidget(m_statsLabel);
 
     connect(prevButton, &QPushButton::clicked, this, [this]() { changeDay(-1); });

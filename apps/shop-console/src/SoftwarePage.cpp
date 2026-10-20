@@ -1,4 +1,5 @@
 #include "SoftwarePage.h"
+#include "Theme.h"
 #include "UpdateChecker.h"
 
 #include <QGroupBox>
@@ -42,7 +43,7 @@ SoftwarePage::SoftwarePage(UpdateChecker *updateChecker, QWidget *parent)
     connect(m_checkButton, &QPushButton::clicked, this, [this]() {
         m_checkButton->setEnabled(false);
         m_checkButton->setText("Checking…");
-        m_statusLabel->setStyleSheet("color: #9aa0ac;");
+        m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
         m_statusLabel->setText("Checking for updates…");
         m_updateChecker->checkForUpdate();
     });
@@ -54,7 +55,7 @@ SoftwarePage::SoftwarePage(UpdateChecker *updateChecker, QWidget *parent)
     connect(m_updateChecker, &UpdateChecker::installFailed, this, [this](const QString &message) {
         m_updateButton->setEnabled(true);
         m_updateButton->setText("Update now");
-        m_statusLabel->setStyleSheet("color: #dc2626;");
+        m_statusLabel->setStyleSheet(theme::css(theme::palette().danger));
         m_statusLabel->setText("Update failed: " + message.toHtmlEscaped());
     });
     connect(m_updateChecker, &UpdateChecker::downloadProgress, this, [this](int percent) {
@@ -73,16 +74,16 @@ void SoftwarePage::reportUpdateCheckResult(bool ok, bool isNewer, const QString 
                                 : QString("Version %1").arg(QStringLiteral(APP_VERSION)));
 
     if (!ok) {
-        m_statusLabel->setStyleSheet("color: #dc2626;");
+        m_statusLabel->setStyleSheet(theme::css(theme::palette().danger));
         m_statusLabel->setText("Update check failed: " + errorMessage.toHtmlEscaped());
         m_updateButton->hide();
         return;
     }
 
     if (isNewer) {
-        m_statusLabel->setStyleSheet("color: #4f8cff;");
+        m_statusLabel->setStyleSheet(theme::css(theme::palette().accent));
         m_statusLabel->setText(
-            QString("<a href=\"%1\" style=\"color:#4f8cff;\">Update available — v%2</a>").arg(releaseUrl, version));
+            QString("<a href=\"%1\" style=\"color:" + theme::hex(theme::palette().accent) + ";\">Update available — v%2</a>").arg(releaseUrl, version));
         if (assetUrl.isEmpty()) {
             m_updateButton->hide();
         } else {
@@ -91,7 +92,7 @@ void SoftwarePage::reportUpdateCheckResult(bool ok, bool isNewer, const QString 
             m_updateButton->show();
         }
     } else {
-        m_statusLabel->setStyleSheet("color: #737373;");
+        m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
         m_statusLabel->setText(QString("Up to date (v%1) · checked at %2.").arg(version, checkedAt));
         m_updateButton->hide();
     }

@@ -1,4 +1,5 @@
 #include "PaymentDialog.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 
 #include <QButtonGroup>
@@ -159,7 +160,7 @@ void PaymentDialog::updateChange() {
     if (m_card) {
         m_changeKey->setText("CARD");
         m_changeLabel->setText("No change");
-        m_changeLabel->setStyleSheet("color: #9aa0ac;");
+        m_changeLabel->setStyleSheet(theme::css(theme::palette().textMuted));
         m_confirmButton->setEnabled(true);
         return;
     }
@@ -170,6 +171,6 @@ void PaymentDialog::updateChange() {
     const bool enough = receivedTetri >= totalTetri;
     m_changeKey->setText(enough ? "CHANGE" : "STILL DUE");
     m_changeLabel->setText(money((enough ? receivedTetri - totalTetri : totalTetri - receivedTetri) / 100.0));
-    m_changeLabel->setStyleSheet(enough ? "color: #22c55e;" : "color: #f87171;");
+    m_changeLabel->setStyleSheet(theme::css(enough ? theme::palette().success : theme::palette().danger));
     m_confirmButton->setEnabled(enough);
 }

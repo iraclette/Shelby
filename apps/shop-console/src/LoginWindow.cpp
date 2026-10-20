@@ -1,4 +1,5 @@
 #include "LoginWindow.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 #include "SessionStore.h"
 #include "SupabaseClient.h"
@@ -29,11 +30,9 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     brandLogo->setFixedSize(96, 96);
     brandLogo->setStyleSheet("background: transparent;");
     auto *brandTitle = new QLabel(brandPanel);
-    brandTitle->setStyleSheet("font-size: 32px; font-weight: 600; color: #f6f3ee; background: transparent;");
-    auto *brandSubtitle = new QLabel("Shop Console", brandPanel);
-    brandSubtitle->setStyleSheet(
-        "font-size: 11px; letter-spacing: 2px; color: #c8963e; background: transparent; "
-        "text-transform: uppercase; margin-top: 6px;");
+    brandTitle->setObjectName("loginTitle");
+    auto *brandSubtitle = new QLabel("SHOP CONSOLE", brandPanel);
+    brandSubtitle->setObjectName("loginSubtitle");
     brandLayout->addWidget(brandLogo);
     brandLayout->addSpacing(14);
     brandLayout->addWidget(brandTitle);
@@ -74,7 +73,7 @@ LoginWindow::LoginWindow(SupabaseClient *client, QWidget *parent)
     m_signInButton = new QPushButton("Sign in", formPanel);
     m_signInButton->setObjectName("primaryButton");
     m_errorLabel = new QLabel(formPanel);
-    m_errorLabel->setStyleSheet("color: #dc2626;");
+    m_errorLabel->setStyleSheet(theme::css(theme::palette().danger));
     m_errorLabel->setWordWrap(true);
 
     auto *formLayout = new QVBoxLayout(formPanel);

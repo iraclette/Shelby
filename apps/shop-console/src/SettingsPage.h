@@ -56,6 +56,29 @@ private:
     bool m_saving = false;
 };
 
+// Settings → Appearance: theme, accent colour and interface size. Stored on this computer
+// only, so each till can look its own way. Also shown on the till itself (PosWindow), since
+// cashiers don't get the Settings page.
+class AppearanceSettingsSection : public QWidget {
+    Q_OBJECT
+
+public:
+    explicit AppearanceSettingsSection(SupabaseClient *client, QWidget *parent = nullptr);
+
+private:
+    void refresh();
+    void setAccent(const QColor &accent); // invalid = the theme's own
+
+    SupabaseClient *m_client;
+    QList<QPair<QString, QPushButton *>> m_themeButtons;
+    QList<QPair<QColor, QPushButton *>> m_accentButtons;
+    QPushButton *m_defaultAccentButton;
+    QPushButton *m_customAccentButton;
+    QComboBox *m_scale;
+    QLabel *m_scaleNote;
+    QPushButton *m_restartButton;
+};
+
 // Settings → Modules: switch off console sections the business doesn't use, on every till.
 class ModulesSettingsSection : public QWidget {
     Q_OBJECT

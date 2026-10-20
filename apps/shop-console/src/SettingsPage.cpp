@@ -1,8 +1,13 @@
 #include "SettingsPage.h"
 #include "BusinessProfile.h"
+#include "SessionStore.h"
 #include "SupabaseClient.h"
+#include "Theme.h"
 
+#include <QApplication>
+#include <QButtonGroup>
 #include <QCheckBox>
+#include <QColorDialog>
 #include <QComboBox>
 #include <QJsonArray>
 #include <QCompleter>
@@ -15,6 +20,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QPainter>
+#include <QProcess>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTimeZone>
@@ -61,6 +68,7 @@ SettingsPage::SettingsPage(SupabaseClient *client, QWidget *softwareSection, QWi
     connect(business, &BusinessSettingsSection::statusMessage, this, &SettingsPage::statusMessage);
     addSection("Business", business);
     addSection("Modules", new ModulesSettingsSection(client, this));
+    addSection("Appearance", new AppearanceSettingsSection(client, this));
     addSection("Software", softwareSection);
 
     connect(sections, &QListWidget::currentRowChanged, stack, &QStackedWidget::setCurrentIndex);
@@ -346,4 +354,144 @@ void ModulesSettingsSection::save() {
     m_saveButton->setEnabled(false);
     m_status->setText("Saving…");
     m_client->updateBusinessSettings({{"disabled_modules", disabled}});
+}
+
+namespace {
+// A theme's colours as a little strip: background, panel, accent, text.
+QIcon themeSwatch(const QString &themeId) {
+    const theme::Palette p = theme::themePalette(themeId);
+    QPixmap strip(88, 30);
+    strip.fill(p.window);
+    QPainter painter(&strip);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(p.surface);
+    painter.drawRoundedRect(6, 6, 34, 18, 3, 3);
+    painter.setBrush(p.accent);
+    painter.drawRoundedRect(46, 6, 16, 18, 3, 3);
+    painter.setBrush(p.text);
+    painter.drawRoundedRect(68, 12, 14, 6, 2, 2);
+    painter.setPen(p.border);
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRect(0, 0, strip.width() - 1, strip.height() - 1);
+    return QIcon(strip);
+}
+
+const QList<QColor> kAccentPresets{
+    QColor("#4f8cff"), QColor("#c8963e"), QColor("#22c55e"), QColor("#14b8a6"),
+    QColor("#a855f7"), QColor("#ec4899"), QColor("#ef4444"), QColor("#a3161c"),
+};
+
+// Relaunch, signed in as the same person (the same hand-over the updater uses).
+void restartApp(SupabaseClient *client) {
+    if (!client->refreshToken().isEmpty()) {
+        sessionstore::setRefreshToken(client->refreshToken());
+        sessionstore::setResumeAfterUpdate(true);
+    }
+    QProcess::startDetached(QCoreApplication::applicationFilePath(), {});
+    qApp->quit();
+}
+} // namespace
+
+AppearanceSettingsSection::AppearanceSettingsSection(SupabaseClient *client, QWidget *parent)
+    : QWidget(parent), m_client(client) {
+    auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(sectionHeader(
+        "Appearance", "How the console looks on this computer. Changes show straight away.", this));
+
+    auto *themeRow = new QHBoxLayout;
+    auto *themeGroup = new QButtonGroup(this);
+    for (const QString &id : theme::themeIds()) {
+        auto *button = new QPushButton(theme::themeName(id), this);
+        button->setObjectName("categoryChip");
+        button->setCheckable(true);
+        button->setIcon(themeSwatch(id));
+        button->setIconSize(QSize(88, 30));
+        button->setMinimumHeight(48);
+        themeGroup->addButton(button);
+        themeRow->addWidget(button);
+        m_themeButtons.append({id, button});
+        // Switching theme keeps a custom accent; "Theme default" goes back to the theme's own.
+        connect(button, &QPushButton::clicked, this, [this, id]() {
+            theme::setTheme(id, theme::customAccent());
+            refresh();
+        });
+    }
+    themeRow->addStretch();
+
+    auto *accentRow = new QHBoxLayout;
+    accentRow->setSpacing(8);
+    m_defaultAccentButton = new QPushButton("Theme default", this);
+    m_defaultAccentButton->setObjectName("categoryChip");
+    m_defaultAccentButton->setCheckable(true);
+    accentRow->addWidget(m_defaultAccentButton);
+    connect(m_defaultAccentButton, &QPushButton::clicked, this, [this]() { setAccent({}); });
+    for (const QColor &color : kAccentPresets) {
+        auto *swatch = new QPushButton(this);
+        swatch->setFixedSize(30, 30);
+        swatch->setToolTip(color.name());
+        accentRow->addWidget(swatch);
+        m_accentButtons.append({color, swatch});
+        connect(swatch, &QPushButton::clicked, this, [this, color]() { setAccent(color); });
+    }
+    m_customAccentButton = new QPushButton("Custom…", this);
+    accentRow->addWidget(m_customAccentButton);
+    connect(m_customAccentButton, &QPushButton::clicked, this, [this]() {
+        const QColor start = theme::customAccent().isValid() ? theme::customAccent() : theme::palette().accent;
+        const QColor picked = QColorDialog::getColor(start, this, "Accent colour");
+        if (picked.isValid()) setAccent(picked);
+    });
+    accentRow->addStretch();
+
+    m_scale = new QComboBox(this);
+    for (int percent : {90, 100, 110, 125, 150}) m_scale->addItem(QString("%1%").arg(percent), percent);
+    m_scaleNote = new QLabel(this);
+    m_scaleNote->setObjectName("hint");
+    m_restartButton = new QPushButton("Restart now", this);
+    auto *scaleRow = new QHBoxLayout;
+    scaleRow->addWidget(m_scale);
+    scaleRow->addWidget(m_scaleNote);
+    scaleRow->addWidget(m_restartButton);
+    scaleRow->addStretch();
+    connect(m_scale, &QComboBox::activated, this, [this]() {
+        theme::setInterfaceScale(m_scale->currentData().toInt());
+        refresh();
+    });
+    connect(m_restartButton, &QPushButton::clicked, this, [this]() { restartApp(m_client); });
+
+    auto *form = new QFormLayout;
+    form->setSpacing(14);
+    form->addRow("Theme", themeRow);
+    form->addRow("Accent colour", accentRow);
+    form->addRow("Interface size", scaleRow);
+    layout->addLayout(form);
+    layout->addStretch();
+
+    refresh();
+}
+
+void AppearanceSettingsSection::setAccent(const QColor &accent) {
+    theme::setTheme(theme::currentThemeId(), accent);
+    refresh();
+}
+
+void AppearanceSettingsSection::refresh() {
+    for (const auto &[id, button] : m_themeButtons) button->setChecked(id == theme::currentThemeId());
+
+    const QColor custom = theme::customAccent();
+    m_defaultAccentButton->setChecked(!custom.isValid());
+    bool presetPicked = false;
+    for (const auto &[color, swatch] : m_accentButtons) {
+        const bool picked = custom.isValid() && custom.name() == color.name();
+        presetPicked = presetPicked || picked;
+        // The picked one gets a ring in the text colour.
+        swatch->setStyleSheet(QString("background-color: %1; border-radius: 15px; border: 2px solid %2;")
+                                  .arg(color.name(), picked ? theme::hex(theme::palette().textStrong) : "transparent"));
+    }
+    m_customAccentButton->setText(custom.isValid() && !presetPicked ? "Custom: " + custom.name() : "Custom…");
+
+    m_scale->setCurrentIndex(qMax(0, m_scale->findData(theme::interfaceScale())));
+    const bool needsRestart = theme::interfaceScale() != theme::startupInterfaceScale();
+    m_scaleNote->setText(needsRestart ? "Takes effect after a restart." : "");
+    m_restartButton->setVisible(needsRestart);
 }

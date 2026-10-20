@@ -1,4 +1,5 @@
 #include "HeldSalesDialog.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 
 #include <QDialogButtonBox>
@@ -30,7 +31,7 @@ HeldSalesDialog::HeldSalesDialog(QVector<HeldSale> &heldSales, bool cartIsEmpty,
     auto *layout = new QVBoxLayout(this);
     if (!cartIsEmpty) {
         auto *hint = new QLabel("Complete or hold the current cart before resuming a held sale.", this);
-        hint->setStyleSheet("color: #9aa0ac;");
+        hint->setObjectName("hint");
         hint->setWordWrap(true);
         layout->addWidget(hint);
     }

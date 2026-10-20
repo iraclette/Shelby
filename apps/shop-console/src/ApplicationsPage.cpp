@@ -1,4 +1,5 @@
 #include "ApplicationsPage.h"
+#include "Theme.h"
 #include "ShopTime.h"
 
 #include <QComboBox>
@@ -24,10 +25,10 @@ QString statusLabel(const QString &status) {
 }
 
 QColor statusColor(const QString &status) {
-    if (status == "new") return QColor("#4f8cff");
-    if (status == "hired") return QColor("#22c55e");
-    if (status == "rejected") return QColor("#6b7280");
-    return QColor("#f59e0b");
+    if (status == "new") return theme::palette().accent;
+    if (status == "hired") return theme::palette().success;
+    if (status == "rejected") return theme::palette().textDisabled;
+    return theme::palette().warning;
 }
 
 QString availabilityLabel(const QString &availability) {
@@ -183,18 +184,18 @@ void ApplicationsPage::showDetails() {
         return;
     }
 
-    QString html = QString("<p style='font-size:16px; font-weight:700; color:#f2f3f5;'>%1</p>"
+    QString html = QString("<p style='font-size:16px; font-weight:700; color:" + theme::hex(theme::palette().textStrong) + ";'>%1</p>"
                            "<p style='color:%2; font-weight:600;'>%3</p>")
                        .arg(application->name.toHtmlEscaped(), statusColor(application->status).name(),
                             statusLabel(application->status));
-    html += QString("<p><b style='color:#e8e9ec;'>%1</b>%2</p>")
+    html += QString("<p><b style='color:" + theme::hex(theme::palette().text) + ";'>%1</b>%2</p>")
                 .arg(application->phone.toHtmlEscaped(),
                      application->email.isEmpty() ? QString() : "<br>" + application->email.toHtmlEscaped());
-    html += QString("<p>Shop: <b style='color:#e8e9ec;'>%1</b><br>Hours: <b style='color:#e8e9ec;'>%2</b><br>"
-                    "Languages: <b style='color:#e8e9ec;'>%3</b></p>")
+    html += QString("<p>Shop: <b style='color:" + theme::hex(theme::palette().text) + ";'>%1</b><br>Hours: <b style='color:" + theme::hex(theme::palette().text) + ";'>%2</b><br>"
+                    "Languages: <b style='color:" + theme::hex(theme::palette().text) + ";'>%3</b></p>")
                 .arg(shopName(application->preferredShopId), availabilityLabel(application->availability),
                      languagesLabel(application->languages));
-    html += QString("<p style='color:#e8e9ec;'>%1</p>")
+    html += QString("<p style='color:" + theme::hex(theme::palette().text) + ";'>%1</p>")
                 .arg(application->about.toHtmlEscaped().replace('\n', "<br>"));
     m_details->setText(html);
 }

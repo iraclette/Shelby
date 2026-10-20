@@ -1,4 +1,6 @@
 #include "PosWindow.h"
+#include "SettingsPage.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 #include "DiscountDialog.h"
 #include "FlowLayout.h"
@@ -20,6 +22,8 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QShortcut>
@@ -80,7 +84,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
     spacer->setStyleSheet("background: transparent;"); // the app-wide QWidget background would show as a box
     toolbar->addWidget(spacer);
     m_pendingBadge = new QLabel(this);
-    m_pendingBadge->setStyleSheet("color: #f59e0b; font-weight: 600; padding: 0 8px;");
+    m_pendingBadge->setStyleSheet(theme::css(theme::palette().warning) + " font-weight: 600; padding: 0 8px;");
     m_pendingBadge->hide();
     toolbar->addWidget(m_pendingBadge);
     m_updateBanner = new QLabel(this);
@@ -91,6 +95,20 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
     auto *returnsButton = new QPushButton("Returns  F7", this);
     toolbar->addWidget(returnsButton);
     if (!embedded) {
+        // Cashiers don't get the Settings page, but how their till looks is theirs to choose.
+        auto *appearanceButton = new QPushButton("Appearance", this);
+        toolbar->addWidget(appearanceButton);
+        connect(appearanceButton, &QPushButton::clicked, this, [this]() {
+            QDialog dialog(this);
+            dialog.setWindowTitle("Appearance");
+            dialog.resize(640, 320);
+            auto *layout = new QVBoxLayout(&dialog);
+            layout->addWidget(new AppearanceSettingsSection(m_client, &dialog));
+            auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+            connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+            layout->addWidget(buttons);
+            dialog.exec();
+        });
         auto *signOutButton = new QPushButton("Sign out", this);
         toolbar->addWidget(signOutButton);
         connect(signOutButton, &QPushButton::clicked, this, &PosWindow::signedOut);
@@ -176,7 +194,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
     addTotalsRow("Items", m_itemsCountLabel);
     addTotalsRow("Subtotal", m_subtotalLabel);
     m_savingsRow = addTotalsRow("Discount", m_savingsLabel);
-    m_savingsLabel->setStyleSheet("color: #22c55e;");
+    m_savingsLabel->setStyleSheet(theme::css(theme::palette().success));
 
     auto *totalRow = new QHBoxLayout;
     auto *totalKey = new QLabel("TOTAL", this);
@@ -330,7 +348,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
         m_cart.clear();
         refreshCartTable();
         m_completeSaleButton->setEnabled(true);
-        showStatus("Sale recorded." + m_lastPaymentNote, "#22c55e");
+        showStatus("Sale recorded." + m_lastPaymentNote, theme::hex(theme::palette().success));
         m_barcodeInput->setFocus();
     });
     connect(m_client, &SupabaseClient::saleRecordFailed, this, [this](const QString &message) {
@@ -346,7 +364,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
         showStatus(QString("No connection — sale saved offline, will sync automatically (%1 pending).%2")
                        .arg(pendingCount)
                        .arg(m_lastPaymentNote),
-                   "#f59e0b");
+                   theme::hex(theme::palette().warning));
         m_barcodeInput->setFocus();
         updatePendingBadge(pendingCount);
     });
@@ -366,7 +384,7 @@ PosWindow::PosWindow(SupabaseClient *client, QString shopId, QWidget *parent, bo
 
 void PosWindow::showUpdateBanner(const QString &version, const QString &releaseUrl) {
     m_updateBanner->setText(
-        QString("<a href=\"%1\" style=\"color:#4f8cff;\">Update available — v%2</a>").arg(releaseUrl, version));
+        QString("<a href=\"%1\" style=\"color:" + theme::hex(theme::palette().accent) + ";\">Update available — v%2</a>").arg(releaseUrl, version));
     m_updateBanner->show();
 }
 
@@ -455,7 +473,7 @@ QString PosWindow::categoryColor(const QString &categoryId) const {
         if (category.id == topId) return kCategoryColors[index % colorCount];
         ++index;
     }
-    return "#2f323d"; // uncategorised: same as a plain border
+    return theme::hex(theme::palette().border); // uncategorised: same as a plain border
 }
 
 bool PosWindow::eventFilter(QObject *watched, QEvent *event) {
@@ -523,7 +541,7 @@ void PosWindow::rebuildProductGrid() {
         if (!product.variants.isEmpty()) stockText = QString("%1 variants · %2").arg(product.variants.size()).arg(stockText);
         auto *stockLabel = tileLabel(stockText, "tileStock", tile);
         if (product.lowStockThreshold > 0 && stock <= product.lowStockThreshold) {
-            stockLabel->setStyleSheet("color: #f59e0b;");
+            stockLabel->setStyleSheet(theme::css(theme::palette().warning));
         }
         footer->addWidget(stockLabel);
         tileLayout->addLayout(footer);
@@ -765,7 +783,7 @@ void PosWindow::voidCart() {
     if (answer == QMessageBox::Yes) {
         m_cart.clear();
         refreshCartTable();
-        showStatus("Sale voided.", "#9aa0ac");
+        showStatus("Sale voided.", theme::hex(theme::palette().textMuted));
     }
     m_barcodeInput->setFocus();
 }
@@ -794,7 +812,7 @@ void PosWindow::refreshCartTable(int selectRow) {
                              .arg(qRound((1.0 - line.unitPrice / line.listPrice) * 100.0))
                        : QString::number(line.unitPrice, 'f', 2));
         priceItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        if (discounted) priceItem->setForeground(QColor("#22c55e"));
+        if (discounted) priceItem->setForeground(theme::palette().success);
         auto *totalItem = new QTableWidgetItem(QString::number(lineTotal, 'f', 2));
         totalItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         QFont bold = totalItem->font();
@@ -840,7 +858,7 @@ void PosWindow::holdCart() {
     m_cart.clear();
     refreshCartTable();
     updateHeldButton();
-    showStatus("Sale held.", "#9aa0ac");
+    showStatus("Sale held.", theme::hex(theme::palette().textMuted));
     m_barcodeInput->setFocus();
 }
 
@@ -891,7 +909,7 @@ void PosWindow::completeSale() {
     if (m_practiceMode) {
         m_cart.clear();
         refreshCartTable();
-        showStatus("Practice sale — nothing recorded." + m_lastPaymentNote, "#a855f7");
+        showStatus("Practice sale — nothing recorded." + m_lastPaymentNote, theme::hex(theme::palette().info));
         return;
     }
 

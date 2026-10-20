@@ -1,495 +1,76 @@
 #pragma once
 
-inline const char *kAppStyleSheet = R"(
-QWidget {
-    background-color: #14151a;
-    color: #e8e9ec;
-    font-size: 13px;
-}
-
-QMainWindow, QDialog {
-    background-color: #14151a;
-}
-
-QLabel {
-    background: transparent;
-}
-
-QLabel#pageTitle {
-    font-size: 16px;
-    font-weight: 700;
-    padding: 0 8px;
-    color: #f2f3f5;
-}
-
-QLineEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
-    background-color: #1c1e26;
-    border: 1px solid #2f323d;
-    border-radius: 6px;
-    padding: 6px 8px;
-    min-height: 20px;
-    selection-background-color: #2b3a5c;
-}
-
-QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
-    border: 1px solid #4f8cff;
-}
-
-QComboBox::drop-down {
-    border: none;
-    width: 20px;
-}
-
-QComboBox QAbstractItemView {
-    background-color: #1c1e26;
-    color: #e8e9ec;
-    selection-background-color: #2b3a5c;
-    border: 1px solid #2f323d;
-    outline: none;
-}
-
-QPushButton {
-    background-color: #23252f;
-    border: 1px solid #2f323d;
-    border-radius: 6px;
-    padding: 8px 16px;
-}
-
-QPushButton:hover {
-    background-color: #2b2e3a;
-}
-
-QPushButton:pressed {
-    background-color: #1c1e26;
-}
-
-QPushButton:disabled {
-    color: #6b7280;
-}
-
-QPushButton#primaryButton {
-    background-color: #4f8cff;
-    border: 1px solid #4f8cff;
-    color: white;
-    font-weight: 600;
-}
-
-QPushButton#primaryButton:hover {
-    background-color: #6a9dff;
-}
-
-QPushButton#primaryButton:pressed {
-    background-color: #3670d6;
-}
-
-QPushButton#payButton {
-    background-color: #4f8cff;
-    border: 1px solid #4f8cff;
-    border-radius: 8px;
-    color: white;
-    font-size: 17px;
-    font-weight: 700;
-}
-
-QPushButton#payButton:hover {
-    background-color: #6a9dff;
-}
-
-QPushButton#payButton:pressed {
-    background-color: #3670d6;
-}
-
-QPushButton#payButton:disabled {
-    background-color: #2b3a5c;
-    border: 1px solid #2b3a5c;
-    color: #9aa0ac;
-}
-
-QPushButton#dangerButton {
-    color: #f87171;
-}
-
-QPushButton#dangerButton:disabled {
-    color: #6b7280;
-}
-
-QPushButton#stepButton {
-    padding: 8px 0;
-    font-size: 16px;
-    font-weight: 700;
-}
-
-QPushButton#compactButton {
-    padding: 2px 6px;
-}
-
-QPushButton#productTile {
-    background-color: #1c1e26;
-    border: 1px solid #2f323d;
-    border-radius: 10px;
-    padding: 10px;
-    font-weight: 600;
-}
-
-QPushButton#productTile:hover {
-    background-color: #23252f;
-    border: 1px solid #4f8cff;
-}
-
-QPushButton#productTile:pressed {
-    background-color: #2b3a5c;
-}
-
-QLabel#tileName {
-    font-weight: 600;
-    color: #e8e9ec;
-}
-
-QLabel#tilePrice {
-    font-weight: 700;
-    color: #4f8cff;
-}
-
-QLabel#tileStock {
-    color: #9aa0ac;
-    font-size: 12px;
-}
-
-QFrame#posPanel {
-    background-color: #1c1e26;
-    border: 1px solid #2f323d;
-    border-radius: 10px;
-}
-
-QFrame#posPanel QPushButton {
-    padding: 8px 10px;
-}
-
-QLineEdit#posSearch {
-    background-color: #14151a;
-    font-size: 14px;
-    padding: 8px 10px;
-}
-
-QTableWidget#receiptTable {
-    background-color: #14151a;
-    alternate-background-color: #181a21;
-    border: none;
-}
-
-QLineEdit#cashReceived {
-    font-size: 22px;
-    font-weight: 700;
-    padding: 8px 12px;
-    min-height: 34px; 
-}
-
-QFrame#totalsPanel {
-    background-color: #14151a;
-    border: 1px solid #2f323d;
-    border-radius: 8px;
-}
-
-QLabel#totalsKey {
-    color: #9aa0ac;
-}
-
-QLabel#totalsValue {
-    font-weight: 600;
-}
-
-QLabel#totalKey {
-    color: #9aa0ac;
-    font-weight: 700;
-    padding-bottom: 6px;
-}
-
-QLabel#totalValue {
-    font-size: 30px;
-    font-weight: 700;
-    color: #f2f3f5;
-}
-
-QPushButton#categoryChip {
-    background-color: #1c1e26;
-    border: 1px solid #2f323d;
-    border-radius: 14px;
-    padding: 6px 14px;
-    color: #9aa0ac;
-}
-
-QPushButton#categoryChip:checked {
-    background-color: #4f8cff;
-    border: 1px solid #4f8cff;
-    color: white;
-    font-weight: 600;
-}
-
-QPushButton#categoryChip:hover {
-    border: 1px solid #4f8cff;
-}
-
-QGroupBox {
-    border: 1px solid #2f323d;
-    border-radius: 8px;
-    margin-top: 16px;
-    padding-top: 12px;
-    font-weight: 600;
-}
-
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 4px;
-    color: #9aa0ac;
-}
-
-QTableWidget {
-    background-color: #1c1e26;
-    alternate-background-color: #20222c;
-    gridline-color: #2f323d;
-    border: 1px solid #2f323d;
-    border-radius: 6px;
-}
-
-QTableWidget::item {
-    padding: 6px;
-}
-
-QTableWidget::item:selected {
-    background-color: #2b3a5c;
-}
-
-QTableView QLineEdit, QTableView QSpinBox, QTableView QDoubleSpinBox, QTableView QComboBox {
-    border: 1px solid #4f8cff;
-    border-radius: 0;
-    padding: 0 5px;
-    min-height: 0;
-    margin: 0;
-}
-
-QHeaderView::section {
-    background-color: #23252f;
-    color: #9aa0ac;
-    padding: 8px;
-    border: none;
-    border-bottom: 1px solid #2f323d;
-    font-weight: 600;
-}
-
-QToolBar {
-    background-color: #1c1e26;
-    border: none;
-    border-bottom: 1px solid #2f323d;
-    spacing: 8px;
-    padding: 8px;
-}
-
-QStatusBar {
-    background-color: #1c1e26;
-    color: #9aa0ac;
-}
-
-QScrollArea {
-    border: none;
-}
-
-QScrollBar:vertical {
-    background: #14151a;
-    width: 10px;
-    margin: 0;
-}
-
-QScrollBar::handle:vertical {
-    background: #2f323d;
-    border-radius: 5px;
-    min-height: 24px;
-}
-
-QScrollBar::handle:vertical:hover {
-    background: #3a3e4c;
-}
-
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-    height: 0;
-}
-
-QScrollBar:horizontal {
-    background: #14151a;
-    height: 10px;
-    margin: 0;
-}
-
-QScrollBar::handle:horizontal {
-    background: #2f323d;
-    border-radius: 5px;
-    min-width: 24px;
-}
-
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-    width: 0;
-}
-
-QCheckBox {
-    background: transparent;
-}
-
-QCheckBox::indicator, QTableView::indicator, QListView::indicator {
-    width: 14px;
-    height: 14px;
-    border: 1px solid #2f323d;
-    border-radius: 3px;
-    background-color: #1c1e26;
-}
-
-QCheckBox::indicator:checked, QTableView::indicator:checked, QListView::indicator:checked {
-    background-color: #4f8cff;
-    border: 1px solid #4f8cff;
-}
-
-QMessageBox, QInputDialog {
-    background-color: #1c1e26;
-}
-
-QWidget#loginBrandPanel {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-        stop:0 #0e0e10, stop:0.5 #231c12, stop:1 #14151a);
-    border-right: 1px solid #2f323d;
-}
-
-QLabel#greeting {
-    font-size: 22px;
-    font-weight: 700;
-    color: #f2f3f5;
-}
-
-QFrame#card {
-    background-color: #1c1e26;
-    border: 1px solid #2f323d;
-    border-radius: 10px;
-}
-
-QLabel#cardCaption {
-    color: #9aa0ac;
-    font-weight: 600;
-}
-
-QLabel#kpiValue {
-    font-size: 24px;
-    font-weight: 700;
-    color: #f2f3f5;
-}
-
-QPushButton#attentionRow {
-    background-color: #14151a;
-    border: 1px solid #2f323d;
-    border-radius: 8px;
-    padding: 0;
-    text-align: left;
-}
-
-QPushButton#attentionRow:hover {
-    border: 1px solid #4f8cff;
-}
-
-QLabel#countPill {
-    background-color: #2f323d;
-    color: #9aa0ac;
-    border-radius: 9px;
-    padding: 1px 8px;
-    font-weight: 700;
-}
-
-QLabel#countPill[active="true"] {
-    background-color: #4f8cff;
-    color: white;
-}
-
-QTableWidget#cardTable {
-    background-color: #1c1e26;
-    alternate-background-color: #20222c;
-    border: none;
-}
-
-QWidget#pageBar {
-    background-color: #1c1e26;
-    border-bottom: 1px solid #2f323d;
-}
-
-QHeaderView {
-    background-color: #23252f;
-}
-
-QWidget#sidebarPanel {
-    background-color: #1c1e26;
-    border-right: 1px solid #2f323d;
-}
-
-QWidget#sidebarBrand, QWidget#sidebarFooter {
-    background-color: transparent;
-}
-
-QWidget#sidebarFooter {
-    border-top: 1px solid #2f323d;
-}
-
-/* The business's logo in place of the letter mark (already cut round). */
-QLabel#brandLogo {
-    background: transparent;
-}
-
-QLabel#brandMark {
-    background-color: #c8963e;
-    color: #14151a;
-    border-radius: 9px;
-    font-size: 18px;
-    font-weight: 800;
-}
-
-QLabel#brandName {
-    font-size: 15px;
-    font-weight: 700;
-    color: #f2f3f5;
-}
-
-QLabel#brandSub {
-    font-size: 11px;
-    color: #9aa0ac;
-}
-
-QLabel#avatar {
-    background-color: #2b3a5c;
-    color: #cfe0ff;
-    border-radius: 16px;
-    font-weight: 700;
-}
-
-QLabel#userName {
-    font-weight: 600;
-}
-
-QListWidget#adminSidebar {
-    background-color: transparent;
-    border: none;
-    padding: 0 0 8px 0;
-    outline: none;
-}
-
-QListWidget#adminSidebar::item {
-    padding: 8px 16px;
-    margin: 0 8px;
-    border-radius: 6px;
-    color: #9aa0ac;
-}
-
-QListWidget#adminSidebar::item:hover {
-    background-color: #23252f;
-    color: #e8e9ec;
-}
-
-QListWidget#adminSidebar::item:selected {
-    background-color: #4f8cff;
-    color: white;
-    font-weight: 600;
-}
-)";
+#include <QColor>
+#include <QObject>
+#include <QString>
+#include <QStringList>
+
+// The console's colours. Every widget is styled by one stylesheet built from the current
+// theme's palette (Settings → Appearance), so switching theme restyles everything live.
+// Code that needs a colour directly (charts, status text, small HTML snippets) reads it from
+// theme::palette() at the time it draws, instead of hardcoding a hex value.
+namespace theme {
+
+struct Palette {
+    QColor window;           // the app background
+    QColor surface;          // inputs, cards, panels
+    QColor control;          // buttons, table headers, hover rows
+    QColor controlHover;
+    QColor alternateRow;
+    QColor alternateRowDeep; // the till's receipt
+    QColor border;
+    QColor borderStrong;     // scrollbar handle while hovered
+    QColor selection;
+    QColor accent;           // primary buttons, focus, the selected sidebar item
+    QColor accentHover;
+    QColor accentPressed;
+    QColor onAccent;         // text on accent-coloured backgrounds
+    QColor text;
+    QColor textStrong;       // titles, totals
+    QColor textMuted;        // hints, secondary text
+    QColor textDisabled;
+    QColor danger;           // errors, "out of stock"
+    QColor success;          // saved, sold, hired
+    QColor warning;          // low stock, pending
+    QColor info;             // practice mode, the odd category
+    QColor brand;            // the letter mark, login subtitle
+    QColor avatarText;
+    QColor loginGradientStart;
+    QColor loginGradientMid;
+};
+
+// "dark", "light", "hunter"
+QStringList themeIds();
+QString themeName(const QString &id);
+
+// The theme and accent this computer uses (Settings → Appearance).
+QString currentThemeId();
+QColor customAccent(); // invalid = the theme's own accent
+void setTheme(const QString &id, const QColor &accent);
+
+const Palette &palette();
+// A theme's own colours (without any custom accent), for previews.
+Palette themePalette(const QString &id);
+// "#rrggbb", and "color: #rrggbb;" for a quick setStyleSheet.
+QString hex(const QColor &color);
+QString css(const QColor &color);
+
+// Builds the stylesheet from the current palette and applies it to the whole app.
+void apply();
+
+// Interface size in percent (90–150). Qt reads it before the app starts, so a change
+// needs a restart; applyScaleBeforeStartup() must run before QApplication is created.
+int interfaceScale();
+void setInterfaceScale(int percent);
+void applyScaleBeforeStartup();
+int startupInterfaceScale(); // what this run started with; differs from interfaceScale() until a restart
+
+// Emits changed() after every apply(), for anything that draws with palette colours.
+class Notifier : public QObject {
+    Q_OBJECT
+signals:
+    void changed();
+};
+Notifier *notifier();
+
+} // namespace theme

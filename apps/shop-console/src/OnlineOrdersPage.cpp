@@ -1,4 +1,5 @@
 #include "OnlineOrdersPage.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 #include "ShopTime.h"
 
@@ -39,10 +40,10 @@ QString methodLabel(const OnlineOrder &order) {
 }
 
 QColor statusColor(const QString &status) {
-    if (status == "paid") return QColor("#4f8cff");
-    if (status == "fulfilled") return QColor("#22c55e");
-    if (status == "failed" || status == "cancelled") return QColor("#6b7280");
-    return QColor("#f59e0b");
+    if (status == "paid") return theme::palette().accent;
+    if (status == "fulfilled") return theme::palette().success;
+    if (status == "failed" || status == "cancelled") return theme::palette().textDisabled;
+    return theme::palette().warning;
 }
 
 
@@ -189,35 +190,35 @@ void OnlineOrdersPage::showDetails() {
         return;
     }
 
-    QString html = QString("<p style='font-size:16px; font-weight:700; color:#f2f3f5;'>Order #%1</p>"
+    QString html = QString("<p style='font-size:16px; font-weight:700; color:" + theme::hex(theme::palette().textStrong) + ";'>Order #%1</p>"
                            "<p style='color:%2; font-weight:600;'>%3</p>")
                        .arg(shortId(order->id), statusColor(order->status).name(), statusLabel(*order));
-    html += QString("<p><b style='color:#e8e9ec;'>%1</b><br>%2%3</p>")
+    html += QString("<p><b style='color:" + theme::hex(theme::palette().text) + ";'>%1</b><br>%2%3</p>")
                 .arg(order->customerName.toHtmlEscaped(), order->customerEmail.toHtmlEscaped(),
                      order->customerPhone.isEmpty() ? QString() : "<br>" + order->customerPhone.toHtmlEscaped());
     if (isDelivery(*order)) {
         // Everything needed to fill in the Inex parcel form.
-        html += QString("<p>Ship with Inex to %1:<br><b style='color:#e8e9ec;'>%2</b>%3<br>Ship from: %4</p>")
+        html += QString("<p>Ship with Inex to %1:<br><b style='color:" + theme::hex(theme::palette().text) + ";'>%2</b>%3<br>Ship from: %4</p>")
                     .arg(order->deliveryMethod == "inex_home" ? "the door" : "a branch",
                          order->deliveryCity.toHtmlEscaped(),
                          order->deliveryAddress.isEmpty()
                              ? QString()
-                             : "<br><b style='color:#e8e9ec;'>" + order->deliveryAddress.toHtmlEscaped() + "</b>",
+                             : "<br><b style='color:" + theme::hex(theme::palette().text) + ";'>" + order->deliveryAddress.toHtmlEscaped() + "</b>",
                          shopName(order->pickupShopId));
     } else {
-        html += QString("<p>Pick up at: <b style='color:#e8e9ec;'>%1</b></p>").arg(shopName(order->pickupShopId));
+        html += QString("<p>Pick up at: <b style='color:" + theme::hex(theme::palette().text) + ";'>%1</b></p>").arg(shopName(order->pickupShopId));
     }
     html += "<table width='100%' cellspacing='0' cellpadding='4'>";
     for (const OnlineOrderItem &item : order->items) {
-        html += QString("<tr><td style='color:#e8e9ec;'>%1 × %2</td><td align='right'>%3</td></tr>")
+        html += QString("<tr><td style='color:" + theme::hex(theme::palette().text) + ";'>%1 × %2</td><td align='right'>%3</td></tr>")
                     .arg(item.quantity)
                     .arg(item.productName.toHtmlEscaped(), money(item.quantity * item.unitPrice));
     }
     if (order->deliveryFee > 0) {
         html += QString("<tr><td>Delivery</td><td align='right'>%1</td></tr>").arg(money(order->deliveryFee));
     }
-    html += QString("<tr><td style='color:#e8e9ec; font-weight:700; padding-top:8px;'>Total</td>"
-                    "<td align='right' style='color:#e8e9ec; font-weight:700; padding-top:8px;'>%1</td></tr></table>")
+    html += QString("<tr><td style='color:" + theme::hex(theme::palette().text) + "; font-weight:700; padding-top:8px;'>Total</td>"
+                    "<td align='right' style='color:" + theme::hex(theme::palette().text) + "; font-weight:700; padding-top:8px;'>%1</td></tr></table>")
                 .arg(money(order->total));
     m_details->setText(html);
 }

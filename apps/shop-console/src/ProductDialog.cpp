@@ -1,4 +1,5 @@
 #include "ProductDialog.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 #include "CategoriesPage.h"
 
@@ -103,7 +104,7 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     variantsLayout->addWidget(addVariantButton, 0, Qt::AlignLeft);
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet("color: #dc2626;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().danger));
     m_statusLabel->setWordWrap(true);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
@@ -198,12 +199,12 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     });
 
     connect(m_client, &SupabaseClient::inventoryLevelsUpsertFailed, this, [this](const QString &message) {
-        m_statusLabel->setStyleSheet("color: #f59e0b;");
+        m_statusLabel->setStyleSheet(theme::css(theme::palette().warning));
         m_statusLabel->setText("Product saved, but stock wasn't set: " + message);
     });
 
     connect(m_client, &SupabaseClient::variantsCreateFailed, this, [this](const QString &message) {
-        m_statusLabel->setStyleSheet("color: #f59e0b;");
+        m_statusLabel->setStyleSheet(theme::css(theme::palette().warning));
         m_statusLabel->setText("Product saved, but variants failed: " + message);
     });
     connect(m_client, &SupabaseClient::variantsCreated, this, &ProductDialog::seedVariantStock);
@@ -347,7 +348,7 @@ void ProductDialog::save() {
     input.hasNativeBarcode = !m_noBarcode->isChecked();
 
     m_saveButton->setEnabled(false);
-    m_statusLabel->setStyleSheet("color: #737373;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
     m_statusLabel->setText("Saving…");
     m_client->createProduct(input);
 }

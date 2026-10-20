@@ -1,4 +1,5 @@
 #include "OverviewPage.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 #include "ShopTime.h"
 
@@ -82,7 +83,7 @@ protected:
         double peak = 0;
         for (const auto &day : m_days) peak = qMax(peak, day.second);
         if (peak <= 0) {
-            painter.setPen(QColor("#6b7280"));
+            painter.setPen(theme::palette().textDisabled);
             painter.drawText(rect(), Qt::AlignCenter, "No sales in the last 7 days yet.");
             return;
         }
@@ -100,10 +101,10 @@ protected:
             const QRectF bar(x, area.bottom() - qMax(height, 2.0), barWidth, qMax(height, 2.0));
 
             painter.setPen(Qt::NoPen);
-            painter.setBrush(QColor(today ? "#4f8cff" : "#2b3a5c"));
+            painter.setBrush((today ? theme::palette().accent : theme::palette().selection));
             painter.drawRoundedRect(bar, 4, 4);
 
-            painter.setPen(QColor(today ? "#e8e9ec" : "#9aa0ac"));
+            painter.setPen((today ? theme::palette().text : theme::palette().textMuted));
             const QRectF valueRect(area.left() + slot * i, bar.top() - 18, slot, 16);
             if (value > 0) painter.drawText(valueRect, Qt::AlignCenter, QString::number(value, 'f', 0));
             const QRectF labelRect(area.left() + slot * i, area.bottom() + 6, slot, 16);
@@ -357,7 +358,7 @@ void OverviewPage::rebuildStock() {
         m_lowStockTable->setItem(row, 0, new QTableWidgetItem(rows[row].name));
         m_lowStockTable->setItem(row, 1, new QTableWidgetItem(rows[row].shop));
         auto *quantityItem = numberItem(QString::number(rows[row].quantity));
-        quantityItem->setForeground(QColor(rows[row].quantity == 0 ? "#f87171" : "#f59e0b"));
+        quantityItem->setForeground((rows[row].quantity == 0 ? theme::palette().danger : theme::palette().warning));
         m_lowStockTable->setItem(row, 2, quantityItem);
         m_lowStockTable->setItem(row, 3, numberItem(QString::number(rows[row].threshold)));
     }

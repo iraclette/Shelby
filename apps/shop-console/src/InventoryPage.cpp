@@ -1,4 +1,5 @@
 #include "InventoryPage.h"
+#include "Theme.h"
 #include "ProductDialog.h"
 #include "ProductPhotosDialog.h"
 #include "SupabaseClient.h"
@@ -308,7 +309,7 @@ void InventoryPage::rebuildTable() {
                                           : product.stockByShop.value(m_shops[s].id, 0);
             auto *quantityItem = new QTableWidgetItem(QString::number(quantity));
             if (product.lowStockThreshold > 0 && quantity <= product.lowStockThreshold) {
-                quantityItem->setForeground(QColor("#f59e0b"));
+                quantityItem->setForeground(theme::palette().warning);
             }
             m_table->setItem(row, kFixedColumnCount + s, quantityItem);
         }

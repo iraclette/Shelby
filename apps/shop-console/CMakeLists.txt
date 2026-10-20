@@ -76,6 +76,8 @@ qt_add_executable(ShopConsole WIN32
     src/BusinessProfile.cpp
     src/SettingsPage.h
     src/SettingsPage.cpp
+    src/Theme.h
+    src/Theme.cpp
 )
 
 qt_add_resources(ShopConsole "icons"

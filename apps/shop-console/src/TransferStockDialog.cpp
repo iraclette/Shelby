@@ -1,4 +1,5 @@
 #include "TransferStockDialog.h"
+#include "Theme.h"
 
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -42,7 +43,7 @@ TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product
     m_quantitySpin->setRange(1, 1);
 
     m_availableLabel = new QLabel(this);
-    m_availableLabel->setStyleSheet("color: #9aa0ac;");
+    m_availableLabel->setObjectName("hint");
 
     auto *form = new QFormLayout;
     form->addRow("Product", m_productCombo);
@@ -54,7 +55,7 @@ TransferStockDialog::TransferStockDialog(SupabaseClient *client, QVector<Product
     form->addRow("", m_availableLabel);
 
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setStyleSheet("color: #dc2626;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().danger));
     m_statusLabel->setWordWrap(true);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
@@ -151,7 +152,7 @@ void TransferStockDialog::submit() {
     }
 
     m_submitButton->setEnabled(false);
-    m_statusLabel->setStyleSheet("color: #737373;");
+    m_statusLabel->setStyleSheet(theme::css(theme::palette().textMuted));
     m_statusLabel->setText("Transferring…");
 
     const QString variantId = m_variantCombo->isVisible() ? m_variantCombo->currentData().toString() : QString();

@@ -1,4 +1,5 @@
 #include "AdminWindow.h"
+#include "Theme.h"
 #include "BusinessProfile.h"
 #include "AuditLogPage.h"
 #include "CategoriesPage.h"
@@ -71,7 +72,7 @@ public:
             font.setWeight(QFont::Bold);
             font.setLetterSpacing(QFont::AbsoluteSpacing, 1.2);
             painter->setFont(font);
-            painter->setPen(QColor("#6b7280"));
+            painter->setPen(theme::palette().textDisabled);
             painter->drawText(option.rect.adjusted(24, 0, -8, -6), Qt::AlignLeft | Qt::AlignBottom,
                               index.data(Qt::DisplayRole).toString().toUpper());
             painter->restore();
@@ -93,9 +94,9 @@ public:
         const QRect pill(option.rect.right() - 16 - width, option.rect.center().y() - 9, width, 18);
         const bool selected = option.state & QStyle::State_Selected;
         painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(selected ? "#ffffff" : "#4f8cff"));
+        painter->setBrush((selected ? theme::palette().onAccent : theme::palette().accent));
         painter->drawRoundedRect(pill, 9, 9);
-        painter->setPen(QColor(selected ? "#4f8cff" : "#ffffff"));
+        painter->setPen((selected ? theme::palette().accent : theme::palette().onAccent));
         painter->drawText(pill, Qt::AlignCenter, text);
         painter->restore();
     }
