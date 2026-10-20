@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, use, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AdminLink from "./AdminLink";
@@ -39,7 +40,12 @@ export default function Header({ showHandmadeLeather }: { showHandmadeLeather: P
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-ink/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <Link href="/" className="font-display text-2xl tracking-wide text-paper" onClick={() => setMenuOpen(false)}>
+        <Link
+          href="/"
+          className="flex items-center gap-3 font-display text-2xl tracking-wide text-paper"
+          onClick={() => setMenuOpen(false)}
+        >
+          <Image src="/logo.png" alt="" width={40} height={40} priority className="h-10 w-10" />
           Shelby
         </Link>
 
