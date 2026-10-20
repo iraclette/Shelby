@@ -663,6 +663,7 @@ NotificationsSettingsSection::NotificationsSettingsSection(SupabaseClient *clien
     qrLayout->addLayout(qrText, 1);
     m_qrPanel->hide();
     layout->addWidget(m_qrPanel);
+    connect(theme::notifier(), &theme::Notifier::changed, this, &NotificationsSettingsSection::showQrLink);
     connect(cancelButton, &QPushButton::clicked, this, [this]() {
         stopLinking();
         m_telegramStatus->clear();
@@ -709,17 +710,27 @@ void NotificationsSettingsSection::startLinking() {
         }
         const QString url = QString("https://t.me/%1?start=%2").arg(m_botUsername, code);
         m_qrCode->setPixmap(qrPixmap(url, m_qrCode->width(), devicePixelRatioF()));
-        m_qrLink->setText(tr("No camera? <a href=\"%1\">Open the link on this computer</a>.").arg(url));
+        m_qrUrl = url;
+        showQrLink();
         m_qrPanel->show();
         m_linkStarted = QDateTime::currentDateTimeUtc();
         m_linkPoll->start();
     });
 }
 
+// Rich-text links ignore the stylesheet, so the link gets the accent colour inline.
+void NotificationsSettingsSection::showQrLink() {
+    if (m_qrUrl.isEmpty()) return;
+    const QString text = tr("No camera? <a href=\"%1\">Open the link on this computer</a>.").arg(m_qrUrl);
+    m_qrLink->setText(QString(text).replace(
+        "<a href=", QString("<a style=\"color:%1;\" href=").arg(theme::hex(theme::palette().accent))));
+}
+
 void NotificationsSettingsSection::stopLinking() {
     m_linkPoll->stop();
     m_qrPanel->hide();
     m_qrCode->clear();
+    m_qrUrl.clear();
     m_connectButton->setEnabled(true);
 }
 

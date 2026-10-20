@@ -135,6 +135,7 @@ private:
 
     void startLinking();
     void stopLinking();
+    void showQrLink();
     void loadLinks();
     void showLinks();
     void setLinkEvent(const QString &linkId, const QString &event, bool on);
@@ -147,6 +148,7 @@ private:
     QWidget *m_qrPanel = nullptr;
     QLabel *m_qrCode = nullptr;
     QLabel *m_qrLink = nullptr;
+    QString m_qrUrl; // the t.me link while the QR code is up
     QLabel *m_telegramStatus = nullptr;
     QVBoxLayout *m_linksLayout = nullptr;
     QTimer *m_linkPoll = nullptr; // while the QR code is up: has the phone linked yet?
