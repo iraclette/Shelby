@@ -5,10 +5,14 @@
 //   node scripts/shrink-photos.mjs           # dry run, prints savings
 //   node scripts/shrink-photos.mjs --apply   # overwrite in storage
 //
+// The CLI can't overwrite (409 Duplicate), so --apply removes each object and
+// uploads the shrunk copy, putting the original back if that upload fails.
+// Originals are kept in the printed backup folder.
+//
 // Uses the Supabase CLI linked at the repo root, and sharp
 // from Next's dependencies.
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,10 +24,15 @@ const MAX_SIDE = 1600;
 const apply = process.argv.includes("--apply");
 
 function storage(...args) {
-  execFileSync("supabase", ["storage", ...args, "--experimental", "--linked"], {
-    cwd: REPO_ROOT,
-    stdio: ["ignore", "ignore", "inherit"],
-  });
+  try {
+    execFileSync("supabase", ["storage", ...args, "--experimental", "--linked"], {
+      cwd: REPO_ROOT,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (error) {
+    // The CLI reports failures as JSON on stdout.
+    throw new Error(`supabase storage ${args[0]} failed: ${error.stdout || error.stderr || error.message}`);
+  }
 }
 
 function* walk(dir) {
@@ -39,6 +48,11 @@ try {
   console.log(`Downloading ${BUCKET}...`);
   storage("cp", "-r", `ss:///${BUCKET}`, work);
   const root = join(work, BUCKET);
+  const backup = join(work, "originals");
+  if (apply) {
+    cpSync(root, backup, { recursive: true });
+    console.log(`Originals backed up to ${backup}`);
+  }
 
   let before = 0;
   let after = 0;
@@ -70,7 +84,13 @@ try {
     console.log(`${path}: ${(original.length / 1e6).toFixed(2)} MB -> ${(shrunk.length / 1e6).toFixed(2)} MB`);
     if (apply) {
       writeFileSync(file, shrunk);
-      storage("cp", file, `ss:///${BUCKET}/${path}`);
+      storage("rm", `ss:///${BUCKET}/${path}`);
+      try {
+        storage("cp", file, `ss:///${BUCKET}/${path}`);
+      } catch (error) {
+        storage("cp", join(backup, path), `ss:///${BUCKET}/${path}`);
+        throw error;
+      }
     }
   }
 
@@ -79,5 +99,5 @@ try {
       (apply ? " (uploaded)" : " (dry run, pass --apply to upload)"),
   );
 } finally {
-  rmSync(work, { recursive: true, force: true });
+  if (!apply) rmSync(work, { recursive: true, force: true });
 }
