@@ -16,7 +16,7 @@ export default async function ProductCard({ product }: { product: Product }) {
       <div className="relative aspect-square overflow-hidden bg-ink-elevated">
         {image ? (
           <Image
-            src={productImageUrl(image.storage_path)}
+            src={productImageUrl(image.thumb_path ?? image.storage_path)}
             alt={product.name}
             fill
             sizes="(min-width: 768px) 25vw, 50vw"

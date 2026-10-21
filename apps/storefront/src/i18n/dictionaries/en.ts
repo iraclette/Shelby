@@ -151,6 +151,9 @@ const en = {
     emptyText: "Our shops in Gori have it on the shelves. Drop by, or check back soon.",
     previous: "Previous",
     next: "Next",
+    searchPlaceholder: "Search products",
+    search: "Search",
+    noResults: "Nothing matches “{query}”.",
     pageOf: "Page {page} of {pages}",
   },
   product: {

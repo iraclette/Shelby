@@ -12,8 +12,9 @@ export const revalidate = 60;
 export default async function ProductsPage({
   searchParams,
 }: PageProps<"/[lang]/products">) {
-  const { category: categoryParam, page: pageParam } = await searchParams;
+  const { category: categoryParam, page: pageParam, q } = await searchParams;
   const category = typeof categoryParam === "string" ? categoryParam : undefined;
+  const search = typeof q === "string" ? q.trim().slice(0, 100) : "";
   const page = Math.max(1, parseInt(typeof pageParam === "string" ? pageParam : "", 10) || 1);
   const [categories, dict] = await Promise.all([fetchCategories(), getDictionary()]);
   // The top-level chip stays lit while one of its subcategories is picked.
@@ -28,6 +29,25 @@ export default async function ProductsPage({
   return (
     <div className="mx-auto max-w-6xl px-6 py-16">
       <h1 className="font-display text-3xl text-paper">{dict.products.title}</h1>
+
+      {/* Plain GET form: works without JS, and the query lands in the URL. */}
+      <form action="/products" className="mt-6 flex max-w-md gap-3">
+        {category && <input type="hidden" name="category" value={category} />}
+        <input
+          type="search"
+          name="q"
+          defaultValue={search}
+          placeholder={dict.products.searchPlaceholder}
+          aria-label={dict.products.searchPlaceholder}
+          className="min-w-0 flex-1 border border-line bg-transparent px-4 py-2 text-sm text-paper placeholder:text-paper-dim/70 focus:border-brass focus:outline-none"
+        />
+        <button
+          type="submit"
+          className="border border-brass px-4 py-2 text-xs tracking-[0.1em] text-brass uppercase transition-colors hover:bg-brass hover:text-ink"
+        >
+          {dict.products.search}
+        </button>
+      </form>
 
       <div className="mt-6 flex flex-wrap gap-3">
         <Link href="/products" className={chip(!category)}>
@@ -55,19 +75,23 @@ export default async function ProductsPage({
 
       {/* Keyed on the category so switching category is new content: React shows the
           skeleton instead of keeping the previous category's grid until the new one arrives. */}
-      <Suspense key={`${category ?? "all"}-${page}`} fallback={<ProductGridSkeleton />}>
-        <ProductGrid category={category} page={page} />
+      <Suspense key={`${category ?? "all"}-${search}-${page}`} fallback={<ProductGridSkeleton />}>
+        <ProductGrid category={category} search={search} page={page} />
       </Suspense>
     </div>
   );
 }
 
-async function ProductGrid({ category, page }: { category?: string; page: number }) {
-  const [{ products, total }, dict] = await Promise.all([fetchProducts(category, page), getDictionary()]);
+async function ProductGrid({ category, search, page }: { category?: string; search: string; page: number }) {
+  const [{ products, total }, dict] = await Promise.all([
+    fetchProducts({ categoryId: category, search, page }),
+    getDictionary(),
+  ]);
   const pages = Math.ceil(total / PRODUCTS_PER_PAGE);
   const pageHref = (n: number) => {
     const params = new URLSearchParams();
     if (category) params.set("category", category);
+    if (search) params.set("q", search);
     if (n > 1) params.set("page", String(n));
     const query = params.toString();
     return query ? `/products?${query}` : "/products";
@@ -78,7 +102,11 @@ async function ProductGrid({ category, page }: { category?: string; page: number
     <div className="relative mt-12 overflow-hidden border border-line px-6 py-14 text-center">
       <div className="atmosphere-subtle" />
       <p className="relative font-display text-2xl italic text-paper">
-        {category ? dict.products.emptyCategory : dict.products.emptyAll}
+        {search
+          ? fmt(dict.products.noResults, { query: search })
+          : category
+            ? dict.products.emptyCategory
+            : dict.products.emptyAll}
       </p>
       <p className="relative mx-auto mt-3 max-w-md text-sm text-paper-dim">
         {dict.products.emptyText}

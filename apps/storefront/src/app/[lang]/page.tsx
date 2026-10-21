@@ -23,7 +23,7 @@ const eyebrow = "text-xs tracking-[0.3em] text-brass uppercase";
 export default async function Home() {
   const [categories, { products: recentProducts }, shops, dict] = await Promise.all([
     fetchCategories(),
-    fetchProducts(undefined, 1, 8),
+    fetchProducts({ pageSize: 8 }),
     fetchShops(),
     getDictionary(),
   ]);

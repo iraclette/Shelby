@@ -775,15 +775,10 @@ void SupabaseClient::fetchStockTransfers() {
     });
 }
 
-// Same limits as the storefront's lib/resizeImage.ts: the website serves
-// photos as-is, so full-size camera shots must not reach storage.
-static bool shrinkToJpeg(const QString &localFilePath, qint64 originalSize, QByteArray &out) {
-    QImageReader reader(localFilePath);
-    reader.setAutoTransform(true); // honour EXIF rotation
-    QImage image = reader.read();
-    if (image.isNull()) return false;
-
-    constexpr int maxSide = 1600;
+// Same sizes as the storefront's lib/resizeImage.ts: the website serves
+// photos as-is, so full-size camera shots must not reach storage, and cards
+// use the ~400px thumbnail.
+static QByteArray toJpeg(QImage image, int maxSide, int quality) {
     if (image.width() > maxSide || image.height() > maxSide)
         image = image.scaled(maxSide, maxSide, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
@@ -792,9 +787,10 @@ static bool shrinkToJpeg(const QString &localFilePath, qint64 originalSize, QByt
     flat.fill(Qt::white);
     QPainter(&flat).drawImage(0, 0, image);
 
+    QByteArray out;
     QBuffer buffer(&out);
     buffer.open(QIODevice::WriteOnly);
-    return flat.save(&buffer, "JPG", 82) && out.size() < originalSize;
+    return flat.save(&buffer, "JPG", quality) ? out : QByteArray();
 }
 
 void SupabaseClient::uploadProductImage(const QString &productId, const QString &localFilePath, bool isPrimary) {
@@ -809,42 +805,65 @@ void SupabaseClient::uploadProductImage(const QString &productId, const QString 
     const QFileInfo info(localFilePath);
     QString suffix = info.suffix();
     QString mimeType = QMimeDatabase().mimeTypeForFile(localFilePath).name();
-    QByteArray shrunk;
-    if (shrinkToJpeg(localFilePath, fileBytes.size(), shrunk)) {
-        fileBytes = shrunk;
-        suffix = "jpg";
-        mimeType = "image/jpeg";
+    QByteArray thumbBytes;
+    QImageReader reader(localFilePath);
+    reader.setAutoTransform(true); // honour EXIF rotation
+    const QImage image = reader.read();
+    if (!image.isNull()) {
+        const QByteArray shrunk = toJpeg(image, 1600, 82);
+        if (!shrunk.isEmpty() && shrunk.size() < fileBytes.size()) {
+            fileBytes = shrunk;
+            suffix = "jpg";
+            mimeType = "image/jpeg";
+        }
+        thumbBytes = toJpeg(image, 400, 78);
     }
-    const QString storagePath = productId + "/" + QUuid::createUuid().toString(QUuid::WithoutBraces) +
-                                 "." + suffix;
+    const QString name = productId + "/" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const QString storagePath = name + "." + suffix;
+    const QString thumbPath = thumbBytes.isEmpty() ? QString() : name + ".thumb.jpg";
 
     const QMap<QByteArray, QByteArray> headers{
         {"Content-Type", mimeType.toUtf8()},
     };
 
     authorizedWrite("POST", "/storage/v1/object/product-images/" + storagePath, {}, fileBytes, headers,
-                    [this, productId, storagePath, isPrimary](QNetworkReply *reply) {
+                    [this, productId, storagePath, thumbPath, thumbBytes, isPrimary](QNetworkReply *reply) {
         const QByteArray data = reply->readAll();
         if (reply->error() != QNetworkReply::NoError) {
             emit imageUploadFailed(extractErrorMessage(data, reply->errorString()));
             return;
         }
 
-        const QJsonObject body{
-            {"product_id", productId},
-            {"storage_path", storagePath},
-            {"is_primary", isPrimary},
-        };
-        const QMap<QByteArray, QByteArray> insertHeaders{{"Content-Type", "application/json"}};
+        auto insertRow = [this, productId, storagePath, isPrimary](const QString &uploadedThumbPath) {
+            const QJsonObject body{
+                {"product_id", productId},
+                {"storage_path", storagePath},
+                {"thumb_path", uploadedThumbPath.isEmpty() ? QJsonValue() : QJsonValue(uploadedThumbPath)},
+                {"is_primary", isPrimary},
+            };
+            const QMap<QByteArray, QByteArray> insertHeaders{{"Content-Type", "application/json"}};
 
-        authorizedWrite("POST", "/rest/v1/product_images", {}, QJsonDocument(body).toJson(), insertHeaders,
-                        [this](QNetworkReply *insertReply) {
-            const QByteArray insertData = insertReply->readAll();
-            if (insertReply->error() != QNetworkReply::NoError) {
-                emit imageUploadFailed(extractErrorMessage(insertData, insertReply->errorString()));
-                return;
-            }
-            emit imageUploaded();
+            authorizedWrite("POST", "/rest/v1/product_images", {}, QJsonDocument(body).toJson(), insertHeaders,
+                            [this](QNetworkReply *insertReply) {
+                const QByteArray insertData = insertReply->readAll();
+                if (insertReply->error() != QNetworkReply::NoError) {
+                    emit imageUploadFailed(extractErrorMessage(insertData, insertReply->errorString()));
+                    return;
+                }
+                emit imageUploaded();
+            });
+        };
+
+        if (thumbPath.isEmpty()) {
+            insertRow({});
+            return;
+        }
+        // A failed thumbnail isn't worth failing the photo over: the website
+        // falls back to the full-size photo when thumb_path is null.
+        const QMap<QByteArray, QByteArray> thumbHeaders{{"Content-Type", "image/jpeg"}};
+        authorizedWrite("POST", "/storage/v1/object/product-images/" + thumbPath, {}, thumbBytes, thumbHeaders,
+                        [thumbPath, insertRow](QNetworkReply *thumbReply) {
+            insertRow(thumbReply->error() == QNetworkReply::NoError ? thumbPath : QString());
         });
     });
 }
@@ -852,7 +871,7 @@ void SupabaseClient::uploadProductImage(const QString &productId, const QString 
 void SupabaseClient::fetchProductImages(const QString &productId) {
     QUrlQuery query;
     query.addQueryItem("product_id", "eq." + productId);
-    query.addQueryItem("select", "id,storage_path,is_primary");
+    query.addQueryItem("select", "id,storage_path,is_primary,thumb_path");
     query.addQueryItem("order", "is_primary.desc,created_at.asc");
 
     authorizedGet("/rest/v1/product_images", query, [this](QNetworkReply *reply) {
@@ -866,13 +885,17 @@ void SupabaseClient::fetchProductImages(const QString &productId) {
         for (const QJsonValue &value : QJsonDocument::fromJson(data).array()) {
             const QJsonObject row = value.toObject();
             images.append({row.value("id").toString(), row.value("storage_path").toString(),
-                            row.value("is_primary").toBool()});
+                            row.value("is_primary").toBool(), row.value("thumb_path").toString()});
         }
         emit productImagesFetched(images);
     });
 }
 
-void SupabaseClient::deleteProductImage(const QString &imageId, const QString &storagePath) {
+void SupabaseClient::deleteProductImage(const QString &imageId, const QString &storagePath,
+                                        const QString &thumbPath) {
+    // Best-effort, like deleteBusinessLogoFile: an orphaned thumbnail is harmless.
+    if (!thumbPath.isEmpty())
+        authorizedWrite("DELETE", "/storage/v1/object/product-images/" + thumbPath, {}, {}, {}, [](QNetworkReply *) {});
     authorizedWrite("DELETE", "/storage/v1/object/product-images/" + storagePath, {}, {}, {},
                     [this, imageId](QNetworkReply *reply) {
         const QByteArray data = reply->readAll();

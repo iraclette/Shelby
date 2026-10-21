@@ -84,7 +84,7 @@ export default function ProductGallery({ images, alt }: { images: ProductImage[]
               }`}
             >
               <Image
-                src={productImageUrl(image.storage_path)}
+                src={productImageUrl(image.thumb_path ?? image.storage_path)}
                 alt=""
                 fill
                 sizes="20vw"

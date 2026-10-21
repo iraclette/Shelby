@@ -147,6 +147,9 @@ const ka: Dictionary = {
     emptyText: "გორის მაღაზიებში ყველაფერი თაროებზეა. შემოგვიარეთ ან მალე ისევ შეამოწმეთ.",
     previous: "წინა",
     next: "შემდეგი",
+    searchPlaceholder: "პროდუქტის ძიება",
+    search: "ძიება",
+    noResults: "„{query}“ ვერ მოიძებნა.",
     pageOf: "გვერდი {page} / {pages}",
   },
   product: {

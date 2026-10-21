@@ -147,6 +147,9 @@ const ru: Dictionary = {
     emptyText: "В наших магазинах в Гори всё уже на полках. Заходите или загляните сюда чуть позже.",
     previous: "Назад",
     next: "Далее",
+    searchPlaceholder: "Поиск товаров",
+    search: "Найти",
+    noResults: "По запросу «{query}» ничего не найдено.",
     pageOf: "Страница {page} из {pages}",
   },
   product: {

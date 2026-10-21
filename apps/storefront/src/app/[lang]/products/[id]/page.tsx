@@ -27,7 +27,7 @@ export default async function ProductPage({
   // First photo of each variant, so the cart shows the shade that was picked.
   const variantImagePaths: Record<string, string> = {};
   for (const image of galleryImages) {
-    if (image.variant_id && !variantImagePaths[image.variant_id]) variantImagePaths[image.variant_id] = image.storage_path;
+    if (image.variant_id && !variantImagePaths[image.variant_id]) variantImagePaths[image.variant_id] = image.thumb_path ?? image.storage_path;
   }
 
   return (
@@ -54,7 +54,7 @@ export default async function ProductPage({
               productId={product.id}
               name={product.name}
               unitPrice={product.sell_price}
-              imagePath={featured?.storage_path ?? null}
+              imagePath={featured ? (featured.thumb_path ?? featured.storage_path) : null}
               variantImagePaths={variantImagePaths}
             />
           ) : product.inStock ? (
@@ -62,7 +62,7 @@ export default async function ProductPage({
               productId={product.id}
               name={product.name}
               unitPrice={product.sell_price}
-              imagePath={featured?.storage_path ?? null}
+              imagePath={featured ? (featured.thumb_path ?? featured.storage_path) : null}
             />
           ) : (
             <StockRequestForm productId={product.id} />

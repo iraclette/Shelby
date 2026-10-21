@@ -85,8 +85,10 @@ void ProductPhotosDialog::populateList(const QVector<ProductImage> &images) {
         auto *item = new QListWidgetItem(image.isPrimary ? tr("★ primary") : "");
         item->setData(Qt::UserRole, image.id);
         item->setData(Qt::UserRole + 1, image.storagePath);
+        item->setData(Qt::UserRole + 2, image.thumbPath);
         m_list->addItem(item);
-        loadThumbnail(item, m_client->publicImageUrl(image.storagePath), m_generation);
+        loadThumbnail(item, m_client->publicImageUrl(image.thumbPath.isEmpty() ? image.storagePath : image.thumbPath),
+                      m_generation);
     }
 
     m_statusLabel->setText(images.isEmpty() ? tr("No photos yet.") : QString());
@@ -127,6 +129,7 @@ void ProductPhotosDialog::removeSelected() {
 
     for (QListWidgetItem *item : selected) {
         m_client->deleteProductImage(item->data(Qt::UserRole).toString(),
-                                      item->data(Qt::UserRole + 1).toString());
+                                      item->data(Qt::UserRole + 1).toString(),
+                                      item->data(Qt::UserRole + 2).toString());
     }
 }

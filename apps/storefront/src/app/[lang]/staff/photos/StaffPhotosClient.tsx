@@ -5,13 +5,18 @@ import Image from "next/image";
 import { getSupabaseClient } from "@/lib/supabase";
 import StaffAuthGate from "@/components/StaffAuthGate";
 import Skeleton from "@/components/Skeleton";
-import { randomId } from "@/lib/randomId";
-import { resizeImage } from "@/lib/resizeImage";
+import { removeProductPhoto, uploadProductPhoto } from "@/lib/productPhotos";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 
 type Product = { id: string; name: string; sku: string };
-type ProductImage = { id: string; storage_path: string; is_primary: boolean; variant_id: string | null };
+type ProductImage = {
+  id: string;
+  storage_path: string;
+  thumb_path: string | null;
+  is_primary: boolean;
+  variant_id: string | null;
+};
 type Variant = { id: string; name: string };
 
 function publicUrl(storagePath: string) {
@@ -62,7 +67,7 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
     const [{ data }, { data: variantRows }] = await Promise.all([
       supabase
         .from("product_images")
-        .select("id, storage_path, is_primary, variant_id")
+        .select("id, storage_path, thumb_path, is_primary, variant_id")
         .eq("product_id", productId)
         .order("is_primary", { ascending: false }),
       supabase.from("product_variants").select("id, name").eq("product_id", productId),
@@ -88,23 +93,16 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
     let hadExistingImage = images.length > 0;
     let failures = 0;
 
-    for (const original of Array.from(fileList)) {
-      const file = await resizeImage(original);
-      const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
-      const storagePath = `${selected.id}/${randomId()}.${extension}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("product-images")
-        .upload(storagePath, file, { contentType: file.type || "image/jpeg" });
-
-      if (uploadError) {
+    for (const file of Array.from(fileList)) {
+      const paths = await uploadProductPhoto(supabase, selected.id, file);
+      if (!paths) {
         failures += 1;
         continue;
       }
 
       const { error: insertError } = await supabase
         .from("product_images")
-        .insert({ product_id: selected.id, storage_path: storagePath, is_primary: !hadExistingImage });
+        .insert({ product_id: selected.id, ...paths, is_primary: !hadExistingImage });
 
       if (insertError) {
         failures += 1;
@@ -132,8 +130,7 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
   async function removeImage(image: ProductImage) {
     if (!selected) return;
     if (!confirm(dict.staff.confirmRemove)) return;
-    await supabase.storage.from("product-images").remove([image.storage_path]);
-    await supabase.from("product_images").delete().eq("id", image.id);
+    await removeProductPhoto(supabase, image);
     loadImages(selected.id);
   }
 
@@ -200,7 +197,7 @@ function PhotosManager({ onSignOut }: { onSignOut: () => void }) {
                 onClick={() => removeImage(image)}
                 className="relative block aspect-square w-full overflow-hidden rounded-md border border-line"
               >
-                <Image src={publicUrl(image.storage_path)} alt="" fill sizes="33vw" className="object-cover" />
+                <Image src={publicUrl(image.thumb_path ?? image.storage_path)} alt="" fill sizes="33vw" className="object-cover" />
                 {image.is_primary && (
                   <span className="absolute left-1 top-1 rounded bg-ink/80 px-1.5 py-0.5 text-[10px] text-brass">
                     {dict.staff.primary}

@@ -8,7 +8,7 @@ import StaffAuthGate from "@/components/StaffAuthGate";
 import CategoryOptions, { type StaffCategory } from "@/components/CategoryOptions";
 import Skeleton from "@/components/Skeleton";
 import { randomId } from "@/lib/randomId";
-import { resizeImage } from "@/lib/resizeImage";
+import { uploadProductPhoto } from "@/lib/productPhotos";
 import { generateInternalSku, loadSkuPrefix } from "@/lib/sku";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
@@ -200,20 +200,15 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
 
     let failedPhotos = 0;
     for (const [i, photo] of photos.entries()) {
-      const file = await resizeImage(photo.file);
-      const extension = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
-      const storagePath = `${product.id}/${randomId()}.${extension}`;
-      const { error: uploadError } = await supabase.storage
-        .from("product-images")
-        .upload(storagePath, file, { contentType: file.type || "image/jpeg" });
-      const { error: rowError } = uploadError
-        ? { error: uploadError }
+      const paths = await uploadProductPhoto(supabase, product.id, photo.file);
+      const { error: rowError } = !paths
+        ? { error: true }
         : await supabase
             .from("product_images")
             .insert({
               product_id: product.id,
               variant_id: variantIds.get(photo.variantKey) ?? null,
-              storage_path: storagePath,
+              ...paths,
               is_primary: i === 0,
             });
       if (rowError) failedPhotos += 1;

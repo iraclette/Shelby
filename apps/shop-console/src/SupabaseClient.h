@@ -144,6 +144,7 @@ struct ProductImage {
     QString id;
     QString storagePath;
     bool isPrimary = false;
+    QString thumbPath; // ~400px copy; empty for photos uploaded before 2.3.2
 };
 
 struct Shop {
@@ -363,7 +364,7 @@ public:
     void uploadProductImage(const QString &productId, const QString &localFilePath, bool isPrimary);
     void fetchProductImages(const QString &productId);
     // Deletes both the Storage object and its product_images row.
-    void deleteProductImage(const QString &imageId, const QString &storagePath);
+    void deleteProductImage(const QString &imageId, const QString &storagePath, const QString &thumbPath);
     // The bucket is public, so this is just a URL — no auth needed to load it.
     QString publicImageUrl(const QString &storagePath) const;
 

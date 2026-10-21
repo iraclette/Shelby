@@ -26,6 +26,7 @@ export type Category = {
 export type ProductImage = {
   storage_path: string;
   is_primary: boolean;
+  thumb_path: string | null; // ~400px copy for cards (0037_search_and_thumbnails.sql)
   variant_id?: string | null; // a photo of one variant (0028_storefront_variants.sql)
 };
 
@@ -70,7 +71,7 @@ export async function fetchShops(): Promise<Shop[]> {
 }
 
 const PRODUCT_COLUMNS =
-  "id, name, description, sell_price, category_id, categories(id, name, visible_on_storefront), product_images(storage_path, is_primary, variant_id), product_variants(id, name)";
+  "id, name, description, sell_price, category_id, categories(id, name, visible_on_storefront), product_images(storage_path, thumb_path, is_primary, variant_id), product_variants(id, name)";
 
 // A product in a category hidden from the website (the Shop Console's "show on
 // website" switch) is hidden too; uncategorised products always show.
@@ -92,11 +93,12 @@ export type ProductPage = { products: Product[]; total: number };
 // One page of the catalog, in-stock first then newest. Paging, ordering and the
 // hidden-category filter run in SQL (0036_storefront_product_pages.sql), so a
 // request costs the same however big the catalog gets.
-export async function fetchProducts(
-  categoryId?: string,
+export async function fetchProducts({
+  categoryId,
+  search,
   page = 1,
   pageSize = PRODUCTS_PER_PAGE,
-): Promise<ProductPage> {
+}: { categoryId?: string; search?: string; page?: number; pageSize?: number } = {}): Promise<ProductPage> {
   let categoryIds: string[] | null = null;
   if (categoryId) {
     // A parent category also lists everything in its subcategories.
@@ -108,6 +110,7 @@ export async function fetchProducts(
     category_ids: categoryIds,
     page_size: pageSize,
     page_offset: (page - 1) * pageSize,
+    search: search || null,
   });
   const pageRows = (rows as { product_id: string; in_stock: boolean; total: number }[] | null) ?? [];
   if (pageRows.length === 0) return { products: [], total: 0 };
