@@ -9,7 +9,7 @@ import CartLink from "./CartLink";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useI18n } from "@/i18n/client";
 
-const navLinkClass = "block py-3 transition-colors hover:text-brass lg:inline lg:py-0";
+const navLinkClass = "block py-3 whitespace-nowrap transition-colors hover:text-brass lg:inline lg:py-0";
 const activeNavLinkClass = `${navLinkClass} text-paper`;
 
 // URLs carry no language prefix (see proxy.ts), so the pathname compares directly.
@@ -42,7 +42,7 @@ export default function Header({ showHandmadeLeather }: { showHandmadeLeather: P
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Link
           href="/"
-          className="flex items-center gap-3 font-display text-2xl tracking-wide text-paper"
+          className="flex shrink-0 items-center gap-3 font-display text-2xl tracking-wide text-paper"
           onClick={() => setMenuOpen(false)}
         >
           <Image src="/logo.png" alt="" width={40} height={40} priority className="h-10 w-10" />
@@ -62,7 +62,7 @@ export default function Header({ showHandmadeLeather }: { showHandmadeLeather: P
           <Link href="/account" {...navClass("/account")}>
             {dict.nav.account}
           </Link>
-          <AdminLink linkClassName={navLinkClass} />
+          <AdminLink linkClassName={navLinkClass} dropdown />
           <CartLink className={navLinkClass} />
           <LanguageSwitcher className="-mx-2" />
         </nav>

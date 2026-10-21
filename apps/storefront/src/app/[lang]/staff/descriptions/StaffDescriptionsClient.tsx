@@ -47,15 +47,21 @@ function DescriptionsManager({ onSignOut }: { onSignOut: () => void }) {
       LOCALES.some((locale) => !row.descriptions[locale]?.text),
     );
     let failed = 0;
+    let firstError = "";
     for (const [i, row] of pending.entries()) {
       setBulkMessage(fmt(dict.staff.translatingProgress, { done: i, total: pending.length }));
-      if (await translateDescription(supabase, row.id)) failed += 1;
+      const error = await translateDescription(supabase, row.id);
+      if (error) {
+        failed += 1;
+        firstError ||= error;
+      }
     }
     setBulkRunning(false);
     setBulkMessage(
       fmt(failed > 0 ? dict.staff.translatedSomeFailed : dict.staff.translatedAll, {
         n: pending.length - failed,
         failed,
+        error: firstError,
       }),
     );
   }
