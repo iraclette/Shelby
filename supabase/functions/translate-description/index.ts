@@ -10,14 +10,15 @@
 // AZURE_TRANSLATOR_KEY and AZURE_TRANSLATOR_REGION secrets.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { Lang } from "./glossary.ts";
+import { createTranslator, TranslatorError } from "./translator.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const TRANSLATOR_KEY = Deno.env.get("AZURE_TRANSLATOR_KEY")!;
-const TRANSLATOR_REGION = Deno.env.get("AZURE_TRANSLATOR_REGION")!;
+const translate = createTranslator(Deno.env.get("AZURE_TRANSLATOR_KEY")!, Deno.env.get("AZURE_TRANSLATOR_REGION")!);
 
-const LANGUAGES = ["ka", "en", "ru"]; // Translator uses the same codes
+const LANGUAGES: Lang[] = ["ka", "en", "ru"]; // Translator uses the same codes
 
 type Entry = { text?: string; auto?: boolean };
 type Descriptions = { source?: string } & Record<string, Entry | string | undefined>;
@@ -27,33 +28,6 @@ function json(body: unknown, status: number) {
     status,
     headers: { "Content-Type": "application/json" },
   });
-}
-
-class TranslatorError extends Error {}
-
-async function translate(sourceLang: string, text: string, targets: string[]) {
-  const url = new URL("https://api.cognitive.microsofttranslator.com/translate");
-  url.searchParams.set("api-version", "3.0");
-  url.searchParams.set("from", sourceLang);
-  for (const lang of targets) url.searchParams.append("to", lang);
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Ocp-Apim-Subscription-Key": TRANSLATOR_KEY,
-      "Ocp-Apim-Subscription-Region": TRANSLATOR_REGION,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify([{ Text: text }]),
-  });
-  if (!response.ok) {
-    // 401: wrong key or region. 429/403: the free tier's monthly allowance is used up.
-    const body = await response.json().catch(() => null);
-    throw new TranslatorError(`Translator error ${response.status}: ${body?.error?.message ?? response.statusText}`);
-  }
-
-  const [result] = (await response.json()) as { translations: { text: string; to: string }[] }[];
-  return Object.fromEntries(result.translations.map((t) => [t.to, t.text])) as Record<string, string>;
 }
 
 Deno.serve(async (req) => {
@@ -85,7 +59,7 @@ Deno.serve(async (req) => {
     if (productError || !product) return json({ error: "Product not found." }, 404);
 
     const descriptions = (product.descriptions ?? {}) as Descriptions;
-    const source = descriptions.source;
+    const source = descriptions.source as Lang | undefined;
     const sourceEntry = source ? (descriptions[source] as Entry | undefined) : undefined;
     const text = sourceEntry?.text?.trim();
     if (!source || !LANGUAGES.includes(source) || !text) return json({ translated: [] }, 200);
@@ -97,7 +71,9 @@ Deno.serve(async (req) => {
     });
     if (targets.length === 0) return json({ translated: [] }, 200);
 
-    const translations = await translate(source, text, targets);
+    // Russian is translated by way of English; staff-written English is the better start.
+    const english = descriptions.en as Entry | undefined;
+    const translations = await translate(source, text, targets, english?.auto === false ? english.text : undefined);
 
     const { data: applied, error: applyError } = await callerClient.rpc("apply_description_translations", {
       target_product: productId,
