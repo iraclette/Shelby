@@ -78,5 +78,17 @@
   "%n variants": {
     "one": "%n variant",
     "other": "%n variants"
+  },
+  "Saved %n products to %1.": {
+    "one": "Saved %n product to %1.",
+    "other": "Saved %n products to %1."
+  },
+  "Stock of %n existing products will be set to the numbers in the file. Sales made since the file was exported would be overwritten; empty the stock cells to leave stock alone.": {
+    "one": "Stock of %n existing product will be set to the number in the file. Sales made since the file was exported would be overwritten; empty the stock cells to leave stock alone.",
+    "other": "Stock of %n existing products will be set to the numbers in the file. Sales made since the file was exported would be overwritten; empty the stock cells to leave stock alone."
+  },
+  "%n problems in the file. Fix them in the spreadsheet and import it again; nothing has been saved.": {
+    "one": "%n problem in the file. Fix it in the spreadsheet and import it again; nothing has been saved.",
+    "other": "%n problems in the file. Fix them in the spreadsheet and import it again; nothing has been saved."
   }
 }

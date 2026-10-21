@@ -20,6 +20,7 @@
 #include <QUrlQuery>
 #include <QUuid>
 
+#include <memory>
 #include <utility>
 
 SupabaseClient::SupabaseClient(QString baseUrl, QString anonKey, QObject *parent)
@@ -1392,6 +1393,49 @@ void SupabaseClient::writeRows(const QByteArray &verb, const QString &table, con
     authorizedWrite(verb, "/rest/v1/" + table, query, json, headers, [onDone = std::move(onDone)](QNetworkReply *reply) {
         const QByteArray data = reply->readAll();
         onDone(reply->error() == QNetworkReply::NoError ? QString() : extractErrorMessage(data, reply->errorString()));
+    });
+}
+
+void SupabaseClient::selectAllRows(const QString &table, const QUrlQuery &query,
+                                   std::function<void(const QJsonArray &, const QString &)> onDone) {
+    constexpr int pageSize = 1000;
+    auto collected = std::make_shared<QJsonArray>();
+    auto fetchPage = std::make_shared<std::function<void(int)>>();
+    *fetchPage = [this, table, query, onDone, collected, fetchPage](int offset) {
+        QUrlQuery page = query;
+        page.addQueryItem("limit", QString::number(pageSize));
+        page.addQueryItem("offset", QString::number(offset));
+        selectRows(table, page, [onDone, collected, fetchPage, offset](const QJsonArray &rows, const QString &error) {
+            if (!error.isEmpty()) {
+                onDone({}, error);
+                *fetchPage = nullptr; // breaks the self-reference
+                return;
+            }
+            for (const QJsonValue &row : rows) collected->append(row);
+            if (rows.size() < pageSize) {
+                onDone(*collected, {});
+                *fetchPage = nullptr;
+                return;
+            }
+            (*fetchPage)(offset + pageSize);
+        });
+    };
+    (*fetchPage)(0);
+}
+
+void SupabaseClient::callRpc(const QString &name, const QJsonObject &args,
+                             std::function<void(const QJsonValue &, const QString &)> onDone) {
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+    authorizedWrite("POST", "/rest/v1/rpc/" + name, {}, QJsonDocument(args).toJson(QJsonDocument::Compact), headers,
+                    [onDone = std::move(onDone)](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            onDone({}, extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        // A function returning jsonb comes back as that JSON value itself.
+        const QJsonDocument document = QJsonDocument::fromJson("[" + data + "]");
+        onDone(document.array().isEmpty() ? QJsonValue() : document.array().first(), {});
     });
 }
 

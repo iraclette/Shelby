@@ -1,7 +1,9 @@
 #include "InventoryPage.h"
 #include "Theme.h"
 #include "ProductDialog.h"
+#include "Csv.h"
 #include "ProductDescriptionsDialog.h"
+#include "ProductSpreadsheet.h"
 #include "ProductPhotosDialog.h"
 #include "SupabaseClient.h"
 #include "TransferStockDialog.h"
@@ -16,6 +18,10 @@
 #include <QJsonValue>
 #include <QLabel>
 #include <QLineEdit>
+#include <QFileDialog>
+#include <QFile>
+#include <QDir>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QStyledItemDelegate>
 #include <QTableWidget>
@@ -84,6 +90,10 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     toolbar->addWidget(addVariantButton);
     auto *transferButton = new QPushButton(tr("Transfer Stock"), this);
     toolbar->addWidget(transferButton);
+    auto *exportButton = new QPushButton(tr("Export…"), this);
+    toolbar->addWidget(exportButton);
+    auto *importButton = new QPushButton(tr("Import…"), this);
+    toolbar->addWidget(importButton);
     toolbar->addStretch();
     m_searchInput = new QLineEdit(this);
     m_searchInput->setPlaceholderText(tr("Search name, SKU, variant…"));
@@ -107,6 +117,20 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
         }
         const Product &product = m_products[m_rows[row].productIndex];
         ProductPhotosDialog dialog(m_client, product.id, product.name, this);
+        dialog.exec();
+    });
+    connect(exportButton, &QPushButton::clicked, this, [this]() { exportProducts(m_client, this); });
+    connect(importButton, &QPushButton::clicked, this, [this]() {
+        const QString path = QFileDialog::getOpenFileName(this, tr("Import products"), QDir::homePath(),
+                                                          tr("Spreadsheet (*.csv *.txt)"));
+        if (path.isEmpty()) return;
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(this, tr("Import products"), tr("Couldn't open %1.").arg(path));
+            return;
+        }
+        ProductImportDialog dialog(m_client, csv::parse(file.readAll()), this);
+        connect(&dialog, &ProductImportDialog::imported, this, [this]() { m_client->fetchProducts(); });
         dialog.exec();
     });
     connect(descriptionsButton, &QPushButton::clicked, this, [this]() {

@@ -362,6 +362,13 @@ public:
                     std::function<void(const QJsonArray &rows, const QString &error)> onDone);
     void writeRows(const QByteArray &verb, const QString &table, const QUrlQuery &query, const QJsonValue &body,
                    std::function<void(const QString &error)> onDone);
+    // Every row of a table, read 1000 at a time (PostgREST's per-request cap). query must
+    // carry an "order" so the pages don't overlap.
+    void selectAllRows(const QString &table, const QUrlQuery &query,
+                       std::function<void(const QJsonArray &rows, const QString &error)> onDone);
+    // A database function (POST /rpc/<name>) and what it returned.
+    void callRpc(const QString &name, const QJsonObject &args,
+                 std::function<void(const QJsonValue &result, const QString &error)> onDone);
 
     // Fire and forget: a logging failure never blocks the action.
     void logAuditEvent(const QString &action, const QString &entityType, const QString &entityId,

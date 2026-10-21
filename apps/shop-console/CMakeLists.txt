@@ -40,6 +40,10 @@ qt_add_executable(ShopConsole WIN32
     src/PaymentDialog.cpp
     src/ProductDialog.h
     src/ProductDialog.cpp
+    src/Csv.h
+    src/Csv.cpp
+    src/ProductSpreadsheet.h
+    src/ProductSpreadsheet.cpp
     src/ProductDescriptionsDialog.h
     src/ProductDescriptionsDialog.cpp
     src/ProductPhotosDialog.h
