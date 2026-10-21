@@ -5,20 +5,22 @@
 // 0038_description_translations.sql for the stored shape.
 //
 // Runs with the caller's own token, so only owners/admins can trigger it and
-// the products write policy still applies. Needs the ANTHROPIC_API_KEY secret.
+// the products write policy still applies. Translation is Microsoft Translator's
+// free tier (F0: 2M characters a month, never billed); needs the
+// AZURE_TRANSLATOR_KEY and AZURE_TRANSLATOR_REGION secrets.
 
-import Anthropic from "npm:@anthropic-ai/sdk@0.137.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const LANGUAGES: Record<string, string> = { ka: "Georgian", en: "English", ru: "Russian" };
+const TRANSLATOR_KEY = Deno.env.get("AZURE_TRANSLATOR_KEY")!;
+const TRANSLATOR_REGION = Deno.env.get("AZURE_TRANSLATOR_REGION")!;
+
+const LANGUAGES = ["ka", "en", "ru"]; // Translator uses the same codes
 
 type Entry = { text?: string; auto?: boolean };
 type Descriptions = { source?: string } & Record<string, Entry | string | undefined>;
-
-const anthropic = new Anthropic(); // ANTHROPIC_API_KEY
 
 function json(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
@@ -27,49 +29,31 @@ function json(body: unknown, status: number) {
   });
 }
 
-async function translate(productName: string, sourceLang: string, text: string, targets: string[]) {
-  const response = await anthropic.beta.messages.create({
-    model: "claude-opus-5-5",
-    max_tokens: 16000,
-    // Re-run on Anthropic's recommended fallback model if the request is declined.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: {
-      effort: "medium",
-      format: {
-        type: "json_schema",
-        schema: {
-          type: "object",
-          properties: Object.fromEntries(targets.map((lang) => [lang, { type: "string" }])),
-          required: targets,
-          additionalProperties: false,
-        },
-      },
-    },
-    system:
-      "You translate product descriptions for Shelby, a perfume and cosmetics shop in Gori, Georgia. " +
-      "Translate faithfully and naturally, the way a good local shop in that language would write it: " +
-      "keep the meaning, tone and line breaks, and don't add or drop claims. " +
-      "Keep brand names, product names, shade numbers and volumes exactly as written. " +
-      "Georgian uses the formal register (თქვენ) and the shop's own words: " +
-      "სუნამო / არომატი / სურნელი for perfume, fragrance and scent, მდგრადი for long-lasting, ფლაკონი for the bottle.",
-    messages: [
-      {
-        role: "user",
-        content:
-          `Product: ${productName}\n\n` +
-          `Translate this ${LANGUAGES[sourceLang]} description into ${targets.map((l) => LANGUAGES[l]).join(", ")}. ` +
-          `Return one field per language code (${targets.join(", ")}).\n\n` +
-          `<description>\n${text}\n</description>`,
-      },
-    ],
-  });
+class TranslatorError extends Error {}
 
-  if (response.stop_reason === "refusal") throw new Error("The translation request was declined.");
-  if (response.stop_reason === "max_tokens") throw new Error("The translation was cut off.");
-  const block = response.content.find((b) => b.type === "text");
-  if (!block || block.type !== "text") throw new Error("No translation in the response.");
-  return JSON.parse(block.text) as Record<string, string>;
+async function translate(sourceLang: string, text: string, targets: string[]) {
+  const url = new URL("https://api.cognitive.microsofttranslator.com/translate");
+  url.searchParams.set("api-version", "3.0");
+  url.searchParams.set("from", sourceLang);
+  for (const lang of targets) url.searchParams.append("to", lang);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Ocp-Apim-Subscription-Key": TRANSLATOR_KEY,
+      "Ocp-Apim-Subscription-Region": TRANSLATOR_REGION,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify([{ Text: text }]),
+  });
+  if (!response.ok) {
+    // 401: wrong key or region. 429/403: the free tier's monthly allowance is used up.
+    const body = await response.json().catch(() => null);
+    throw new TranslatorError(`Translator error ${response.status}: ${body?.error?.message ?? response.statusText}`);
+  }
+
+  const [result] = (await response.json()) as { translations: { text: string; to: string }[] }[];
+  return Object.fromEntries(result.translations.map((t) => [t.to, t.text])) as Record<string, string>;
 }
 
 Deno.serve(async (req) => {
@@ -95,7 +79,7 @@ Deno.serve(async (req) => {
 
     const { data: product, error: productError } = await callerClient
       .from("products")
-      .select("name, descriptions")
+      .select("descriptions")
       .eq("id", productId)
       .maybeSingle();
     if (productError || !product) return json({ error: "Product not found." }, 404);
@@ -104,16 +88,16 @@ Deno.serve(async (req) => {
     const source = descriptions.source;
     const sourceEntry = source ? (descriptions[source] as Entry | undefined) : undefined;
     const text = sourceEntry?.text?.trim();
-    if (!source || !(source in LANGUAGES) || !text) return json({ translated: [] }, 200);
+    if (!source || !LANGUAGES.includes(source) || !text) return json({ translated: [] }, 200);
 
-    const targets = Object.keys(LANGUAGES).filter((lang) => {
+    const targets = LANGUAGES.filter((lang) => {
       if (lang === source) return false;
       const entry = descriptions[lang] as Entry | undefined;
       return !entry?.text || entry.auto !== false;
     });
     if (targets.length === 0) return json({ translated: [] }, 200);
 
-    const translations = await translate(product.name, source, text, targets);
+    const translations = await translate(source, text, targets);
 
     const { data: applied, error: applyError } = await callerClient.rpc("apply_description_translations", {
       target_product: productId,
@@ -125,9 +109,7 @@ Deno.serve(async (req) => {
     // false: the description was edited again meanwhile; that save's own call translates it.
     return json({ translated: applied ? targets : [] }, 200);
   } catch (error) {
-    if (error instanceof Anthropic.APIError) {
-      return json({ error: `Translation service error (${error.status}): ${error.message}` }, 502);
-    }
+    if (error instanceof TranslatorError) return json({ error: error.message }, 502);
     return json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
