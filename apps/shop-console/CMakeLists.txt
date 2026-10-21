@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ShopConsole VERSION 2.3.2 LANGUAGES CXX)
+project(ShopConsole VERSION 2.3.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -40,6 +40,8 @@ qt_add_executable(ShopConsole WIN32
     src/PaymentDialog.cpp
     src/ProductDialog.h
     src/ProductDialog.cpp
+    src/ProductDescriptionsDialog.h
+    src/ProductDescriptionsDialog.cpp
     src/ProductPhotosDialog.h
     src/ProductPhotosDialog.cpp
     src/UpdateChecker.h
