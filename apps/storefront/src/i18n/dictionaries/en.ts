@@ -149,6 +149,9 @@ const en = {
     emptyCategory: "Nothing online in this category yet.",
     emptyAll: "The collection is coming online.",
     emptyText: "Our shops in Gori have it on the shelves. Drop by, or check back soon.",
+    previous: "Previous",
+    next: "Next",
+    pageOf: "Page {page} of {pages}",
   },
   product: {
     pickupLine: "Free pickup at our shops in Gori",

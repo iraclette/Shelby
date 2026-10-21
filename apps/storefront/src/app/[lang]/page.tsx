@@ -21,14 +21,13 @@ const sectionHeading = "font-display text-2xl text-paper";
 const eyebrow = "text-xs tracking-[0.3em] text-brass uppercase";
 
 export default async function Home() {
-  const [categories, products, shops, dict] = await Promise.all([
+  const [categories, { products: recentProducts }, shops, dict] = await Promise.all([
     fetchCategories(),
-    fetchProducts(),
+    fetchProducts(undefined, 1, 8),
     fetchShops(),
     getDictionary(),
   ]);
 
-  const recentProducts = products.slice(0, 8);
 
   return (
     <div>

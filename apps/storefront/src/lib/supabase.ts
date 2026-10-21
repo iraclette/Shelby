@@ -85,24 +85,48 @@ async function fetchInStockIds(): Promise<Set<string>> {
   return new Set((data as string[] | null) ?? []);
 }
 
-export async function fetchProducts(categoryId?: string): Promise<Product[]> {
-  let query = getSupabaseClient()
-    .from("products")
-    .select(PRODUCT_COLUMNS)
-    .order("created_at", { ascending: false });
+export const PRODUCTS_PER_PAGE = 48;
 
+export type ProductPage = { products: Product[]; total: number };
+
+// One page of the catalog, in-stock first then newest. Paging, ordering and the
+// hidden-category filter run in SQL (0036_storefront_product_pages.sql), so a
+// request costs the same however big the catalog gets.
+export async function fetchProducts(
+  categoryId?: string,
+  page = 1,
+  pageSize = PRODUCTS_PER_PAGE,
+): Promise<ProductPage> {
+  let categoryIds: string[] | null = null;
   if (categoryId) {
     // A parent category also lists everything in its subcategories.
     const { data: subcategories } = await getSupabaseClient().from("categories").select("id").eq("parent_id", categoryId);
-    query = query.in("category_id", [categoryId, ...(subcategories ?? []).map((c) => c.id as string)]);
+    categoryIds = [categoryId, ...(subcategories ?? []).map((c) => c.id as string)];
   }
 
-  const [{ data }, inStock] = await Promise.all([query, fetchInStockIds()]);
-  return ((data as unknown as Product[]) ?? [])
-    .filter(onStorefront)
-    .map((product) => ({ ...product, inStock: inStock.has(product.id) }))
-    // Newest first still, but what can be bought comes before what can't.
-    .sort((a, b) => Number(b.inStock) - Number(a.inStock));
+  const { data: rows } = await getSupabaseClient().rpc("storefront_product_page", {
+    category_ids: categoryIds,
+    page_size: pageSize,
+    page_offset: (page - 1) * pageSize,
+  });
+  const pageRows = (rows as { product_id: string; in_stock: boolean; total: number }[] | null) ?? [];
+  if (pageRows.length === 0) return { products: [], total: 0 };
+
+  const { data } = await getSupabaseClient()
+    .from("products")
+    .select(PRODUCT_COLUMNS)
+    .in(
+      "id",
+      pageRows.map((row) => row.product_id),
+    );
+  const byId = new Map(((data as unknown as Product[]) ?? []).map((product) => [product.id, product]));
+  return {
+    products: pageRows.flatMap((row) => {
+      const product = byId.get(row.product_id);
+      return product ? [{ ...product, inStock: row.in_stock }] : [];
+    }),
+    total: Number(pageRows[0].total),
+  };
 }
 
 export async function fetchProduct(id: string): Promise<Product | null> {
