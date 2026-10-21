@@ -33,9 +33,16 @@ function supabase(...args) {
 
 const sqlString = (value) => `'${value.replaceAll("'", "''")}'`;
 
-const { rows } = JSON.parse(
-  supabase("db", "query", "select id, storage_path from product_images where thumb_path is null order by created_at", "-o", "json"),
+const output = supabase(
+  "db",
+  "query",
+  "select id, storage_path from product_images where thumb_path is null order by created_at",
+  "-o",
+  "json",
 );
+// Failures (e.g. a dropped connection) can still exit 0 with an error object.
+const { rows } = JSON.parse(output);
+if (!Array.isArray(rows)) throw new Error(`Unexpected reply from supabase db query: ${output}`);
 console.log(`${rows.length} photo(s) without a thumbnail`);
 
 const work = mkdtempSync(join(tmpdir(), "make-thumbnails-"));
