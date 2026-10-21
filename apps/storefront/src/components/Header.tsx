@@ -8,13 +8,14 @@ import AdminLink from "./AdminLink";
 import CartLink from "./CartLink";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useI18n } from "@/i18n/client";
+import { stripLocale } from "@/i18n/config";
 
 const navLinkClass = "block py-3 whitespace-nowrap transition-colors hover:text-brass lg:inline lg:py-0";
 const activeNavLinkClass = `${navLinkClass} text-paper`;
 
 // URLs carry no language prefix (see proxy.ts), so the pathname compares directly.
 function useNavClass() {
-  const pathname = usePathname();
+  const pathname = stripLocale(usePathname()); // /ru/products when opened from a search result
   return (href: string) => {
     const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
     return { className: active ? activeNavLinkClass : navLinkClass, "aria-current": active ? ("page" as const) : undefined };

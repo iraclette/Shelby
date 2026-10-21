@@ -1,6 +1,6 @@
 "use client";
 
-import { LANG_COOKIE, LOCALES, LOCALE_LABELS, type Locale } from "@/i18n/config";
+import { LANG_COOKIE, LOCALES, LOCALE_LABELS, stripLocale, type Locale } from "@/i18n/config";
 import { useI18n } from "@/i18n/client";
 
 function saveLocale(locale: Locale) {
@@ -9,13 +9,16 @@ function saveLocale(locale: Locale) {
 
 // Saves the choice in the cookie the proxy reads, then reloads so every server-rendered
 // part of the page comes back in the new language. The cart is in localStorage, so it survives.
+// On a language URL (/ru/products) it goes to the plain one, which the cookie then decides.
 export default function LanguageSwitcher({ className = "" }: { className?: string }) {
   const { lang, dict } = useI18n();
 
   function choose(locale: Locale) {
     if (locale === lang) return;
     saveLocale(locale);
-    window.location.reload();
+    const path = stripLocale(window.location.pathname);
+    if (path === window.location.pathname) window.location.reload();
+    else window.location.assign(path + window.location.search);
   }
 
   return (

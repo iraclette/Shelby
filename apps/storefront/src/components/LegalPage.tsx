@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { getLegalTexts } from "@/i18n/legal";
+import { getLocale } from "@/i18n/server";
+import { languageAlternates } from "@/lib/seo";
 import type { LegalTexts } from "@/i18n/legal/en";
 import { fmt } from "@/i18n/format";
 import { legalVars } from "@/lib/business";
@@ -7,8 +9,8 @@ import { legalVars } from "@/lib/business";
 type DocKey = keyof Omit<LegalTexts, "updated">;
 
 export async function legalMetadata(doc: DocKey): Promise<Metadata> {
-  const legal = await getLegalTexts();
-  return { title: `${legal[doc].title} — Shelby` };
+  const [legal, locale] = await Promise.all([getLegalTexts(), getLocale()]);
+  return { title: `${legal[doc].title} — Shelby`, alternates: languageAlternates(`/${doc}`, locale) };
 }
 
 // Terms, privacy and delivery all share this layout.

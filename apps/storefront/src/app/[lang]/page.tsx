@@ -6,12 +6,18 @@ import { fetchCategories, fetchProducts, fetchShops } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import CategoryIcon from "@/components/CategoryIcon";
 import { MapPin } from "lucide-react";
-import { getDictionary } from "@/i18n/server";
+import type { Metadata } from "next";
+import { getDictionary, getLocale } from "@/i18n/server";
+import { languageAlternates } from "@/lib/seo";
 import { categoryName, fmt, formatPrice } from "@/i18n/format";
 import { DELIVERY, ONLINE_ORDERING } from "@/lib/business";
 import { groupCategories, type CategoryGroupKey } from "@/lib/categoryGroups";
 
 export const revalidate = 60;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { alternates: languageAlternates("/", await getLocale()) };
+}
 
 // Optional; renders behind the overlay when present (see public/hero/README.md).
 const HERO_PHOTO = "/hero/hero.jpg";

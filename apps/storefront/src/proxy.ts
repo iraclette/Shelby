@@ -18,16 +18,15 @@ function fromAcceptLanguage(header: string | null): Locale | null {
 
 // URLs stay unprefixed (/products); the chosen language lives in a cookie and every
 // page request is rewritten internally to /<lang>/... so pages under app/[lang] stay
-// statically cacheable per language. A prefixed link (/ru/products) picks that
-// language and redirects to the clean URL, so it works as a shareable language link.
+// statically cacheable per language. A prefixed URL (/ru/products) is served as is and
+// remembers that language: it's what search engines index (they send no cookie; see
+// lib/seo.ts for the hreflang links) and what a shared language link opens.
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const prefix = LOCALES.find((locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`));
   if (prefix) {
-    const url = request.nextUrl.clone();
-    url.pathname = pathname.slice(prefix.length + 1) || "/";
-    const response = NextResponse.redirect(url);
+    const response = NextResponse.next();
     response.cookies.set(LANG_COOKIE, prefix, { path: "/", maxAge: ONE_YEAR, sameSite: "lax" });
     return response;
   }

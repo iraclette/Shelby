@@ -13,6 +13,12 @@ export const LOCALE_LABELS: Record<Locale, { short: string; name: string }> = {
   ru: { short: "РУ", name: "Русский" },
 };
 
+// "/ru/products/1" -> "/products/1"; unprefixed paths come back unchanged.
+export function stripLocale(pathname: string): string {
+  const prefix = LOCALES.find((locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`));
+  return prefix ? pathname.slice(prefix.length + 1) || "/" : pathname;
+}
+
 export function hasLocale(value: string | undefined | null): value is Locale {
   return LOCALES.includes(value as Locale);
 }

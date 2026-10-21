@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { fetchShops } from "@/lib/supabase";
-import { getDictionary } from "@/i18n/server";
+import { getDictionary, getLocale } from "@/i18n/server";
+import { languageAlternates } from "@/lib/seo";
 import JobsForm from "./JobsForm";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const dict = await getDictionary();
-  return { title: dict.meta.jobs };
+  const [dict, locale] = await Promise.all([getDictionary(), getLocale()]);
+  return { title: dict.meta.jobs, alternates: languageAlternates("/jobs", locale) };
 }
 
 export const revalidate = 60;

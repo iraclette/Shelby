@@ -3,11 +3,19 @@ import Link from "next/link";
 import { fetchCategories, fetchProducts, PRODUCTS_PER_PAGE } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import { ProductGridSkeleton } from "@/components/Skeleton";
-import { getDictionary } from "@/i18n/server";
+import type { Metadata } from "next";
+import { getDictionary, getLocale } from "@/i18n/server";
+import { languageAlternates } from "@/lib/seo";
 import { categoryName, fmt } from "@/i18n/format";
 import { subcategoriesOf, topLevelCategories } from "@/lib/categoryGroups";
 
 export const revalidate = 60;
+
+// Filtered and searched views all point at the one catalog page.
+export async function generateMetadata(): Promise<Metadata> {
+  const [dict, locale] = await Promise.all([getDictionary(), getLocale()]);
+  return { title: `${dict.products.title} — Shelby`, alternates: languageAlternates("/products", locale) };
+}
 
 export default async function ProductsPage({
   searchParams,

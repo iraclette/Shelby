@@ -9,6 +9,7 @@ import { fetchCategories } from "@/lib/supabase";
 import { LOCALES } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/client";
 import { getDictionary, getLocale } from "@/i18n/server";
+import { OG_LOCALES, SITE_URL } from "@/lib/seo";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -54,10 +55,12 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const dict = await getDictionary();
+  const [dict, locale] = await Promise.all([getDictionary(), getLocale()]);
   return {
+    metadataBase: new URL(SITE_URL),
     title: dict.meta.title,
     description: dict.meta.description,
+    openGraph: { siteName: "Shelby", type: "website", locale: OG_LOCALES[locale] },
     icons: {
       icon: [
         { url: "/favicon.ico", sizes: "48x48" },
