@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QJsonValue>
 #include <QMap>
 #include <QObject>
@@ -64,6 +65,13 @@ struct Category {
 
 // Top-level categories, each followed by its subcategories (one level deep).
 QVector<Category> categoriesInTreeOrder(const QVector<Category> &categories);
+
+// products.descriptions (0038_description_translations.sql): {"source": "ka", "ka": {"text", "auto"}, …}.
+// Applies what staff typed, same rules as the storefront's lib/descriptions.ts: a language
+// with text becomes staff-written, a cleared one goes back to being translated, and the
+// source is preferredSource if staff wrote in it, else another edited one, else the old source.
+QJsonObject descriptionsWithStaffEdits(const QJsonObject &current, const QMap<QString, QString> &edits,
+                                       const QString &preferredSource);
 // "Perfumes › Niche Perfumes" for a subcategory, just the name otherwise.
 QString categoryLabel(const Category &category, const QVector<Category> &categories);
 
@@ -155,6 +163,7 @@ struct Shop {
 struct ProductInput {
     QString name;
     QString description;
+    QString descriptionLang; // "ka", "en" or "ru": what description is written in
     QString categoryId;
     QString supplierId;
     double costPrice = 0;
@@ -274,6 +283,10 @@ public:
     void createProduct(const ProductInput &input);
     // field is always a fixed column name from our own code, never user input.
     void updateProductField(const QString &productId, const QString &field, const QJsonValue &value);
+    void fetchProductDescriptions(const QString &productId);
+    void saveProductDescriptions(const QString &productId, const QJsonObject &descriptions);
+    // Fills in the other languages via the translate-description edge function (a few seconds).
+    void translateDescription(const QString &productId);
 
     void fetchCategories();
     void createCategory(const QString &name, const QString &parentId = {});
@@ -479,6 +492,13 @@ signals:
     void stockTransferFailed(const QString &message);
     void stockTransfersFetched(const QVector<StockTransferSummary> &transfers);
     void stockTransfersFetchFailed(const QString &message);
+
+    void productDescriptionsFetched(const QString &productId, const QJsonObject &descriptions);
+    void productDescriptionsFetchFailed(const QString &message);
+    void productDescriptionsSaved(const QString &productId);
+    void productDescriptionsSaveFailed(const QString &message);
+    void descriptionTranslated(const QString &productId);
+    void descriptionTranslateFailed(const QString &productId, const QString &message);
 
     void imageUploaded();
     void imageUploadFailed(const QString &message);

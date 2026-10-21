@@ -43,6 +43,7 @@ private:
 
     QLineEdit *m_name;
     QPlainTextEdit *m_description;
+    QComboBox *m_descriptionLang;
     QComboBox *m_category;
     QComboBox *m_supplier;
     QDoubleSpinBox *m_costPrice;

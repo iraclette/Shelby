@@ -9,6 +9,8 @@ import CategoryOptions, { type StaffCategory } from "@/components/CategoryOption
 import Skeleton from "@/components/Skeleton";
 import { randomId } from "@/lib/randomId";
 import { uploadProductPhoto } from "@/lib/productPhotos";
+import { translateDescription, withStaffEdits } from "@/lib/descriptions";
+import { LOCALE_LABELS, LOCALES, type Locale } from "@/i18n/config";
 import { generateInternalSku, loadSkuPrefix } from "@/lib/sku";
 import { useI18n } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
@@ -37,7 +39,7 @@ export default function NewProductClient() {
 
 function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const supabase = getSupabaseClient();
-  const { dict } = useI18n();
+  const { dict, lang } = useI18n();
 
   const [shops, setShops] = useState<Shop[]>([]);
   const [categories, setCategories] = useState<StaffCategory[]>([]);
@@ -48,6 +50,7 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
   const [sellPrice, setSellPrice] = useState("");
   const [costPrice, setCostPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionLang, setDescriptionLang] = useState<Locale>(lang);
   const [stock, setStock] = useState<Record<string, string>>({});
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [variants, setVariants] = useState<NewVariant[]>([]);
@@ -142,7 +145,9 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
 
     const { data: product, error: productError } = await insertProduct({
       name: name.trim(),
-      description: description.trim() || null,
+      descriptions: description.trim()
+        ? withStaffEdits({}, { [descriptionLang]: description }, descriptionLang)
+        : {},
       category_id: categoryId || null,
       sell_price: sell,
       cost_price: cost,
@@ -155,6 +160,8 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
     }
 
     const problems: string[] = [];
+    // The other languages fill in on the server within a few seconds.
+    if (description.trim()) void translateDescription(supabase, product.id);
 
     // Form key -> saved variant id.
     const variantIds = new Map<string, string>();
@@ -384,15 +391,32 @@ function NewProductForm({ session, onSignOut }: { session: Session; onSignOut: (
         </label>
       </div>
 
-      <label className="block">
-        <span className={labelClass}>{dict.staff.description}</span>
+      <div>
+        <div className="flex items-center justify-between">
+          <label htmlFor="description" className={labelClass}>
+            {dict.staff.description}
+          </label>
+          <select
+            value={descriptionLang}
+            onChange={(e) => setDescriptionLang(e.target.value as Locale)}
+            aria-label={dict.staff.writtenIn}
+            className="rounded-md border border-line bg-ink-soft px-2 py-1 text-xs text-paper-dim"
+          >
+            {LOCALES.map((locale) => (
+              <option key={locale} value={locale}>
+                {LOCALE_LABELS[locale].name}
+              </option>
+            ))}
+          </select>
+        </div>
         <textarea
+          id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
           className={`mt-1 ${inputClass}`}
         />
-      </label>
+      </div>
 
       {!listsLoaded && (
         <div className="space-y-2" aria-busy="true">

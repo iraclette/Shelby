@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Descriptions } from "@/lib/descriptions";
 
 // Read-only anon client. Created lazily so `next build` doesn't crash without env vars.
 let cached: SupabaseClient | null = null;
@@ -39,7 +40,8 @@ export type ProductVariant = {
 export type Product = {
   id: string;
   name: string;
-  description: string | null;
+  description: string | null; // the language staff wrote in; see descriptionFor()
+  descriptions: Descriptions | null;
   sell_price: number;
   category_id: string | null;
   categories: Category | null;
@@ -71,7 +73,7 @@ export async function fetchShops(): Promise<Shop[]> {
 }
 
 const PRODUCT_COLUMNS =
-  "id, name, description, sell_price, category_id, categories(id, name, visible_on_storefront), product_images(storage_path, thumb_path, is_primary, variant_id), product_variants(id, name)";
+  "id, name, description, descriptions, sell_price, category_id, categories(id, name, visible_on_storefront), product_images(storage_path, thumb_path, is_primary, variant_id), product_variants(id, name)";
 
 // A product in a category hidden from the website (the Shop Console's "show on
 // website" switch) is hidden too; uncategorised products always show.

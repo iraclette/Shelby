@@ -405,7 +405,6 @@ void SupabaseClient::fetchProducts() {
 void SupabaseClient::createProduct(const ProductInput &input) {
     QJsonObject body{
         {"name", input.name},
-        {"description", input.description},
         {"cost_price", input.costPrice},
         {"sell_price", input.sellPrice},
         {"sku", input.sku},
@@ -414,6 +413,10 @@ void SupabaseClient::createProduct(const ProductInput &input) {
     };
     if (!input.categoryId.isEmpty()) body["category_id"] = input.categoryId;
     if (!input.supplierId.isEmpty()) body["supplier_id"] = input.supplierId;
+    // The description column follows from this (products_sync_description trigger).
+    if (!input.description.isEmpty())
+        body["descriptions"] =
+            descriptionsWithStaffEdits({}, {{input.descriptionLang, input.description}}, input.descriptionLang);
 
     const QMap<QByteArray, QByteArray> headers{
         {"Content-Type", "application/json"},
@@ -454,6 +457,80 @@ void SupabaseClient::updateProductField(const QString &productId, const QString 
         }
         emit productUpdated();
     });
+}
+
+void SupabaseClient::fetchProductDescriptions(const QString &productId) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + productId);
+    query.addQueryItem("select", "descriptions");
+
+    authorizedGet("/rest/v1/products", query, [this, productId](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit productDescriptionsFetchFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        const QJsonArray rows = QJsonDocument::fromJson(data).array();
+        emit productDescriptionsFetched(productId,
+                                        rows.isEmpty() ? QJsonObject() : rows.first().toObject().value("descriptions").toObject());
+    });
+}
+
+void SupabaseClient::saveProductDescriptions(const QString &productId, const QJsonObject &descriptions) {
+    QUrlQuery query;
+    query.addQueryItem("id", "eq." + productId);
+    const QJsonObject body{{"descriptions", descriptions}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("PATCH", "/rest/v1/products", query, QJsonDocument(body).toJson(), headers,
+                    [this, productId](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit productDescriptionsSaveFailed(extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit productDescriptionsSaved(productId);
+    });
+}
+
+void SupabaseClient::translateDescription(const QString &productId) {
+    const QJsonObject body{{"product_id", productId}};
+    const QMap<QByteArray, QByteArray> headers{{"Content-Type", "application/json"}};
+
+    authorizedWrite("POST", "/functions/v1/translate-description", {}, QJsonDocument(body).toJson(), headers,
+                    [this, productId](QNetworkReply *reply) {
+        const QByteArray data = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit descriptionTranslateFailed(productId, extractErrorMessage(data, reply->errorString()));
+            return;
+        }
+        emit descriptionTranslated(productId);
+    });
+}
+
+QJsonObject descriptionsWithStaffEdits(const QJsonObject &current, const QMap<QString, QString> &edits,
+                                       const QString &preferredSource) {
+    QJsonObject next = current;
+    QStringList written;
+    for (auto it = edits.constBegin(); it != edits.constEnd(); ++it) {
+        const QString text = it.value().trimmed();
+        if (text.isEmpty()) {
+            next.remove(it.key());
+        } else {
+            next[it.key()] = QJsonObject{{"text", text}, {"auto", false}};
+            written.append(it.key());
+        }
+    }
+
+    const QString oldSource = current.value("source").toString();
+    QString source;
+    if (written.contains(preferredSource)) source = preferredSource;
+    else if (!written.isEmpty()) source = written.first();
+    else if (next.contains(oldSource)) source = oldSource;
+    // Nothing written by staff is left, so neither are translations of it.
+    if (source.isEmpty()) return {};
+    next["source"] = source;
+    return next;
 }
 
 QVector<Category> categoriesInTreeOrder(const QVector<Category> &categories) {

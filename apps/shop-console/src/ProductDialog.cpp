@@ -4,6 +4,7 @@
 #include "CategoriesPage.h"
 
 #include "Config.h"
+#include "Translations.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -42,6 +43,11 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
     m_name = new QLineEdit(this);
     m_description = new QPlainTextEdit(this);
     m_description->setFixedHeight(110);
+    // What the description is written in; the other website languages are translated from it.
+    m_descriptionLang = new QComboBox(this);
+    for (const QString &code : translations::languageCodes())
+        m_descriptionLang->addItem(translations::languageName(code), code);
+    m_descriptionLang->setCurrentIndex(m_descriptionLang->findData(translations::startupLanguage()));
     m_category = new QComboBox(this);
     m_supplier = new QComboBox(this);
     m_costPrice = new QDoubleSpinBox(this);
@@ -75,7 +81,14 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
 
     auto *form = new QFormLayout;
     form->addRow(tr("Name"), m_name);
-    form->addRow(tr("Description"), m_description);
+    auto *descriptionColumn = new QVBoxLayout;
+    descriptionColumn->addWidget(m_description);
+    auto *descriptionLangRow = new QHBoxLayout;
+    descriptionLangRow->addWidget(new QLabel(tr("Written in"), this));
+    descriptionLangRow->addWidget(m_descriptionLang);
+    descriptionLangRow->addStretch();
+    descriptionColumn->addLayout(descriptionLangRow);
+    form->addRow(tr("Description"), descriptionColumn);
     form->addRow(tr("Category"), categoryRow);
     form->addRow(tr("Supplier"), supplierRow);
     form->addRow(tr("Cost price"), m_costPrice);
@@ -212,6 +225,8 @@ ProductDialog::ProductDialog(SupabaseClient *client, QWidget *parent)
 
     connect(m_client, &SupabaseClient::productCreated, this, [this](const QString &productId) {
         m_pendingProductId = productId;
+        // Fills in the other website languages on the server; nothing here waits for it.
+        if (!m_description->toPlainText().trimmed().isEmpty()) m_client->translateDescription(productId);
 
         QVector<ProductVariantInput> variantInputs;
         for (const VariantRow &row : m_variantRows) {
@@ -340,6 +355,7 @@ void ProductDialog::save() {
     ProductInput input;
     input.name = m_name->text().trimmed();
     input.description = m_description->toPlainText().trimmed();
+    input.descriptionLang = m_descriptionLang->currentData().toString();
     input.categoryId = m_category->currentData().toString();
     input.supplierId = m_supplier->currentData().toString();
     input.costPrice = m_costPrice->value();

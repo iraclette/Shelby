@@ -7,7 +7,8 @@ import StockRequestForm from "@/components/StockRequestForm";
 import ProductGallery from "@/components/ProductGallery";
 import { VariantProvider } from "@/components/VariantSelection";
 import VariantPurchase from "@/components/VariantPurchase";
-import { getDictionary } from "@/i18n/server";
+import { getDictionary, getLocale } from "@/i18n/server";
+import { descriptionFor } from "@/lib/descriptions";
 import { categoryName, fmt, formatPrice } from "@/i18n/format";
 import { DELIVERY } from "@/lib/business";
 
@@ -17,8 +18,9 @@ export default async function ProductPage({
   params,
 }: PageProps<"/[lang]/products/[id]">) {
   const { id } = await params;
-  const [product, dict] = await Promise.all([fetchProduct(id), getDictionary()]);
+  const [product, dict, locale] = await Promise.all([fetchProduct(id), getDictionary(), getLocale()]);
   if (!product) notFound();
+  const description = descriptionFor(product, locale);
 
   const featured = primaryImage(product);
   const galleryImages = featured
@@ -45,8 +47,8 @@ export default async function ProductPage({
           <h1 className="mt-2 font-display text-4xl text-paper">{product.name}</h1>
           <p className="mt-4 text-2xl text-paper tabular-nums">{formatPrice(dict, product.sell_price)}</p>
 
-          {product.description && (
-            <p className="mt-6 max-w-prose whitespace-pre-line leading-relaxed text-paper-dim">{product.description}</p>
+          {description && (
+            <p className="mt-6 max-w-prose whitespace-pre-line leading-relaxed text-paper-dim">{description}</p>
           )}
 
           {product.product_variants.length > 0 ? (

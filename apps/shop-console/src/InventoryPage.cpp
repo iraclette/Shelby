@@ -1,6 +1,7 @@
 #include "InventoryPage.h"
 #include "Theme.h"
 #include "ProductDialog.h"
+#include "ProductDescriptionsDialog.h"
 #include "ProductPhotosDialog.h"
 #include "SupabaseClient.h"
 #include "TransferStockDialog.h"
@@ -77,6 +78,8 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
     toolbar->addWidget(newProductButton);
     auto *photosButton = new QPushButton(tr("Photos…"), this);
     toolbar->addWidget(photosButton);
+    auto *descriptionsButton = new QPushButton(tr("Descriptions…"), this);
+    toolbar->addWidget(descriptionsButton);
     auto *addVariantButton = new QPushButton(tr("Add variant…"), this);
     toolbar->addWidget(addVariantButton);
     auto *transferButton = new QPushButton(tr("Transfer Stock"), this);
@@ -104,6 +107,16 @@ InventoryPage::InventoryPage(SupabaseClient *client, QWidget *parent)
         }
         const Product &product = m_products[m_rows[row].productIndex];
         ProductPhotosDialog dialog(m_client, product.id, product.name, this);
+        dialog.exec();
+    });
+    connect(descriptionsButton, &QPushButton::clicked, this, [this]() {
+        const int row = m_table->currentRow();
+        if (row < 0 || row >= m_rows.size()) {
+            emit statusMessage(tr("Select a product row first."));
+            return;
+        }
+        const Product &product = m_products[m_rows[row].productIndex];
+        ProductDescriptionsDialog dialog(m_client, product.id, product.name, this);
         dialog.exec();
     });
     connect(addVariantButton, &QPushButton::clicked, this, [this]() {

@@ -547,5 +547,17 @@
   "&Copy": "&კოპირება",
   "&Paste": "&ჩასმა",
   "Delete": "წაშლა",
-  "Select All": "ყველაფრის მონიშვნა"
+  "Select All": "ყველაფრის მონიშვნა",
+  "Descriptions…": "აღწერები…",
+  "Descriptions — %1": "აღწერები — %1",
+  "Edit any language and save. Languages you didn't write yourself are translated again from the one you edited; clear a language to have it translated.": "შეცვალეთ ნებისმიერ ენაზე და შეინახეთ. ენები, რომლებიც თქვენ არ დაგიწერიათ, თავიდან ითარგმნება შეცვლილი ტექსტიდან. ენის ველი გაასუფთავეთ, თუ გსურთ, რომ ის ავტომატურად ითარგმნოს.",
+  "Loading…": "იტვირთება…",
+  "Couldn't load descriptions: ": "აღწერები ვერ ჩაიტვირთა: ",
+  "Saved. Translating the other languages…": "შენახულია. დანარჩენი ენები ითარგმნება…",
+  "Saved and translated.": "შენახულია და ნათარგმნია.",
+  "Saved, but translating failed: ": "შენახულია, მაგრამ თარგმნისას დაფიქსირდა შეცდომა: ",
+  "Translated automatically": "ავტომატურად ნათარგმნი",
+  "Original": "ორიგინალი",
+  "Written by staff": "დაწერილია თანამშრომლის მიერ",
+  "Written in": "დაწერილია"
 }

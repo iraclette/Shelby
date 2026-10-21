@@ -44,6 +44,9 @@ export default function AdminLink({
       <Link href="/staff/photos" className={linkClassName} onClick={onNavigate}>
         {dict.nav.photos}
       </Link>
+      <Link href="/staff/descriptions" className={linkClassName} onClick={onNavigate}>
+        {dict.nav.descriptions}
+      </Link>
       <Link href="/staff/inventory" className={linkClassName} onClick={onNavigate}>
         {dict.nav.inventory}
       </Link>

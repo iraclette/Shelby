@@ -587,5 +587,17 @@
   "&Copy": "&Копировать",
   "&Paste": "Вст&авить",
   "Delete": "Удалить",
-  "Select All": "Выделить всё"
+  "Select All": "Выделить всё",
+  "Descriptions…": "Описания…",
+  "Descriptions — %1": "Описания — %1",
+  "Edit any language and save. Languages you didn't write yourself are translated again from the one you edited; clear a language to have it translated.": "Измените текст на любом языке и сохраните. Языки, которые вы не писали сами, будут заново переведены с изменённого. Очистите поле, чтобы язык перевёлся автоматически.",
+  "Loading…": "Загрузка…",
+  "Couldn't load descriptions: ": "Не удалось загрузить описания: ",
+  "Saved. Translating the other languages…": "Сохранено. Переводим на другие языки…",
+  "Saved and translated.": "Сохранено и переведено.",
+  "Saved, but translating failed: ": "Сохранено, но перевод не удался: ",
+  "Translated automatically": "Переведено автоматически",
+  "Original": "Оригинал",
+  "Written by staff": "Написано сотрудником",
+  "Written in": "Язык текста"
 }
